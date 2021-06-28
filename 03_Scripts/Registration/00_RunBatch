@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# CHANGE this directory to your installation location
+MEDTOOLPATH=/root/medtool45_SL77/bin
+export MEDTOOLPATH
+
+sh 00_ScanBatch.bash

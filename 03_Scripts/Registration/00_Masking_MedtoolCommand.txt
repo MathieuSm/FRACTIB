@@ -1,0 +1,2 @@
+# Compute full mask for further registration
+"/root/medtool45_SL77/Python27/bin/python" "/root/medtool45_SL77/bin/mic.pyc" -in "Registration_Masking/Scan_BMD.mhd"  -out "Registration_Masking/Scan_FULLMASK.mhd"  -fill "Threshold;2;out;3"
