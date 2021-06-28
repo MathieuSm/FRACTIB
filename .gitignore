@@ -2,6 +2,7 @@
 *.mhd
 *.raw
 *.AIM*
+*.vtk
 
 # Ignore presentations and reports pdf
 *.pdf
@@ -9,3 +10,10 @@
 # Ignore pictures because high definition is too large
 *.png
 *.svg
+
+# Ignore auxiliary tex files
+*.gz
+*.aux
+*.nav
+*.snm
+*.toc

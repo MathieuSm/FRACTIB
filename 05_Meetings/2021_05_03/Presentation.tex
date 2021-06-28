@@ -1,0 +1,393 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Beamer Presentation
+% LaTeX Template
+% Version 1.0 (01/07/19)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------
+%	PACKAGES AND THEMES		-----------------------------------
+%----------------------------------------------------------------
+
+\documentclass[xcolor=table]{beamer}
+
+\mode<presentation> {
+
+\usetheme{Frankfurt}
+\usecolortheme{dove}
+\usefonttheme{serif}
+
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{booktabs} 
+\usepackage{subfig}
+\usepackage{pgf}
+\usepackage{multirow}
+\usepackage{appendixnumberbeamer}
+\usepackage{bookmark}
+\usepackage{siunitx}
+\usepackage{animate}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{pifont}
+\usepackage{caption}
+\captionsetup{skip=0pt,belowskip=0pt}
+
+
+%----------------------------------------------------------------
+%	GENERAL OPTIONS 	-----------------------------------------
+%----------------------------------------------------------------
+
+% Set template options
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{frametitle}{\vspace*{1em}\insertframetitle}
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{section in head/foot}{fg=white, bg=black}
+
+% Headline
+\makeatletter
+\setbeamertemplate{headline}
+{%
+  \pgfuseshading{beamer@barshade}%
+    \vskip-5ex%
+  \begin{beamercolorbox}[ignorebg,ht=2.25ex,dp=3.75ex]{section in head/foot}
+  \insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}
+  \end{beamercolorbox}%
+  \ifbeamer@sb@subsection%
+    \begin{beamercolorbox}[ignorebg,ht=2.125ex,dp=1.125ex,%
+      leftskip=.3cm,rightskip=.3cm plus1fil]{subsection in head/foot}
+      \usebeamerfont{subsection in head/foot}\insertsubsectionhead
+    \end{beamercolorbox}%
+  \fi%
+}%
+\makeatother
+
+% Footline
+\makeatletter
+\setbeamertemplate{footline}
+{
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,left]{section in head/foot}%
+    \usebeamerfont{author in head/foot}\hspace{10pt}\insertshortauthor
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{section in head/foot}%
+    \usebeamerfont{title in head/foot}\insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{section in head/foot}%
+    \usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}
+    \insertframenumber{}\hspace*{2em}
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+\makeatother
+
+% Add logo
+\logo{\pgfputat{\pgfxy(0,7)}{\includegraphics[width=0.1\paperwidth]{Pictures/00_Unibe_Logo}}}
+
+% Table settings
+\renewcommand{\arraystretch}{2}
+\captionsetup{labelformat=empty,labelsep=none}
+\definecolor{Gray}{gray}{0.9}
+
+% Define highlitghing command
+\makeatletter
+\let\HL\hl
+\renewcommand\hl{%
+	\let\set@color\beamerorig@set@color
+	\let\reset@color\beamerorig@reset@color
+	\HL}
+\makeatother
+
+% Add overview at each begin of section
+%\AtBeginSection[]
+%{
+%	\begin{frame}
+%		\frametitle{Overview}
+%		\tableofcontents[currentsection]
+%	\end{frame}
+%}
+
+%----------------------------------------------------------------
+%	TITLE PAGE 	-------------------------------------------------
+%----------------------------------------------------------------
+
+\title[Regular Meeting]{
+\uppercase{Regular Meeting}
+} 
+
+\author{Mathieu Simon}
+\institute[University of Bern]
+{
+MSc - Biomedical Engineering \\
+University of Bern, Faculty of Medicine \\
+\medskip
+}
+\date{May 3, 2021}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+
+\begin{frame}
+	\frametitle{Overview}
+	\tableofcontents
+\end{frame}
+
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+
+\section{2D Affine Registration}
+
+\begin{frame}
+	\frametitle{Test Initialization}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/01_FixedImage}\\
+		Fixed and moving images
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/01_MovingImage}
+			\caption{Moving Image}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test Results I}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/01_FixedImage}
+			\caption{Fixed Image}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/02_DisplacementField}
+			\caption{Displacement Field}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test Results II}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/03_J}
+			\caption{Spherical Compression}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/03_NormF}
+			\caption{Isovolumic Deformation}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+
+\section{2D Affine + B-Spline Registration}
+
+\begin{frame}
+	\frametitle{Test I Initialization}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/04_FixedImage}
+			\caption{Fixed Image}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/04_MovingImage}
+			\caption{Moving Image}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test I Results I}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/04_FixedImage}
+			\caption{Fixed Image}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/05_DisplacementField}
+			\caption{Displacement Field}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test I Results II}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/06_J}
+			\caption{Spherical Compression}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/06_NormF}
+			\caption{Isovolumic Deformation}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Observations}
+	\begin{itemize}
+		\item Important deformations lead sometimes to negative $J$
+		\item $||\tilde{F}||$ highlights high deformation zones
+	\end{itemize}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test II Initialization}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/07_FixedImage}
+			\caption{Fixed Image}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/07_MovingImage}
+			\caption{Moving Image}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test II Results I}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\animategraphics[controls,width=1\linewidth,trim=-10 0 -10 0]{2}{Pictures/08_Image-}{0}{1}\\
+			\caption{Fixed and moving image}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/08_DisplacementField}
+			\caption{Displacement Field}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Test II Results II}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/09_J}
+			\caption{Spherical Compression}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/09_NormF}
+			\caption{Isovolumic Deformation}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+\begin{frame}
+	\frametitle{Test II Results III}
+	\begin{columns}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=-50 -50 -50 0]{Pictures/10_Damaged}
+			\caption{Manually highlighting}
+		\end{figure}
+		\column[c]{0.45\linewidth}
+		\centering
+		\begin{figure}
+			\includegraphics[width=1\linewidth,trim=150 -50 150 0]{Pictures/10_DeformationMagnitude2}
+			\caption{Deformation magnitude}
+		\end{figure}
+	\end{columns}
+\end{frame}
+
+
+
+\begin{frame}
+	\frametitle{Observations}
+	\begin{itemize}
+		\item Smaller deformations
+		\item Still some negative $J$
+		\item $||\tilde{F}||$ and deformation magnitude highlight high deformation zones well
+	\end{itemize}
+\end{frame}
+
+
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+\appendix
+
+%\section{References}
+%\begin{frame}
+%	\frametitle{Statistics}
+%	\footnotesize{
+%		\begin{thebibliography}{99}
+%			\setbeamertemplate{bibliography item}[triangle]
+%			\bibitem[Fox 2016]{p8} Fox, John (2016).
+%			\newblock Fox, Applied Regressions Analysis and Linear Models
+%			\newblock \textit{Sage publications}(3), 817
+%		\end{thebibliography}
+%	}
+%\end{frame}
+
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+%----------------------------------------------------------------
+
+\end{document} 
