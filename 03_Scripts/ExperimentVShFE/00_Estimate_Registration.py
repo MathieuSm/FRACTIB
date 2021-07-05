@@ -216,7 +216,23 @@ for Index in range(len(SampleList)):
     #             ZerosArray[Z + int(Diff_Z/2), Y + int(Diff_Y/2), X + int(Diff_X/2)] = HRpQCT_Scan[Z,Y,X]
     # HRpQCT_Scan = ZerosArray
 
+    # Verify best angle
     BestAngle = DSCs.loc[DSCs['DSC'].idxmax(), 'Angle']
+    Rotated_Slice = ndimage.rotate(HRpQCT_Slice, BestAngle, reshape=False)
+    ElastixImageFilter = sitk.ElastixImageFilter()
+    ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(Rotated_Slice))
+    ElastixImageFilter.Execute()
+    ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
+    ResultImage = sitk.GetArrayFromImage(ResultImage)
+
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(uCT_Slice, cmap='bone', alpha=0.5)
+    Axes.imshow(ResultImage, cmap='bone', alpha=0.5)
+    Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(DSC)))
+    plt.show()
+    plt.close(Figure)
+
+
     File = open(ResultsDirectory + '/HR-pQCT_RigidRotationAngle.txt','+w')
     File.write(str(int(BestAngle)))
     File.close()
