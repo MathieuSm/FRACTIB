@@ -1,6 +1,6 @@
 (Transform "EulerTransform")
 (NumberOfParameters 6)
-(TransformParameters -0.028931 0.072388 -0.108918 -51.803469 -73.692147 -27.984811)
+(TransformParameters -0.028987 0.072378 -0.108928 6.195975 38.309445 -27.979281)
 (InitialTransformParametersFileName "NoInitialTransform")
 (UseBinaryFormatForTransformationParameters "false")
 (HowToCombineTransforms "Compose")

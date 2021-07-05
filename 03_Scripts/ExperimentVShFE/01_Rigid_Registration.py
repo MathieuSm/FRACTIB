@@ -183,8 +183,9 @@ As = [10]
 SampleList = [Dir for Dir in os.listdir(Registration_Directory) if os.path.isdir(Registration_Directory+Dir)]
 SampleList.sort()
 
+SampleList = ['443_L_73_F']
 
-for Index in range(18,len(SampleList)):
+for Index in range(len(SampleList)):
 
     Sample = SampleList[Index]
 
@@ -205,11 +206,11 @@ for Index in range(18,len(SampleList)):
     HRpQCT_Mask = sitk.GetArrayFromImage(HRpQCT_Mask)
 
 
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(uCT_Scan[:, :, int(uCT_Scan.shape[-1] / 2)], cmap='bone')
-    # plt.show()
-    # plt.close(Figure)
-    #
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(uCT_Scan[:, :, int(uCT_Scan.shape[-1] / 2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
+
     # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
     # Axes.imshow(uCT_Mask[:, :, int(uCT_Mask.shape[-1] / 2)], cmap='bone')
     # plt.show()
@@ -238,10 +239,12 @@ for Index in range(18,len(SampleList)):
                   'ResultsDirectory':SamplePath}
     ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
 
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(ResultImage[:, :, int(ResultImage.shape[-1] / 2)], cmap='bone')
-    # plt.show()
-    # plt.close(Figure)
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(ResultImage[:, :, int(ResultImage.shape[-1] / 2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
+
+    # ResultImage = TransformixTransformations(HRpQCT_Scan, TransformParameterMap, ResultsDirectory=SamplePath)
 
     Origin = np.array([0, 0, 0])
     WriteMHD(ResultImage,Spacing,Origin,SamplePath, 'HR-pQCT_Registered', PixelType='float')

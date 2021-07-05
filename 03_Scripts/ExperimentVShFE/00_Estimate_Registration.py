@@ -97,6 +97,22 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
     WriteRaw(ImageArray, os.path.join(Path, FileName) + '.raw', PixelType)
 
     return
+def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirectory):
+
+    ## Compute jacobian of deformation field using transformix
+    TransformixImageFilter = sitk.TransformixImageFilter()
+    TransformixImageFilter.ComputeDeformationFieldOff()
+    TransformixImageFilter.ComputeSpatialJacobianOff()
+    TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
+    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
+    TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
+    TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
+
+    TransformixImageFilter.Execute()
+
+    ResultImage = TransformixImageFilter.GetResultImage()
+
+    return sitk.GetArrayFromImage(ResultImage)
 
 
 # 01 Set variables
@@ -108,6 +124,8 @@ Registration_Directory = os.path.join(WorkingDirectory,'04_Results/04_Registrati
 
 SampleList = os.listdir(DataDirectory)
 SampleList.sort()
+
+SampleList = ['443_L_73_F']
 
 for Index in range(len(SampleList)):
 
@@ -165,15 +183,21 @@ for Index in range(len(SampleList)):
     ## Rotate HR-pQCT image to 180°
     HRpQCT_Mask = np.rot90(HRpQCT_Mask, 2, (0, 1))
 
-    HRpQCT_Slice = HRpQCT_Mask[int(HRpQCT_Mask.shape[0] / 2), :, :]
-    uCT_Slice = uCT_Mask[int(uCT_Mask.shape[0] / 2), :, :]
+    HRpQCT_Slice = HRpQCT_Mask[int(HRpQCT_Mask.shape[0]*0.75):int(HRpQCT_Mask.shape[0]*0.95), :, :]
+    uCT_Slice = uCT_Mask[int(uCT_Mask.shape[0]*0.75):int(uCT_Mask.shape[0]*0.95), :, :]
 
 
     # 07 Find best HR-pQCT image initial rotation
-    Rotations = range(0,360,15)
+    Rotations = range(0,360,90)
     DSCs = pd.DataFrame()
     for Rotation in Rotations:
-        Rotated_Slice = ndimage.rotate(HRpQCT_Slice,Rotation,reshape=False)
+        Rotated_Slice = ndimage.rotate(HRpQCT_Slice,Rotation,(1,2),reshape=True)
+
+        # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+        # Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+        # Axes.imshow(Rotated_Slice[int(Rotated_Slice.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+        # plt.show()
+        # plt.close(Figure)
 
         ## Register images
         ParameterMap = sitk.GetDefaultParameterMap('translation')
@@ -195,9 +219,9 @@ for Index in range(len(SampleList)):
         DSCs = DSCs.append({'Angle':Rotation,'DSC':DSC},ignore_index=True)
 
         # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-        # Axes.imshow(uCT_Slice, cmap='bone', alpha=0.5)
-        # Axes.imshow(ResultImage, cmap='bone', alpha=0.5)
-        # Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(DSC)))
+        # Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+        # Axes.imshow(ResultImage[int(ResultImage.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+        # Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(Rotation)))
         # plt.show()
         # plt.close(Figure)
 
@@ -218,31 +242,48 @@ for Index in range(len(SampleList)):
 
     # Verify best angle
     BestAngle = DSCs.loc[DSCs['DSC'].idxmax(), 'Angle']
-    Rotated_Slice = ndimage.rotate(HRpQCT_Slice, BestAngle, reshape=False)
-    ElastixImageFilter = sitk.ElastixImageFilter()
+    Rotated_Slice = ndimage.rotate(HRpQCT_Slice, BestAngle, (1,2), reshape=True)
     ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(Rotated_Slice))
     ElastixImageFilter.Execute()
     ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
     ResultImage = sitk.GetArrayFromImage(ResultImage)
 
+    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    # Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+    # Axes.imshow(ResultImage[int(ResultImage.shape[0]/2),:,:], cmap='bone', alpha=0.5)
+    # Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(BestAngle)))
+    # Figure.suptitle(Sample)
+    # plt.show()
+    # plt.close(Figure)
+
+    ## Write best angle into text file
+    File = open(ResultsDirectory + '/HR-pQCT_RigidRotationAngle.txt','+w')
+    File.write(str(int(BestAngle)))
+    File.close()
+
+    ## Rotate and translate HR-pQCT scan
+    Rotated_Scan = ndimage.rotate(HRpQCT_Scan, int(BestAngle), (1,2), reshape=True)
+
+    TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
+    TransformParameterMap[0]['Size'] = tuple([str(i) for i in uCT_Mask.shape[::-1]])
+    Result_Scan = TransformixTransformations(Rotated_Scan, TransformParameterMap, ResultsDirectory)
+
     Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(uCT_Slice, cmap='bone', alpha=0.5)
-    Axes.imshow(ResultImage, cmap='bone', alpha=0.5)
-    Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(DSC)))
+    Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0] / 2), :, :], cmap='bone', alpha=0.5)
+    Axes.imshow(Result_Scan[int(Result_Scan.shape[0] / 2), :, :], cmap='bone', alpha=0.5)
+    Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(BestAngle)))
+    Figure.suptitle(Sample)
     plt.show()
     plt.close(Figure)
 
 
-    File = open(ResultsDirectory + '/HR-pQCT_RigidRotationAngle.txt','+w')
-    File.write(str(int(BestAngle)))
-    File.close()
-    Rotated_Scan = ndimage.rotate(HRpQCT_Scan, int(BestAngle), (1,2), reshape=False)
     Origin = np.array([0, 0, 0])
-    WriteMHD(Rotated_Scan, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT', PixelType='float')
-    Rotated_Mask = ndimage.rotate(HRpQCT_Mask, int(BestAngle), (1,2), reshape=False)
-    WriteMHD(Rotated_Mask, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT_Mask', PixelType='float')
+    WriteMHD(Result_Scan, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT', PixelType='float')
+    Rotated_Mask = ndimage.rotate(HRpQCT_Mask, int(BestAngle), (1,2), reshape=True)
+    Result_Mask = TransformixTransformations(Rotated_Mask, TransformParameterMap, ResultsDirectory)
+    WriteMHD(Result_Mask, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT_Mask', PixelType='float')
 
-    # 09 Load uCT scan, crop it and write it
+    # 09 Load uCT scan and write it
     uCT_Scan = sitk.ReadImage(uCT_SamplePath + '/' + uCT_Scan[0][:-13] + '.mhd')
     uCT_Scan = sitk.GetArrayFromImage(uCT_Scan)
     WriteMHD(uCT_Scan, New_Spacing, Origin, ResultsDirectory, 'uCT', PixelType='float')
@@ -252,7 +293,7 @@ for Index in range(len(SampleList)):
 
 
 # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-# Axes.imshow(uCT_Mask[:,:,int(uCT_Mask.shape[2]/2)], cmap='bone', alpha=0.5)
+# Axes.imshow(Rotated_Scan[:,:,int(Rotated_Scan.shape[2]/2)], cmap='bone', alpha=0.5)
 # Axes.imshow(uCT_Scan[:,:,int(uCT_Scan.shape[2]/2)], cmap='bone', alpha=0.5)
 # plt.show()
 # plt.close(Figure)
