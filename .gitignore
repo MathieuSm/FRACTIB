@@ -3,6 +3,7 @@
 *.raw
 *.AIM*
 *.vtk
+*.ISQ
 
 # Ignore presentations and reports pdf
 *.pdf
@@ -10,6 +11,8 @@
 # Ignore pictures because high definition is too large
 *.png
 *.svg
+*.JPG
+*.jpg
 
 # Ignore auxiliary tex files
 *.gz
