@@ -125,7 +125,6 @@ Registration_Directory = os.path.join(WorkingDirectory,'04_Results/04_Registrati
 SampleList = os.listdir(DataDirectory)
 SampleList.sort()
 
-SampleList = ['443_L_73_F']
 
 for Index in range(len(SampleList)):
 
