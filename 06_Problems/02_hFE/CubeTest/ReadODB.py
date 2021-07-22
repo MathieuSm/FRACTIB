@@ -7,7 +7,7 @@ import csv
 
 print '\n\n\n'
 print 'Open odb file...'
-odb = openOdb(path='Cube_UMAT.odb')
+odb = openOdb(path='2_Cubes_UMAT_F.odb')
 
 # Create a variable that refers to the
 # last frame of the first step.
