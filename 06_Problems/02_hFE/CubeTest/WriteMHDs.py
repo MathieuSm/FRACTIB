@@ -199,7 +199,7 @@ for Index in DeformationGradients.index:
     Y_Index = list(Y).index(Position['Y'])
     Z_Index = list(Z).index(Position['Z'])
 
-    F[X_Index,Y_Index,Z_Index] = DeformationGradients.loc[Index].values
+    F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
 
 SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 

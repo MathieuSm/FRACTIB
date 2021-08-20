@@ -7,7 +7,7 @@ import csv
 
 print '\n\n\n'
 print 'Open odb file...'
-odb = openOdb(path='2_Cubes_UMAT_F.odb')
+odb = openOdb(path='Test.odb')
 
 # Create a variable that refers to the
 # last frame of the first step.
@@ -41,17 +41,17 @@ ElementNumber = 0
 print '\n\n\n'
 print 'Read elements data...'
 for Element in Instance.elements:
-    print '\n'
-    print 'Element label: ', Element.label
-    print 'Element connectivity: ', Element.connectivity
+    #print '\n'
+    #print 'Element label: ', Element.label
+    #print 'Element connectivity: ', Element.connectivity
     
     # Compute element central position
     XYZ = np.zeros((len(Element.connectivity),3))
     NodeNumber = 0
     for Node in Element.connectivity:
-        print '\n'
-        print 'Node label: ', Node
-        print 'Node coordinates: ', Nodes[Node-1].coordinates
+        #print '\n'
+        #print 'Node label: ', Node
+        #print 'Node coordinates: ', Nodes[Node-1].coordinates
         for Axis in range(3):
             XYZ[NodeNumber,Axis] = Nodes[Node-1].coordinates[Axis]
         NodeNumber += 1
@@ -59,12 +59,12 @@ for Element in Instance.elements:
     # Compute element mean deformation gradient
     F_IntegrationPoints = np.zeros((8,9))
     for IntegrationPoint in range(8):
-        print '\n'
-        print 'Integration point label: ', F11.getSubset(region=Element).values[IntegrationPoint].integrationPoint
+        #print '\n'
+        #print 'Integration point label: ', F11.getSubset(region=Element).values[IntegrationPoint].integrationPoint
         
         for F_Component in range(9):
             F_Value = F[F_Component].getSubset(region=Element).values[IntegrationPoint].data
-            print F_Names[F_Component], ': ', F_Value
+            #print F_Names[F_Component], ': ', F_Value
             F_IntegrationPoints[IntegrationPoint,F_Component] = F_Value
             
     # Add data to arrays and increment
