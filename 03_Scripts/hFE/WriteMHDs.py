@@ -182,6 +182,7 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 WorkingDirectory = os.getcwd()
 DataPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/02_FEA/432_L_77_F/')
 ResultsPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/02_FEA/432_L_77_F/')
+OffsetPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/01_AIM/432_L_77_F/')
 
 # 02 Load files
 ElementsPositions = pd.read_csv(DataPath + 'ElementsPositions.csv',names=['X','Y','Z'])
@@ -191,7 +192,7 @@ X = np.unique(ElementsPositions['X'].values)
 Y = np.unique(ElementsPositions['Y'].values)
 Z = np.unique(ElementsPositions['Z'].values)
 
-F = np.zeros((len(X),len(Y),len(Z),9))
+F = np.zeros((len(Z),len(Y),len(X),9))
 for Index in DeformationGradients.index:
     
     Position = ElementsPositions.loc[Index]
@@ -199,11 +200,22 @@ for Index in DeformationGradients.index:
     Y_Index = list(Y).index(Position['Y'])
     Z_Index = list(Z).index(Position['Z'])
     
-    F[X_Index,Y_Index,Z_Index] = DeformationGradients.loc[Index].values
+    F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
 
-SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
+# Symmetry in Y plane is necessary
+SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
 
+# Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
-Offset = np.array([min(X),min(Y),min(Z)])
+
+MHDFiles = [File for File in os.listdir(OffsetPath) if File.endswith('.mhd')]
+MHDFiles.sort()
+MHDFile = open(OffsetPath+MHDFiles[0],'r')
+MHDText = MHDFile.read()
+Start = MHDText.find('Offset') + 9
+Stop = MHDText[Start:].find('\n')
+ScanOffset = np.array(MHDText[Start:Start+Stop].split()).astype('float')
+
+Offset = ScanOffset + np.array([min(X),min(Y),min(Z)])
 WriteMHD(SphericalCompression, Spacing, Offset, ResultsPath, 'J', PixelType='float')
 WriteMHD(IsovolumicDeformation, Spacing, Offset, ResultsPath, 'F_Tilde', PixelType='float')

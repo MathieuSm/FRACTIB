@@ -117,7 +117,7 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-DataDirectory = os.path.join(WorkingDirectory,'02_Data/05_hFE/01_AIMs/')
+DataDirectory = os.path.join(WorkingDirectory,'02_Data/05_hFE/01_AIM/')
 uCT_Directory = os.path.join(WorkingDirectory,'02_Data/03_uCT/')
 Registration_Directory = os.path.join(WorkingDirectory,'04_Results/04_Registration/')
 

@@ -260,7 +260,7 @@ def WriteVTK(VectorField,FilePath,FileName,SubSampling=1):
     File.close()
 
     return
-def DecomposeJacobian(JacobianArray, SubSampling=1):
+def DecomposeJacobian(JacobianArray):
 
     # Determine 2D of 3D jacobian array
     JacobianTerms = JacobianArray.shape[-1]
@@ -305,7 +305,7 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
 
     elif JacobianTerms == 9:
 
-        ArrayShape = JacobianArray[::SubSampling, ::SubSampling, ::SubSampling, 0].shape
+        ArrayShape = JacobianArray[:, :, :, 0].shape
 
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
@@ -317,7 +317,7 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
             for j in range(0, ArrayShape[1]):
                 for i in range(0, ArrayShape[2]):
 
-                    F_d = np.matrix(JacobianArray[int(k*SubSampling), int(j*SubSampling), int(i*SubSampling), :].reshape((3, 3)))
+                    F_d = np.matrix(JacobianArray[k, j, i, :].reshape((3, 3)))
 
                     ## Unimodular decomposition of F
                     J = np.linalg.det(F_d)
@@ -579,19 +579,42 @@ for Index in Indices:
                 Tac = time.clock_gettime(0)
                 LogFile.write('Compute transformation jacobian in %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
 
-                ## Perform jacobian unimodular decomposition
                 Tic = time.clock_gettime(0)
                 JacobianImage = sitk.ReadImage(ResultsDirectory + '/fullSpatialJacobian.mhd')
-                JacobianArray = sitk.GetArrayFromImage(JacobianImage)
+                JacobianImage.SetSpacing((0.098, 0.098, 0.098))
+
+                ## Resample Jacobian image
+                Offset = JacobianImage.GetOrigin()
+                Direction = JacobianImage.GetDirection()
+                Orig_Size = np.array(JacobianImage.GetSize(), dtype=np.int)
+                Orig_Spacing = JacobianImage.GetSpacing()
+
+                New_Spacing = (0.9712, 0.9712, 0.9712)
+
+                Resample = sitk.ResampleImageFilter()
+                Resample.SetInterpolator = sitk.sitkLinear
+                Resample.SetOutputDirection(Direction)
+                Resample.SetOutputOrigin(Offset)
+                Resample.SetOutputSpacing(New_Spacing)
+
+                New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
+                New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
+                New_Size = [int(s) for s in New_Size]
+                Resample.SetSize(New_Size)
+
+                ResampledJacobian = Resample.Execute(JacobianImage)
+
+                ## Perform jacobian unimodular decomposition
+                JacobianArray = sitk.GetArrayFromImage(ResampledJacobian)
                 SubSampling = i[-1]
-                SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianArray, SubSampling=SubSampling)
+                SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianArray)
                 Tac = time.clock_gettime(0)
                 LogFile.write('Read and decompose jacobian in %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
 
                 ## Write results
                 Tic = time.clock_gettime(0)
-                WriteMHD(SphericalCompression, np.array([1,1,1])*SubSampling, ResultsDirectory, 'J', PixelType='float')
-                WriteMHD(IsovolumicDeformation, np.array([1,1,1])*SubSampling, ResultsDirectory, 'F_Tilde', PixelType='float')
+                WriteMHD(SphericalCompression, np.array(New_Spacing), ResultsDirectory, 'J', PixelType='float')
+                WriteMHD(IsovolumicDeformation, np.array(New_Spacing), ResultsDirectory, 'F_Tilde', PixelType='float')
                 Tac = time.clock_gettime(0)
                 LogFile.write('Write decomposition results in %.3f s' % (Tac - Tic) + '\n\n')
 

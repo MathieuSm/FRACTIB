@@ -5,8 +5,9 @@ import os
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
+from scipy import ndimage
 import matplotlib.pyplot as plt
-import time
+
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -24,7 +25,7 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
     TransformixImageFilter.ComputeDeformationFieldOff()
     TransformixImageFilter.ComputeSpatialJacobianOff()
     TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
-    TransformixImageFilter.SetMovingImage(MovingImage)
+    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
     TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
     TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
 
@@ -117,11 +118,11 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-Data_Directory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
+Data_Directory = os.path.join(WorkingDirectory,'02_Data/05_hFE/02_FEA/')
+Results_Directory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
 
 SampleList = [Dir for Dir in os.listdir(Data_Directory) if os.path.isdir(Data_Directory+Dir)]
 SampleList.sort()
-
 
 for Index in range(len(SampleList)):
 
@@ -129,94 +130,61 @@ for Index in range(len(SampleList)):
 
     # 02 Set Paths and Scans
     SamplePath = os.path.join(Data_Directory,Sample)
+    ResultsPath = os.path.join(Results_Directory,Sample)
 
-    # 03 Load Scans
-    uCT_Scan = sitk.ReadImage(SamplePath + '/uCT.mhd')
-    uCT_Mask = sitk.ReadImage(SamplePath + '/uCT_Mask.mhd')
-    HRpQCT_Scan = sitk.ReadImage(SamplePath + '/HR-pQCT_Registered.mhd')
-    HRpQCT_Mask = sitk.ReadImage(SamplePath + '/HR-pQCT_Mask.mhd')
+    # 03 Load J and F_Tilde
+    J = sitk.ReadImage(SamplePath + '/J.mhd')
 
-    Spacing = uCT_Scan.GetSpacing()
+    # # 04 Resample HR-pQCT image
+    # Offset = J.GetOrigin()
+    # Direction = J.GetDirection()
+    # Orig_Size = np.array(J.GetSize(), dtype=np.int)
+    # Orig_Spacing = J.GetSpacing()
+    #
+    # New_Spacing = (0.098, 0.098, 0.098)
+    #
+    # Resample = sitk.ResampleImageFilter()
+    # Resample.SetInterpolator = sitk.sitkLinear
+    # Resample.SetOutputDirection(Direction)
+    # Resample.SetOutputOrigin(Offset)
+    # Resample.SetOutputSpacing(New_Spacing)
+    #
+    # New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
+    # New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
+    # New_Size = [int(s) for s in New_Size]
+    # Resample.SetSize(New_Size)
+
+    ResampledJ = J
+    ResampledJ = Resample.Execute(J)
+
+    # Rotate image according to registration estimation
+    ResampledJArray = sitk.GetArrayFromImage(ResampledJ)
+    ResampledJArray = np.rot90(ResampledJArray, 2, (0, 1))
+    BestAngle = np.loadtxt(ResultsPath + '/HR-pQCT_RigidRotationAngle.txt').astype('int')
+    RotatedJ = ndimage.rotate(ResampledJArray, BestAngle, (1,2), reshape=True)
+
+    CenterOfRotation = np.array(ResampledJ.GetSize())/2
+    SpacingRatio = np.array(ResampledJ.GetSpacing()) / np.array([0.098, 0.098, 0.098])
 
     # 04 Transform HR-pQCT mask
-    TransformParameterMap = sitk.ReadParameterFile(SamplePath + '/TransformParameters.0.txt')
-    HRpQCT_Mask = TransformixTransformations(HRpQCT_Mask, TransformParameterMap, ResultsDirectory=SamplePath)
-    ## Re-binarize mask
-    HRpQCT_Mask[HRpQCT_Mask < 0.5] = 0
-    HRpQCT_Mask[HRpQCT_Mask >= 0.5] = 1
+    TransformParameterMap = sitk.ReadParameterFile(ResultsPath + '/TransformParameters.0.txt')
+    TransformParameterMap['CenterOfRotationPoint'] = (str(CenterOfRotation[0]),
+                                                      str(CenterOfRotation[1]),
+                                                      str(CenterOfRotation[2]))
+    TransformParameterMap['Size'] = tuple([str(i) for i in ResampledJ.GetSize()])
+    TransformParameterMap['Spacing'] = tuple([str(i) for i in ResampledJ.GetSpacing()])
+    Parameters = np.array(TransformParameterMap['TransformParameters']).astype('float')
+    Parameters[-3:] = Parameters[-3:] / SpacingRatio
+    TransformParameterMap['TransformParameters'] = tuple([str(i) for i in Parameters])
 
-    uCT_Mask = sitk.GetArrayFromImage(uCT_Mask)
+    Transformed_J = TransformixTransformations(RotatedJ, TransformParameterMap, ResultsDirectory=ResultsPath)
 
-    # 05 Compute first slice to keep
-    DSCs = pd.DataFrame()
-    for Slice in range(50):
-
-        if np.sum(uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :]) > 0:
-            DSC = 2 * np.sum(uCT_Mask[Slice, :, :] * HRpQCT_Mask[Slice, :, :]) / np.sum(uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :])
-            DSCs = DSCs.append({'Slice':Slice,'DSC':DSC},ignore_index=True)
-
-    DSCs['Slope'] = 0
-    for i in DSCs.index:
-        if i > 0:
-            DSCs.loc[i,'Slope'] = DSCs.loc[i,'DSC'] - DSCs.loc[i-1,'DSC']
-
-    Tolerance = 1E-3
-    FirstSlice = DSCs.loc[DSCs[DSCs['Slope'] > Tolerance]['Slice'].idxmax(),'Slice'].astype('int')
 
     Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(uCT_Mask[FirstSlice-1, :, :], cmap='bone',alpha=0.5)
-    Axes.imshow(HRpQCT_Mask[FirstSlice-1, :, :], cmap='bone',alpha=0.5)
+    Axes.imshow(Transformed_J[:, :, int(Transformed_J.shape[2]/2)], cmap='bone')
     plt.show()
     plt.close(Figure)
-
-    # 06 Compute last slice to keep
-    DSCs = pd.DataFrame()
-    for SliceIndex in range(50):
-
-        Slice = uCT_Mask.shape[0]-SliceIndex-1
-
-        if np.sum(uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :]) > 0:
-            DSC = 2 * np.sum(uCT_Mask[Slice, :, :] * HRpQCT_Mask[Slice, :, :]) / np.sum(
-                uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :])
-            DSCs = DSCs.append({'Slice': Slice, 'DSC': DSC}, ignore_index=True)
-
-    DSCs['Slope'] = 0
-    for i in DSCs.index:
-        if i > 0:
-            DSCs.loc[i, 'Slope'] = DSCs.loc[i, 'DSC'] - DSCs.loc[i - 1, 'DSC']
-
-    Tolerance = 1E-3
-    LastSlice = DSCs.loc[DSCs[DSCs['Slope'] > Tolerance]['Slice'].idxmin(),'Slice'].astype('int')
-
-
-    uCT_Scan = sitk.GetArrayFromImage(uCT_Scan)
-    HRpQCT_Scan = sitk.GetArrayFromImage(HRpQCT_Scan)
-
-    uCT_Cropped = uCT_Scan[FirstSlice:LastSlice, :, :]
-    HRpQCT_Cropped = HRpQCT_Scan[FirstSlice:LastSlice, :, :]
-
-    uMask_Cropped = uCT_Mask[FirstSlice:LastSlice, :, :]
-    HRMask_Cropped = HRpQCT_Mask[FirstSlice:LastSlice, :, :]
 
     Origin = np.array([0, 0, 0])
-    WriteMHD(uCT_Cropped,Spacing,Origin,SamplePath, 'uCT_Cropped', PixelType='float')
-    WriteMHD(HRpQCT_Cropped,Spacing,Origin,SamplePath, 'HRpQCT_Cropped', PixelType='float')
-    WriteMHD(uMask_Cropped,Spacing,Origin,SamplePath, 'uCT_Mask_Cropped', PixelType='float')
-    WriteMHD(HRMask_Cropped,Spacing,Origin,SamplePath, 'HRpQCT_Mask_Cropped', PixelType='float')
-
-
-
-    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(uCT_Cropped[:, :, int(uCT_Mask.shape[2]/2)], cmap='bone',alpha=0.5)
-    Axes.imshow(HRpQCT_Scan[FirstSlice:LastSlice, :, int(HRpQCT_Mask.shape[2]/2)], cmap='bone',alpha=0.5)
-    plt.show()
-    plt.close(Figure)
-
-
-    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.plot(DSCs['Slope'], linestyle='--', marker='o', color=(1,0,0))
-    plt.show()
-    plt.close(Figure)
-
-
-
+    Spacing = np.array(ResampledJ.GetSpacing())
+    WriteMHD(Transformed_J, Spacing, Origin, ResultsPath, 'J', PixelType='float')
