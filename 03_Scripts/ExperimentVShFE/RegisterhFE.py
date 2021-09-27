@@ -135,44 +135,85 @@ for Index in range(len(SampleList)):
     # 03 Load J and F_Tilde
     J = sitk.ReadImage(SamplePath + '/J.mhd')
 
-    # # 04 Resample HR-pQCT image
-    # Offset = J.GetOrigin()
-    # Direction = J.GetDirection()
-    # Orig_Size = np.array(J.GetSize(), dtype=np.int)
-    # Orig_Spacing = J.GetSpacing()
-    #
-    # New_Spacing = (0.098, 0.098, 0.098)
-    #
-    # Resample = sitk.ResampleImageFilter()
-    # Resample.SetInterpolator = sitk.sitkLinear
-    # Resample.SetOutputDirection(Direction)
-    # Resample.SetOutputOrigin(Offset)
-    # Resample.SetOutputSpacing(New_Spacing)
-    #
-    # New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
-    # New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
-    # New_Size = [int(s) for s in New_Size]
-    # Resample.SetSize(New_Size)
+    # 04 Rotate image according to pre-registration rotation
+    JArray = sitk.GetArrayFromImage(J)
+    JArray = np.rot90(JArray, 2, (0, 1))
 
-    ResampledJ = J
-    ResampledJ = Resample.Execute(J)
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(JArray[:, :, int(JArray.shape[2]/2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
 
-    # Rotate image according to registration estimation
-    ResampledJArray = sitk.GetArrayFromImage(ResampledJ)
-    ResampledJArray = np.rot90(ResampledJArray, 2, (0, 1))
+    # 05 Rotate image according to registration estimation
     BestAngle = np.loadtxt(ResultsPath + '/HR-pQCT_RigidRotationAngle.txt').astype('int')
-    RotatedJ = ndimage.rotate(ResampledJArray, BestAngle, (1,2), reshape=True)
+    RotatedJ = ndimage.rotate(JArray, BestAngle, (1,2), reshape=True)
 
-    CenterOfRotation = np.array(ResampledJ.GetSize())/2
-    SpacingRatio = np.array(ResampledJ.GetSpacing()) / np.array([0.098, 0.098, 0.098])
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(RotatedJ[:, :, int(RotatedJ.shape[2]/2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
+
+    CenterOfRotation = np.array(JArray.shape[::-1]) / 2
+    Spacing = np.array(J.GetSpacing())
+    Origin = np.array([0, 0, 0])
+    SpacingRatio = Spacing / np.array([0.098, 0.098, 0.098])
+
+    # 06 Transform HR-pQCT mask
+    TransformParameterMap = sitk.ReadParameterFile(ResultsPath + '/TransformParameters.0.txt')
+    TransformParameterMap['CenterOfRotationPoint'] = tuple([str(i) for i in CenterOfRotation])
+    TransformParameterMap['Size'] = tuple([str(i) for i in JArray.shape[::-1]])
+    TransformParameterMap['Spacing'] = tuple([str(i) for i in Spacing])
+    TransformParameterMap['Origin'] = tuple([str(i) for i in Origin])
+    Parameters = np.array(TransformParameterMap['TransformParameters']).astype('float')
+    Parameters[-3:] = Parameters[-3:] / SpacingRatio
+    TransformParameterMap['TransformParameters'] = tuple([str(i) for i in Parameters])
+
+    Transformed_J = TransformixTransformations(RotatedJ, TransformParameterMap, ResultsDirectory=ResultsPath)
+
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(Transformed_J[:, :, int(Transformed_J.shape[2] / 2)], cmap='bone')
+    Axes.set_xlim([0, JArray.shape[1]])
+    Axes.set_ylim([JArray.shape[0], 0])
+    plt.show()
+    plt.close(Figure)
+
+    WriteMHD(Transformed_J, Spacing, Origin, ResultsPath, 'J', PixelType='float')
+
+
+
+
+
+
+    # 06 Pad image to keep info after registration
+    PadWidth = 5
+    PaddedJ = np.pad(JArray, PadWidth, mode='constant')
+
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(PaddedJ[:, :, int(PaddedJ.shape[2] / 2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
+
+    CenterOfRotation = np.array(PaddedJ.shape[::-1])/2 - PadWidth
+    Spacing = np.array(J.GetSpacing())
+    Origin = np.array([0, 0, 0]) + PadWidth * Spacing
+    SpacingRatio = Spacing / np.array([0.098, 0.098, 0.098])
+
+    # 05 Rotate image according to registration estimation
+    BestAngle = np.loadtxt(ResultsPath + '/HR-pQCT_RigidRotationAngle.txt').astype('int')
+    RotatedJ = ndimage.rotate(PaddedJ, BestAngle, (1, 2), reshape=True)
+
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(RotatedJ[:, :, int(RotatedJ.shape[2] / 2)], cmap='bone')
+    plt.show()
+    plt.close(Figure)
+
 
     # 04 Transform HR-pQCT mask
     TransformParameterMap = sitk.ReadParameterFile(ResultsPath + '/TransformParameters.0.txt')
-    TransformParameterMap['CenterOfRotationPoint'] = (str(CenterOfRotation[0]),
-                                                      str(CenterOfRotation[1]),
-                                                      str(CenterOfRotation[2]))
-    TransformParameterMap['Size'] = tuple([str(i) for i in ResampledJ.GetSize()])
-    TransformParameterMap['Spacing'] = tuple([str(i) for i in ResampledJ.GetSpacing()])
+    TransformParameterMap['CenterOfRotationPoint'] = tuple([str(i) for i in CenterOfRotation])
+    TransformParameterMap['Size'] = tuple([str(i) for i in PaddedJ.shape[::-1]])
+    TransformParameterMap['Spacing'] = tuple([str(i) for i in Spacing])
+    TransformParameterMap['Origin'] = tuple([str(i) for i in Origin])
     Parameters = np.array(TransformParameterMap['TransformParameters']).astype('float')
     Parameters[-3:] = Parameters[-3:] / SpacingRatio
     TransformParameterMap['TransformParameters'] = tuple([str(i) for i in Parameters])
@@ -181,10 +222,10 @@ for Index in range(len(SampleList)):
 
 
     Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(Transformed_J[:, :, int(Transformed_J.shape[2]/2)], cmap='bone')
+    Axes.imshow(Transformed_J[5:, 5:, int(Transformed_J.shape[2]/2)], cmap='bone')
+    Axes.set_xlim([0, JArray.shape[1]])
+    Axes.set_ylim([JArray.shape[0], 0])
     plt.show()
     plt.close(Figure)
 
-    Origin = np.array([0, 0, 0])
-    Spacing = np.array(ResampledJ.GetSpacing())
     WriteMHD(Transformed_J, Spacing, Origin, ResultsPath, 'J', PixelType='float')

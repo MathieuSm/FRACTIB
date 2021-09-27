@@ -21,5 +21,6 @@
 *.snm
 *.toc
 
-# Ignore Abaqus input files
+# Ignore Abaqus files
 *.inp
+*.odb
