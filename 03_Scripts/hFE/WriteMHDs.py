@@ -210,12 +210,12 @@ Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
 
 MHDFiles = [File for File in os.listdir(OffsetPath) if File.endswith('.mhd')]
 MHDFiles.sort()
-MHDFile = open(OffsetPath+MHDFiles[0],'r')
+MHDFile = open(OffsetPath+MHDFiles[-1],'r')
 MHDText = MHDFile.read()
 Start = MHDText.find('Offset') + 9
 Stop = MHDText[Start:].find('\n')
 ScanOffset = np.array(MHDText[Start:Start+Stop].split()).astype('float')
 
-Offset = ScanOffset + np.array([min(X),min(Y),min(Z)])
-WriteMHD(SphericalCompression, Spacing, Offset, ResultsPath, 'J', PixelType='float')
-WriteMHD(IsovolumicDeformation, Spacing, Offset, ResultsPath, 'F_Tilde', PixelType='float')
+# Offset = ScanOffset + np.array([min(X),min(Y),min(Z)])
+WriteMHD(SphericalCompression, Spacing, ScanOffset, ResultsPath, 'J', PixelType='float')
+WriteMHD(IsovolumicDeformation, Spacing, ScanOffset, ResultsPath, 'F_Tilde', PixelType='float')

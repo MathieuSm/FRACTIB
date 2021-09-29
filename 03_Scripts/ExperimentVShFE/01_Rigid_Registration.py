@@ -247,4 +247,4 @@ for Index in range(len(SampleList)):
     ResultImage = TransformixTransformations(HRpQCT_Scan, TransformParameterMap, ResultsDirectory=SamplePath)
 
     Origin = np.array([0, 0, 0])
-    WriteMHD(ResultImage,Spacing,Origin,SamplePath, 'HR-pQCT_Registered', PixelType='float')
+    WriteMHD(ResultImage,Spacing,Origin,SamplePath, 'HR-pQCT_Registered2', PixelType='float')
