@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
-import time
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -103,13 +102,13 @@ Data_Directory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePredic
 SampleList = [Dir for Dir in os.listdir(Data_Directory) if os.path.isdir(Data_Directory+Dir)]
 SampleList.sort()
 
+Index = 0
+# for Index in range(len(SampleList)):
 
-for Index in range(len(SampleList)):
+Sample = SampleList[Index]
 
-    Sample = SampleList[Index]
-
-    # 02 Set Paths and Scans
-    SamplePath = os.path.join(Data_Directory,Sample)
+# 02 Set Paths and Scans
+SamplePath = os.path.join(Data_Directory,Sample)
 
 
 ## Do some tests
@@ -137,15 +136,25 @@ TestArray2 = J_Zeros * sitk.GetArrayFromImage(uCT_Mask)
 Vmin = min(TestArray.min(),TestArray2.min())
 Vmax = max(TestArray.max(),TestArray2.max())
 
-Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-Cmap = Axes.imshow(TestArray[:, :, int(TestArray.shape[2]/2)], cmap='jet', vmin=Vmin, vmax=Vmax)
-plt.colorbar(Cmap)
-plt.show()
-plt.close(Figure)
 
-Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-Cmap = Axes.imshow(TestArray2[:, :, int(TestArray2.shape[2]/2)], cmap='jet', vmin=Vmin, vmax=Vmax)
-plt.colorbar(Cmap)
+import matplotlib.gridspec as gridspec
+
+Ratio = 1
+
+GS = gridspec.GridSpec(1,2, width_ratios=[1,Ratio])
+Figure = plt.figure(figsize=(11,4.5), dpi=500)
+Axes1 = plt.subplot(GS[0])
+Axes2 = plt.subplot(GS[1])
+Axes = [Axes1, Axes2]
+
+Axes[0].imshow(TestArray2[:, :, int(TestArray2.shape[2]/2)], cmap='jet', vmin=Vmin, vmax=Vmax)
+CMap = Axes[1].imshow(TestArray[:, :, int(TestArray.shape[2]/2)], cmap='jet', vmin=Vmin, vmax=Vmax)
+Axes[0].axis('off')
+Axes[1].axis('off')
+Axes[0].set_title('Registration')
+Axes[1].set_title('hFE')
+Figure.colorbar(CMap,ax=Axes,orientation='horizontal',shrink=0.5)
+plt.subplots_adjust(bottom=0.25,wspace=0.01)
 plt.show()
 plt.close(Figure)
 
@@ -154,3 +163,87 @@ Spacing = np.array(uCT_Mask.GetSpacing()[::-1])
 
 WriteMHD(TestArray, Spacing, Origin, SamplePath, 'J_hFE', PixelType='float')
 WriteMHD(TestArray2, Spacing, Origin, SamplePath, 'J_Registration', PixelType='float')
+
+
+## Look at correlations
+J_hFE = TestArray.flatten()
+J_R = TestArray2.flatten()
+J_hFE[J_hFE == 0] = np.nan
+J_R[J_R == 0] = np.nan
+
+StackLength = TestArray.shape[2] * TestArray.shape[1]
+StackColors = plt.cm.jet(np.linspace(0,1,TestArray.shape[0]))
+Colors = np.tile(StackColors,StackLength).reshape((StackLength*TestArray.shape[0],4))
+
+ColoredTibia = TestArray.copy()
+ColoredTibia[ColoredTibia != 0] = 1
+ColoredTibia[ColoredTibia == 0] = np.nan
+for Stack in range(ColoredTibia.shape[0]):
+    ScanStack = ColoredTibia[Stack,:,:]
+    ScanStack[ScanStack == 1] = Stack / ColoredTibia.shape[0]
+ColoredTibia = ColoredTibia / np.nanmax(ColoredTibia)
+
+
+
+
+import statsmodels.formula.api as smf
+Data = pd.DataFrame([J_R,J_hFE],index=['Registration','hFE']).T
+Model = smf.ols("Registration ~ hFE - 1", data=Data).fit()
+
+
+
+
+## Plot results
+Y_Obs = Model.model.endog
+Y_Fit = Model.fittedvalues
+N = int(Model.nobs)
+C = np.matrix(Model.cov_params())
+X = np.matrix(Model.model.exog)
+X_Obs = np.sort(Model.model.exog[:,0])
+
+
+## Compute R2 and standard error of the estimate
+E = Y_Obs - Y_Fit
+RSS = np.sum(E ** 2)
+SE = np.sqrt(RSS / Model.df_resid)
+TSS = np.sum((Model.model.endog - Model.model.endog.mean()) ** 2)
+RegSS = TSS - RSS
+R2 = RegSS / TSS
+R2adj = 1 - RSS/TSS * (N-1)/(N-X.shape[1]+1-1)
+
+## Compute CI lines
+B_0 = np.sqrt(np.diag(np.abs(X * C * X.T)))
+from scipy.stats.distributions import t
+Alpha = 0.95
+t_Alpha = t.interval(Alpha, N - X.shape[1] - 1)
+CI_Line_u = Y_Fit + t_Alpha[0] * SE * B_0
+CI_Line_o = Y_Fit + t_Alpha[1] * SE * B_0
+
+
+
+
+import matplotlib.gridspec as gridspec
+
+Ratio = 1
+
+GS = gridspec.GridSpec(1,2, width_ratios=[1,Ratio])
+Figure = plt.figure(figsize=(11,4.5), dpi=500)
+Axes1 = plt.subplot(GS[0])
+Axes2 = plt.subplot(GS[1])
+Axes = [Axes1, Axes2]
+
+Axes[0].imshow(ColoredTibia[:,:,int(ColoredTibia.shape[2]/2)],cmap='jet')
+Axes[1].scatter(J_R,J_hFE,marker='o',c=Colors)
+Axes[1].plot([],linestyle='none',marker='o',color=(0,0,0),label='Data')
+Axes[1].fill_between(X_Obs, np.sort(CI_Line_o), np.sort(CI_Line_u), color=(0, 0, 0), alpha=0.1)
+Axes[1].plot(X_Obs,np.sort(Y_Fit),linestyle='--',color=(0,0,0),label='Fit')
+Axes[0].axis('off')
+Axes[0].set_title('Color bar')
+Axes[1].set_xlabel('Registration values')
+Axes[1].set_ylabel('hFE values')
+Axes[1].annotate(r'R$^2$: ' + str(round(R2,3)),(0.75,0.3),xycoords='axes fraction')
+Axes[1].annotate(r'SE: ' + str(round(SE,3)),(0.748,0.25),xycoords='axes fraction')
+plt.legend(loc='lower right')
+plt.show()
+plt.close(Figure)
+

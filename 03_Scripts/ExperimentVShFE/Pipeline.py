@@ -15,86 +15,33 @@ pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width,suppress=True,formatter={'float_kind':'{:3}'.format})
 plt.rc('font', size=12)
 
-def WriteRaw(ImageArray, OutputFileName, PixelType):
 
-    if PixelType == 'uint':
+def PlotsImages(Image1, Image2, C1=np.array([[0, 0, 0], [255, 0, 0]]), C2=np.array([[0, 0, 0], [0, 0, 255]]), Cbar=False):
+    # Create custom color map
+    import matplotlib as mpl  # in python
+    ColorMap1 = mpl.colors.ListedColormap(C1 / 255.0)
+    ColorMap2 = mpl.colors.ListedColormap(C2 / 255.0)
 
-        MinValue = ImageArray.min()
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(Image1[:, :, int(Image1.shape[2] / 2)], cmap=ColorMap1, alpha=0.5)
+    ColorMap = Axes.imshow(Image2[:, :, int(Image2.shape[2] / 2)], cmap=ColorMap2, alpha=0.5)
+    if Cbar:
+        plt.colorbar(ColorMap)
+    Axes.axis('off')
+    plt.show()
+    plt.close(Figure)
 
-        if MinValue < 0:
-            ShiftedImageArray = ImageArray + abs(MinValue)
-            MaxValue = ShiftedImageArray.max()
-        elif MinValue > 0:
-            ShiftedImageArray = ImageArray - MinValue
-            MaxValue = ShiftedImageArray.max()
-        else :
-            ShiftedImageArray = ImageArray
-            MaxValue = ShiftedImageArray.max()
-
-        ScaledImageArray = ShiftedImageArray / MaxValue * 255
-
-        CastedImageArray = ScaledImageArray.astype(np.uint8)
-
-    elif PixelType == 'short':
-        CastedImageArray = ImageArray.astype(np.short)
-    elif PixelType == 'float':
-        CastedImageArray = ImageArray.astype('float32')
-
-    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape)
-    File[:] = CastedImageArray[:]
-    del File
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(Image1[int(Image1.shape[0] / 2), :, :], cmap=ColorMap1, alpha=0.5)
+    ColorMap = Axes.imshow(Image2[int(Image2.shape[0] / 2), :, :], cmap=ColorMap2, alpha=0.5)
+    if Cbar:
+        plt.colorbar(ColorMap)
+    Axes.axis('off')
+    plt.show()
+    plt.close(Figure)
 
     return
-def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
-    if PixelType == 'short' or PixelType == 'float':
-        if len(ImageArray.shape) == 2:
-
-            Array_3D = np.zeros((1,ImageArray.shape[0],ImageArray.shape[1]))
-
-            for j in range(ImageArray.shape[0]):
-                for i in range(ImageArray.shape[1]):
-                    Array_3D[0,j,i] = ImageArray[j,i]
-
-            ImageArray = Array_3D
-
-    nz, ny, nx = np.shape(ImageArray)
-
-    lx = float(Spacing[0])
-    ly = float(Spacing[1])
-    lz = float(Spacing[2])
-
-    TransformMatrix = '1 0 0 0 1 0 0 0 1'
-    X_o, Y_o, Z_o = float(Offset[0]), float(Offset[1]), float(Offset[2])
-    CenterOfRotation = '0 0 0'
-    AnatomicalOrientation = 'LPS'
-
-    outs = open(os.path.join(Path, FileName) + '.mhd', 'w')
-    outs.write('ObjectType = Image\n')
-    outs.write('NDims = 3\n')
-    outs.write('BinaryData = True\n')
-    outs.write('BinaryDataByteOrderMSB = False\n')
-    outs.write('CompressedData = False\n')
-    outs.write('TransformMatrix = %s \n' % TransformMatrix)
-    outs.write('Offset = %g %g %g\n' % (X_o, Y_o, Z_o))
-    outs.write('CenterOfRotation = %s \n' % CenterOfRotation)
-    outs.write('AnatomicalOrientation = %s \n' % AnatomicalOrientation)
-    outs.write('ElementSpacing = %g %g %g\n' % (lx, ly, lz))
-    outs.write('DimSize = %i %i %i\n' % (nx, ny, nz))
-
-    if PixelType == 'uint':
-        outs.write('ElementType = %s\n' % 'MET_UCHAR')
-    elif PixelType == 'short':
-        outs.write('ElementType = %s\n' % 'MET_SHORT')
-    elif PixelType == 'float':
-        outs.write('ElementType = %s\n' % 'MET_FLOAT')
-
-    outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
-    outs.close()
-
-    WriteRaw(ImageArray, os.path.join(Path, FileName) + '.raw', PixelType)
-
-    return
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
@@ -114,27 +61,50 @@ uCT = sitk.ReadImage((SamplePath + '/uCT.mhd'))
 uCT_Array = sitk.GetArrayFromImage(uCT)
 HRpQCT = sitk.ReadImage((SamplePath + '/HR-pQCT.mhd'))
 HRpQCT_Array = sitk.GetArrayFromImage(HRpQCT)
+HRpQCT_R = sitk.ReadImage((SamplePath + '/HR-pQCT_Registered.mhd'))
+HRpQCT_R_Array = sitk.GetArrayFromImage(HRpQCT_R)
+uCT_C = sitk.ReadImage((SamplePath + '/uCT_Cropped.mhd'))
+uCT_C_Array = sitk.GetArrayFromImage(uCT_C)
+HRpQCT_C = sitk.ReadImage((SamplePath + '/HRpQCT_Cropped.mhd'))
+HRpQCT_C_Array = sitk.GetArrayFromImage(HRpQCT_C)
+J_C = sitk.ReadImage((SamplePath + '/J_Cropped.mhd'))
+J_C_Array = sitk.GetArrayFromImage(J_C)
+J_R = sitk.ReadImage((SamplePath + '/J_Registration.mhd'))
+J_R_Array = sitk.GetArrayFromImage(J_R)
 
 # Segment it
 Otsu_Filter = sitk.OtsuThresholdImageFilter()
 Otsu_Filter.SetInsideValue(0)
 Otsu_Filter.SetOutsideValue(1)
 Segmentation = Otsu_Filter.Execute(uCT)
-Threshold = Otsu_Filter.GetThreshold()
-uCT_Array[uCT_Array < Threshold] = 0
+uCT_Threshold = Otsu_Filter.GetThreshold()
+uCT_Array[uCT_Array < uCT_Threshold] = 0
 uCT_Array[uCT_Array > 0] = 1
+uCT_C_Array[uCT_C_Array < uCT_Threshold] = 0
+uCT_C_Array[uCT_C_Array > 0] = 1
 
-Threshold = 3000
-HRpQCT_Array[HRpQCT_Array < Threshold] = 0
+HRpQCT_Threshold = 3000
+HRpQCT_Array[HRpQCT_Array < HRpQCT_Threshold] = 0
 HRpQCT_Array[HRpQCT_Array > 0] = 1
+HRpQCT_R_Array[HRpQCT_R_Array < HRpQCT_Threshold] = 0
+HRpQCT_R_Array[HRpQCT_R_Array > 0] = 1
+HRpQCT_C_Array[HRpQCT_C_Array < HRpQCT_Threshold] = 0
+HRpQCT_C_Array[HRpQCT_C_Array > 0] = 1
+
 
 # Plot
-Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-Axes.imshow(uCT_Array[:, :, int(uCT_Array.shape[2]/2)], cmap='bone')
-plt.show()
-plt.close(Figure)
+PlotsImages(uCT_Array,HRpQCT_Array)
+PlotsImages(uCT_Array,HRpQCT_R_Array)
+PlotsImages(uCT_C_Array,HRpQCT_C_Array)
 
-Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-Axes.imshow(HRpQCT_Array[:, :, int(HRpQCT_Array.shape[2]/2)], cmap='bone')
-plt.show()
-plt.close(Figure)
+J_C_Array[J_C_Array < 0.1] = np.nan
+J_R_Array[J_R_Array < 0.1] = np.nan
+
+C = np.linspace(0,255,256)
+C = np.append(C,255)
+Colormap = np.zeros((len(C),3))
+for Step in range(len(C)):
+    Colormap[Step,0] = C[::-1][Step]
+    Colormap[Step, 2] = C[Step]
+Colormap = Colormap.astype('int')
+PlotsImages(J_C_Array,J_R_Array,C1=Colormap,C2=Colormap,Cbar=True)

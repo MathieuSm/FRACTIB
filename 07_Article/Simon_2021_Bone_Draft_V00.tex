@@ -1,0 +1,751 @@
+%% 
+%% Copyright 2019-2020 Elsevier Ltd
+%% 
+%% This file is part of the 'CAS Bundle'.
+%% --------------------------------------
+%% 
+%% It may be distributed under the conditions of the LaTeX Project Public
+%% License, either version 1.2 of this license or (at your option) any
+%% later version.  The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.2 or later is part of all distributions of LaTeX
+%% version 1999/12/01 or later.
+%% 
+%% The list of all files belonging to the 'CAS Bundle' is
+%% given in the file `manifest.txt'.
+%% 
+%% Template article for cas-dc documentclass for 
+%% double column output.
+
+%\documentclass[a4paper,fleqn,longmktitle]{cas-dc}
+\documentclass[a4paper,fleqn]{DC_ArtStyle}
+
+%\usepackage[authoryear,longnamesfirst]{natbib}
+%\usepackage[authoryear]{natbib}
+\usepackage[numbers]{natbib}
+\usepackage{lipsum}
+\usepackage{xcolor}
+\usepackage[justification=centering]{caption}
+\usepackage{subcaption}
+\usepackage{siunitx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{rotating}
+\usepackage{float}
+\usepackage{multicol}
+
+
+\newcommand{\abbreviations}[1]{%
+	\nonumnote{\textit{Abbreviations:\enspace}#1}}
+
+
+\begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+\shorttitle{Fabric-Elasticity in Osteogenesis Imperfecta}
+\shortauthors{Simon et~al.}
+
+\title[mode = title]{Fabric-Elasticity Relationships in Osteogenesis Imperfecta (OI)}
+
+% Autors
+\author[1]{Mathieu Simon}
+\ead{mathieu.simon@artorg.unibe.ch}
+
+\author[1]{Michael Indermaur}
+
+\author[1]{Denis Schenk}
+
+\author[2,3]{Bettina Willie}
+
+\author[1]{Philippe Zysset}
+
+% Adresses
+\address[1]{ARTORG Centre for Biomedical Engineering Research, University of Bern, Bern, Switzerland}
+
+\address[2]{Shriners Hospital for Children, Montreal, Canada}
+
+\address[3]{McGill University, Montreal, Canada}
+
+
+% Abbreviations
+\abbreviations{OI, osteogenesis imperfecta;
+			   HR-pQCT, high resolution peripheral quantitative tomography;
+			   BMD, bone mass density;
+			   ROI, region of interest;
+			   BV/TV, bone volume over total volume;
+			   SMI, structure model index;
+			   MIL, mean intercept length;
+			   FEA, finite element analysis
+			   KUBC, kinematic uniform boundary condition;
+			   PMUBC, periodicity-compatible mixed uniform boundary condition.}
+
+% Footnotes
+
+
+\begin{abstract}
+	Osteogenesis Imperfecta (OI) is an inherited form of bone fragility. This disease, also called "brittle bone disease", is characterised by impaired synthesis of type I collagen, altered trabecular bone architecture and reduced bone mass that lead to fragile bones. High resolution peripheral computed tomography (HR-pQCT) is a powerful method to investigate bone morphology in the weight-bearing distal tibia and the 3D reconstructions can be exploited in either micro-finite element ($\mu$FE) or homogenised finite element (hFE) analysis for bone strength estimation. The hFE scheme uses local bone volume fraction (BV/TV) and anisotropy information (fabric) to compute healthy bone strength within a reasonable computation time using fabric-elasticity relationships. Thus, the aim of this study is to investigate fabric-elasticity relationships in OI trabecular bone compared to healthy controls.
+	
+	In this study, the morphology of distal tibias of 50 OI diagnosed people were compared to 120 healthy controls using second generation HR-pQCT. 
+	Six regions of interest (ROIs) were selected per individual in a common anatomical region. A first age \& gender matching allowed to perform a morphometric analysis and compare the outcome with literature. Then, stiffness tensors of ROIs were computed by FEA and multiple linear regressions were performed on the Zysset-Curnier orthotropic model to compare the two groups using 5 parameters. After initial fits with all the samples of each group, the data were filtered according to a fixed threshold for a defined coefficient of variation (CV) assessing the ROI heterogeneity. Second fits were performed on these filtered data sets and then additional fits were done on BV/TV \& fabric anisotropy (DA) matched data to detect statistical differences between the two groups. This full and filtered data were in turn compared with previous results from $\mu$CT reconstructions obtained in other anatomical locations.
+	
+	In agreement with available literature, significantly lower BV/TV, trabecular number (Tb N), significantly higher trabecular spacing (Tb Sp), trabecular spacing standard deviation (Tb Sp SD), but no differences in trabecular thickness (Tb Th) were found between OI and controls. The stiffness of ROIs from OI bone reached lower values and the multilinear fabric-elasticity fits tended to overestimate the stiffness in the lower range. Filtering out highly heterogeneous ROIs removed these low stiffness ROIs and lead to similar correlation coefficients for both OI and healthy groups. Finally, the BV/TV \& DA matched data revealed no significant differences in fabric-elasticity parameters between OI and healthy individuals. Comparing with previous studies, the stiffness constants from 61 $\mu$m resolution HR-pQCT ROIs were lower than for 36 $\mu$m resolution $\mu$m CT images.
+	
+	In conclusion, despite the reduced regression parameters found for HR-pQCT images, the fabric-elasticity relationships between OI and healthy individuals are similar when the trabecular bone ROIs are sufficiently homogeneous to perform the mechanical analysis. Since highly heterogenous ROIs coincide with very low BV/TV, we expect them to play a minor role in hFE analysis of distal bone sections or parts.
+\end{abstract}
+
+\begin{keywords}
+Bone \sep
+Elasticity \sep
+Fabric \sep
+Osteogenesis Imperfecta
+\end{keywords}
+
+
+\maketitle
+
+\section{Introduction}
+
+Osteogenesis imperfecta (OI) is an inherited form of bone fragility \cite{Tournis2018}. It was estimated to concern about 1/13'500 births, less severe forms being not accounted in this estimation as they are recognized later in life \cite{Lindahl2015}. Therefore, OI is considered as a rare metabolic bone disorder. Sillence classification \cite{Sillence1979} allows to define four main types of OI based on the clinical phenotype:
+\begin{itemize}
+	\item Type I: less severe
+	\item Type II: lethal at most shortly after birth
+	\item Type III: most severe surviving form
+	\item Type IV: intermediate severity
+\end{itemize}
+Also known as "brittle bone disease", OI is characterized by impaired synthesis of type I collagen, leading to such brittle and fragile bones \cite{LIM2017}.\\
+
+Bone fragility in OI is complex and not totally understood despite the investigations at different hierarchical levels. Multiple studies show that DXA areal BMD (aBMD) tends to be lower in OI than compared to healthy individuals \cite{Folkestad2012,Lindahl2015,Scheres2018}. The microstructure is different as well. \citeauthor{Folkestad2012}\cite{Folkestad2012}, \citeauthor{Kocijan2015}\cite{Kocijan2015}, and \citeauthor{Rolvien2018}\cite{Rolvien2018} shown that BV/TV and trabecular number in OI is lower than for healthy controls. Trabecular spacing and inhomogeneity are higher for OI diagnosed people but the trabecular thickness is not significantly different. At the ECM level, a recent study shown that OI bone tends to present higher modulus, ultimate stress and post-yield behavior than healthy bone in compression \cite{Indermaur2021}.\\
+
+High resolution peripheral quantitative tomography (HR-pQCT) scans allow to perform \textit{in vivo} assessment of trabecular architecture and volumetric BMD in distal radius and tibia \cite{Boutroy2005}. Moreover, the bony microstructure obtained from HR-pQCT can be used for finite element analysis (FEA) to predict mechanical properties \cite{Boutroy2008}. Homogenized FE (hFE) is a FEA scheme including volume fraction (BV/TV) and anisotropy information (fabric) of trabecular bone from HR-pQCT which to assess bone strength within reasonable computation time \cite{Pahr2009}. High correlations were found between patient-specific hFE and mechanical compression experiment of cadaveric samples \cite{Varga2011,AriasMoreno2019}. Thus, it could be legitimate to use hFE for OI patients bone strength estimation and fracture risk assessment. However, HR-pQCT-based FEA rely on fabric-elasticity relationships. Therefore, the present study aims to compare trabecular bone microstructure of healthy and OI diagnosed individuals and to investigate the hypothesis of similar fabric-elasticity relationships.
+
+\section{Methods}
+
+\subsection{Subjects}
+The healthy group include a total of 120 patients from a previous reproducibility study performed at the University Department of osteoporosis in Bern \cite{Schenk2020}. The sample is composed of 64 female and 56 male subjects aged between 20 and 92 years old with a median age of 26 [22 - 35] years. These subjects did not took any medication known to affect bone metabolism nor presented any prior osteoporosis fracture. The second group was scanned at the Shriners Hospital for Children and images were shared to our group by the McGill University in Montreal. This group is composed of 35 female 15 male individuals leading to 50 OI diagnosed subjects. The youngest and oldest patients are 19 and 69 year old, respectively. The median age is 44 [33 - 55] years. 35 subjects were diagnosed with type I OI, 2 with type III, and 13 with type IV.
+
+\subsection{HR-pQCT}
+HR-pQCT scans (XtremeCTII, SCANCO Medical, Brütisellen,
+Switzerland) were performed at the distal tibia on all patients from both groups. People of the healthy group were scanned using an in-house protocol as described in \cite{Schenk2020} whereas OI subjects were scanned using the manufacturer's standard protocol. The main differences of the in-house protocol with the manufacturer's standard protocol are the following:
+\begin{enumerate}
+	\item The reference line is positioned at the proximal margin of the dense structure formed by the tibia plafond instead of  the subchondral endplate of the ankle joint (standard clinical section) \cite{Whittier2020}.
+	\item Three stacks were scanned proximal to the reference line instead of one stack at 22.5 mm proximal to the reference line for standard clinical section \cite{Whittier2020}.
+\end{enumerate}
+
+These differences are shown in Figure \ref{01_ClinicalSections}. For both group, each stack consist of 168 voxels and a resolution of 61 \si{\micro}m in the three principal directions which lead to a thickness about 10.2 mm for each stack. Scanning settings were a voltage of 60 kVp, 900 μA, 100 ms integration time for the healthy group as well as for the OI group. For the healthy group, motion artefacts of first, middle and last slice were graded. The scale used start from 1 (no motion artefacts) to 5 (extreme motion artefacts) as proposed by the manufacturer \cite{Pialat2012}. The final grade of each scan was defined as the highest slice grade. For the OI group, as the scan consist of one stack, only one grade is attributed using the same scale as for the control group. Scans were then processed independently of their quality grading. A summary of the scans grading densities is shown in Figure \ref{01_MotionArtefacts}.
+
+\begin{figure}
+	\centering
+	\begin{subfigure}[b]{0.225\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/01_ControlClinicalSection}
+		\caption{Healthy group}
+		\label{01_Healthy}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.225\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/01_OIClinicalSection}
+		\caption{OI group}
+		\label{01_OI}
+	\end{subfigure}
+	\caption{\centering Clinical section scanned for both group}
+	\label{01_ClinicalSections}
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\linewidth]
+	{Pictures/01_MotionArtefacts}
+	\caption{Summary of the motion artefacts grading. Histograms show density of each grade within both group.}
+	\label{01_MotionArtefacts}
+\end{figure}
+
+\subsection{Image analysis}
+The HR-pQCT scans were evaluated using the manufacturer's standard protocol. Then, mask segmented images were used for further analysis.\\
+
+Six ROI were randomly selected in each scan. The conditions for ROI to be kept are no cortical bone inside and that it must contain trabecular bone. For the OI subjects, the stack was divided into two halves and the ROIs were selected to have the centers of three ROIs in the proximal half and three in the distal half. For the healthy people, the ROIs were selected in the more proximal stack uniquely, see Figure \ref{01_Healthy} stack n\textdegree 3. As for the OI subjects, the stack is halved and centers of three ROIs were selected in both half.\\
+
+The ROI is defined as a cube of 5.3 mm side length. This size was chosen to correspond to the work of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015} and \citeauthor{Gross2013}\cite{Gross2013} which performed similar analysis with femur \si{\micro}CT scans. It was determined by \citeauthor{Zysset1998}\cite{Zysset1998} and \citeauthor{Daszkiewicz2017}\cite{Daszkiewicz2017} to be the optimal size to obtain accurate FEA results.\\
+
+The morphological analysis of ROIs was performed using medtool (v4.5; Dr. Pahr Ingenieurs e.U., Pfaffstätten, Austria). The morphological parameters analyzed are: BV/TV, SMI, trabecular number (Tb. N.), trabecular thickness (Tb. Th.), trabecular spacing (Tb. Sp.), and the standard deviation of the trabecular spacing (Tb. Sp. SD). Moreover, ROI fabric was evaluated using MIL method \cite{Moreno2014}. The fabric tensor $\mathbf{M}$ is a positive-definite second-order tensor. It is build as shown in Equation \ref{Eq201} below:
+
+\begin{equation}
+	\mathbf{M} = \sum_{i=1}^{3}{m_i \mathbf{M}_i} = \sum_{i=1}^{3}{m_i \mathbf{m}_i \otimes \mathbf{m}_i}
+	\label{Eq201}
+\end{equation}
+
+where $m_i$ are the eigenvalues of $\mathbf{M}$ and $\mathbf{M}_i$ are the dyadic product of the corresponding eigenvectors $\mathbf{m}_i$ \cite{Cowin1985,Harrigan1985}. The fabric is then independent of BV/TV and normalized with $tr(\mathbf{M}) = 3$. The fabric eigenvalues allow to compute the degree of anisotropy (DA) of the ROI by dividing the highest eigenvalue by the lowest one.\\
+
+After ROI cleaning, i.e. deletion of unconnected region of bone material, an homogenized mechanical analysis was performed using \textsc{ABAQUS 6.14}. Each voxel of the cleaned ROI was converted to mesh using fully integrated linear brick elements (C3D8) with a stiffness $E$ of 10 000 MPa and a Poisson's ratio $\nu$ of 0.3. The simulation consisted of 6 independent load cases, 3 uni-axial and 3 shear cases, using KUBCs. KUBCs were used according to the work of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015}. Unlike PMUBCs, KUBCs do not require to rotate the ROI into fabric coordinate system which decrease the image quality. This homogenization process allows to calibrate the parameters of the Zysset-Curnier fabric-elasticity model \cite{Zysset1995}. This model builds the fourth order stiffness tensor $\mathbb{S}$ using the BV/TV or $\rho$, fabric information $\mathbf{M}$, three elasticity parameters $\lambda_0$, $\lambda_0$', and $\mu_0$, and two exponents, $k$ and $l$. The building of this tensor is shown in Equation \ref{Eq202}.\\
+
+\begin{equation}
+	\begin{split}
+		&\mathbb{S}(\rho,\mathbf{M}) &=& \quad\sum_{i=1}^{3} \lambda_{ii} \mathbf{M}_i \otimes \mathbf{M}_i \\ &&&+ \sum_{\substack{i,j=1\\i \neq j}}^{3} \lambda_{ij} \mathbf{M}_i \otimes \mathbf{M}_j \\ &&&+ \sum_{\substack{i,j=1\\i \neq j}}^{3} \mu_{ij} \mathbf{M}_i \overline{\underline{\otimes}} \mathbf{M}_j \\
+		&\text{With} &\\
+		&\qquad\lambda_{ii} &=& \quad(\lambda_0 + 2\mu_0)\rho^k m_i^{2l} \\
+		&\qquad\lambda_{ij} &=& \quad\lambda_0' \rho^k m_i^{l} m_j^{l} \\
+		&\qquad\mu_{ij} &=& \quad\mu_0 \rho^k m_i^{l} m_j^{l} \\
+	\end{split}
+	\label{Eq202}
+\end{equation}
+
+Where $\otimes$ and $\overline{\underline{\otimes}}$ are the dyadic and symmetric product of second order tensors, respectively. The Zysset-Curnier model is built with the assumption of orthotropy and homogeneity. However, the trabecular structure is not perfectly homogeneous. In order to assess the ROI heterogeneity a so-called coefficient of variation (CV) is computed as presented in \cite{Panyasantisuk2015}: the ROI is divided into eight identical subcubes, BV/TV is computed for each subcube and the CV is defined as the ratio between the standard deviation of these BV/TV and the mean value, see Equation \ref{Eq203} below:
+
+\begin{equation}
+	CV = \frac{std(BV/TV_{subcubes})}{mean(BV/TV_{subcubes})}
+	\label{Eq203}
+\end{equation}
+
+\subsection{Statistics}
+The morphological parameters analyzed (BV/TV, Tb. N., Tb. Th., Tb. Sp., and Tb. Sp. SD, SMI, DA, and CV) were compared for both group. As the initial groups do not have similar distributions of age and sex, a matching was performed leading to identical mean and median age as well as identical gender distribution. Then, the selection of statistical test to perform was executed as follow:
+\begin{enumerate}
+	\item For each parameter, the median value between the six ROI of the same individual was computed. The median was preferred over the mean because it is less influenced by outliers.
+	\item Normality of the distribution was assessed with QQ plot and Shapiro-Wilk test.
+	\item If normality assumption was met, Bartlett test for equal variances was performed. Otherwise, data were log transformed to try to achieve normal distribution. If even after log transformation, normality assumption was not met, original data space was kept and Brown-Forsythe test was applied to assess the equal variance assumption.
+	\item According to the previous results, t-test was performed if normal distribution and equal variance were met. If only the equal variances assumption was met, Mann-Whitney test was preferred. Finally, if none of these conditions could be assumed, a non-parametric permutation test was performed.
+\end{enumerate}
+The general significance level was set to 95\% for all tests. Confidence intervals in means difference was computed for t-tested variables to confirm p values. As Mann-Whitney test is performed on the median, only corresponding p value is given. Finally, non-parametric permutation test is less powerful but give an empirical 95\% exclusion range and a p value. If the difference in means belong to this exclusion range, it can be stated that group means are different with 95\% certainty.
+
+\subsection{Fit to model}
+The stiffness tensors obtained from the mechanical simulations were transformed into fabric coordinate system and projected onto orthotropy, leading to 12 components. The resulting orthotropic stiffness tensors were then used to perform a multiple linear regression on the Zysset-Curnier model. Standard linear models assume independent and identically distributed (iid) variables. As this assumption is violated by the fact that six ROIs are analyzed by individual, a linear mixed-effect model was preferred. This last model, shown in Equation \ref{Eq204} in Laird-Ware form \cite{Laird1982}, takes into account the non-independence of ROIs from the same individual. Detailed form of this model is presented in Appendix \ref{A1}.
+
+\begin{equation}
+	y = X \beta + Z \delta + \epsilon \quad \text{with} \quad y = \ln(S_{rc})
+	\label{Eq204}
+\end{equation}
+
+Where $S_{rc}$ is the $r$th row and $c$th column of the non-zero element of the orthotropic stiffness tensor $\mathbb{S}$ in Mandel notation \cite{MANDEL1965}, $X$ is a $12n$x$p$ design matrix containing the the BV/TV and fabric info of the $n$ ROIs and $\beta$ is a $p$x1 vector of fixed effects containing model parameters. $Z$ is a $12n$x$f$ design matrix which contains data with individual dependence and $\delta$ is a $f$x1 vector composed of random factors. Finally, $\epsilon$ is a $12n$x1 vector containing the regression residuals.\\
+
+The linear regression was performed on both group (healthy and OI) separately. To improve the fit quality, the data sets were filtered. The aim here is to filter out ROIs whose are too far from the assumption of homogeneity. Therefore, analogously to the work of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015}, a fixed threshold for the CV was used. To simplify comparison, the same value of 0.263 was fixed as exclusion criterion. Besides, the relation between BV/TV and CV was assessed using Spearman's correlation coefficient. Furthermore, to compare the stiffness constants ($\lambda_0$, $\lambda_0'$, and $\mu_0$) between the groups, regression must be performed on identical value ranges. To do this, a matching was performed for BV/TV and DA to find corresponding control ROI for each OI in the filtered groups. Best correspondences were kept and duplicates were dropped. Finally, as the regression is performed in the log space, it is necessary to use identical exponent ($k$ and $l$) for both group, weighting identically BV/TV and DA between regressions, to compare stiffness constants. The exponents were determined by grouping healthy and OI for regression. Then a modified system is used to perform the fit on separated groups.\\
+
+Another modification of the model is to add a regressor for the group variable (healthy or OI), i.e. add a column to the design matrix $X$ and a row to the parameter vector $\beta$. This modified model is compared to the original by analysis of covariance (ANCOVA) using the fixed-effects only to determine the statistical significance of the group. Implementation of this modification was performed according to \cite{Fox2016}. The detailed linear systems for each model discussed here are available in Appendix \ref{A1} and a summary of the data sets used for the different methods is shown in Table \ref{Table1}.\\
+
+The regression was performed using the \textsc{statsmodels} package from \textsc{Python 3.6}. Regression quality was assessed using the adjusted Pearson correlation coefficient squared ($R^2_{adj}$) and relative error between the orthotropic observed and the predicted tensor using norm of fourth-order tensors ($NE$), see Equation \ref{Eq205} and \ref{Eq206}. 
+
+\begin{equation}
+	R^2_{adj} = 1 - \frac{RSS}{TSS} \frac{(12n-1)}{(12n - p - 1)}
+	\label{Eq205}
+\end{equation}
+
+Where RSS is the residual sum of squares and TSS is the total sum of squares i.e. sum of the square of the observations y.
+
+\begin{equation}
+	NE = \sqrt{\frac{(\mathbb{S}_o - \mathbb{S}_p) :: (\mathbb{S}_o - \mathbb{S}_p)}{\mathbb{S}_o :: \mathbb{S}_o}}
+	\label{Eq206}
+\end{equation}
+
+
+
+\begin{table*}[b]
+	\centering
+	\caption{Summary of the data set used for different methods}
+	\label{Table1}
+	\begin{tabular}{p{0.1\linewidth}*{2}{>{\centering\arraybackslash}p{0.075\linewidth}}*{2}{>{\centering\arraybackslash}p{0.075\linewidth}}*{2}{>{\centering\arraybackslash}p{0.075\linewidth}}*{2}{>{\centering\arraybackslash}p{0.075\linewidth}}}
+		\toprule
+		Data sets & \multicolumn{2}{c}{Original} & \multicolumn{2}{c}{Age \& gender matched} & \multicolumn{2}{c}{CV filtered} & \multicolumn{2}{c}{BV/TV \& DA matched} \\
+		\midrule
+		Group & Healthy & OI & Healthy & OI & Healthy & OI & Healthy & OI \\
+		Individuals & 120 & 50 & 28 & 28 & 119 & 38 & 57 & 32 \\
+		ROIs & 720 & 300 & 168 & 168 & 603 & 117 & 82 & 82 \\
+		\midrule
+		Methods & \multicolumn{2}{c}{Fit to model} & \multicolumn{2}{c}{Statistics} & \multicolumn{2}{c}{Fit to model} & \multicolumn{2}{c}{Fit to model} \\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\section{Results}
+
+\subsection{Morphological Analysis}
+The results of morphological analysis are summarized in Table \ref{Table2}. In the present study, the individual matching allowed to have similar group distribution with 17 females and 11 males in each group. The mean age of matched healthy is 41 $\pm$ 14 and 41 $\pm$ 15 for the matched OI. BV/TV of healthy people is higher than BV/TV of OI group with a 95\% CI of [0.016, 0.101] and p value <0.01. Similarly, trabecular number is higher in the matched healthy group with a 95\% CI of [0.099, 0.285] and a corresponding p value <0.001. The trabecular thickness do not show significant differences between groups with a p value of 0.2. In the other hand, trabecular spacing is higher in matched OI group than in healthy individuals with a p value of 0.01 and an exclusion range of ($-\infty$ ,-0.384] $\cup$ [0.421,$\infty$). Trabecular spacing SD present to be higher in OI patients than in matched healthy with a p value of 0.02 and an exclusion range of ($-\infty$ ,-0.232] $\cup$ [0.251,$\infty$). SMI as well as degree of anisotropy are higher for matched OI than for healthy people with p values <0.001 and of 0.02, respectively. Finally, the log transformation of coefficient of variation gives the stronger difference in means with a p value <0.0001 and a 95\% CI of [−0.757, −0.333].\\
+
+In the table, absolute values and p values of test statistics are compared with literature. Regarding age, the present population is slightly younger than in other study but stay in a similar range. In a general way p values of the three other studies show significant differences for BV/TV, Tb N, Tb Sp, and Tb Sp SD and non significant differences for Tb Th. Absolute values of BV/TV, TB Th, Tb Sp, and Tb Sp SD are higher in the present study compared to literature. On the other hand, Tb N appears to be higher in the other studies than in the present one.
+
+\begin{sidewaystable*}
+	\centering
+	\caption{Summary of the tibia ROIs morphological analysis and comparison with literature. Values are presented as mean $\pm$ standard deviation when statistical test is performed on the means or median (inter-quartile range) when test is on medians. The study of \cite{Kocijan2015} presents n.s. for non-significant p value test result.}
+	\label{Table2}
+	\begin{tabular}{cccccccccc}
+		\toprule
+		\multirow{2}{*}{Variable} & \multirow{2}{*}{Group} & \multicolumn{2}{c}{Present study} & \multicolumn{2}{c}{\citeauthor{Folkestad2012}\cite{Folkestad2012}} & \multicolumn{2}{c}{\citeauthor{Kocijan2015}\cite{Kocijan2015}} & \multicolumn{2}{c}{\citeauthor{Rolvien2018}\cite{Rolvien2018}} \\
+		& & Values & p value & Values & p value & Values & p value & Values & p value \\
+		\midrule
+		
+		\multirow{3}{*}{Age} & Healthy & 41 $\pm$ 14 &  & 54 (21-77) & & 44 (38-52) &  & 49 $\pm$ 16 &  \\
+		& OI Type I & \multirow{2}{*}{41 $\pm$ 15} &  & 53 (21-77) &  & 42 (35-56) & & \multirow{2}{*}{46 $\pm$ 16} & \\
+		&  OI Type III \& IV & &  &  &  & 48 (35-58) & & & \\[3ex]
+		
+		\multirow{3}{*}{BV/TV} & Healthy & 0.222 $\pm$ 0.081 & <0.01 & 0.14 $\pm$ 0.03 & <0.001 & 0.141 (0.130-.0170) & & 0.162 $\pm$ 0.010 & <0.0001 \\
+		& OI Type I & \multirow{2}{*}{0.164 $\pm$ 0.079} &  & 0.08 $\pm$ 0.03 &  & 0.098 (0.088-0.114) & <0.0001 & \multirow{2}{*}{0.095 $\pm$ 0.008} & \\
+		&  OI Type III \& IV & & & & & 0.081 (0.056-0.092) & <0.0001 & & \\[3ex]
+		
+		\multirow{3}{*}{Tb N} & Healthy & 0.842 $\pm$ 0.144 & <0.001 & 1.94 (1.74-2.13) & <0.001 & 1.76 (1.59-2.08) & & 2.143 $\pm$ 0.089 & <0.0001 \\
+		& OI Type I & \multirow{2}{*}{0.650 $\pm$ 0.198} &  & 1.30 (0.75-1.53) &  & 1.33 (1.07-1.55) & <0.0001 & \multirow{2}{*}{1.428 $\pm$ 0.098} & \\
+		&  OI Type III \& IV & & & & & 0.89 (0.81-1.08) & <0.001 & & \\[3ex]
+		
+		\multirow{3}{*}{Tb Th} & Healthy & 0.301 (0.287-0.321) & 0.2 & 0.07 (0.06-0.08) & 0.5 & 0.081 (0.074-0.087) & & 0.075 $\pm$ 0.003 & 0.046 \\
+		& OI Type I & \multirow{2}{*}{0.306 (0.292-0.331)} &  & 0.07 (0.06-0.08) &  & 0.074 (0.064-0.090) & n.s. & \multirow{2}{*}{0.066 $\pm$ 0.004} & \\
+		&  OI Type III \& IV & & & & & 0.078 (0.068-0.092) & n.s. & & \\[3ex]
+		
+		\multirow{3}{*}{Tb Sp} & Healthy & 0.924 $\pm$ 0.257 & 0.01 & 0.44 (0.39-0.51) & <0.001 & - & & 0.409 $\pm$ 0.023 & 0.0003 \\
+		& OI Type I & \multirow{2}{*}{1.422 $\pm$ 0.694} &  & 0.68 (0.57-1.19) &  & - &  & \multirow{2}{*}{0.727 $\pm$ 0.095} & \\
+		&  OI Type III \& IV & & & & & - &  & & \\[3ex]
+		
+		\multirow{3}{*}{Tb Sp SD} & Healthy & 0.317 $\pm$ 0.136 & 0.02 & 0.20 (0.16-0.25) & <0.001 & 0.221 (0.170-0.242) & & - &  \\
+		& OI Type I & \multirow{2}{*}{0.631 $\pm$ 0.383} &  & 0.40 (0.31-1.11) &  & 0.382 (0.311-0.504) & <0.0001 & - & \\
+		&  OI Type III \& IV & & & & & 0.698 (0.511-0.890) & <0.001 & & \\[3ex]
+		
+		\multirow{3}{*}{SMI} & Healthy & 0.001 (-0.021-0.033) & <0.001 & - &  & - & & - &  \\
+		& OI Type I & \multirow{2}{*}{0.056 (0.015-0.079)} &  & - &  & - &  & - & \\
+		&  OI Type III \& IV & & & & & - &  & & \\[3ex]
+		
+		\multirow{3}{*}{DA} & Healthy & 1.992 (1.826-2.020) & 0.02 & - &  & - & & - &  \\
+		& OI Type I & \multirow{2}{*}{2.018 (1.901-2.158)} &  & - &  & - &  & - & \\
+		&  OI Type III \& IV & & & & & - &  & & \\[3ex]
+		
+		\multirow{3}{*}{ln(CV)} & Healthy & -1.723 $\pm$ 0.344 & <0.0001 & - &  & - & & - &  \\
+		& OI Type I & \multirow{2}{*}{-1.178 $\pm$ 0.441} &  & - &  & - &  & - & \\
+		&  OI Type III \& IV & & & & & - &  & & \\
+		
+		\bottomrule
+	\end{tabular}
+\end{sidewaystable*}
+
+\subsection{Linear Regressions}
+Figure \ref{02_GeneralRegression} shows the result of regression for complete data sets of each group separately. The x axis represent the values of observed tensors from mechanical simulations. The y axis is the predicted values using the Zysset-Curnier model and the parameters obtained after performing the regression with linear mixed-effect model. The fitted line is represented by the dashed line. $\lambda_{ii}$ stands for the diagonal terms of normal components of $\mathbb{S}$ in Mandel notation\cite{MANDEL1965}, $\lambda_{ij}$ for the off-diagonal terms of normal components, and $\mu_{ij}$ for the shear components. For the healthy group, see Figure \ref{02_Healthy}, the fit is performed on 720 ROIs leading to 8640 points. The $R^2_{adj}$ is slightly above 0.95 and the NE is of 18\% $\pm$ 10\%. The regression of the OI group could only be performed on 294 ROIs as it was not possible to find suitable ROIs for one patient. Nevertheless, it leads to 3528 points, a $R^2_{adj}$ close to 0.85 and a NE of 62\% $\pm$ 233\%. It can be noticed that, as the values of observed tensor decreases, points tends to be further apart of the diagonal (dashed line). Moreover, the points coming from the tensors with lowest values are only above the diagonal. One last observation which should be noted is the range covered by the observed tensors. The range of the OI group is wider than the healthy group and ROIs with lower BV/TV present further low stiffness values.\\
+
+\begin{figure}[h!]
+	\centering
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/02_GR_Healthy_LMM}
+		\caption{Healthy group}
+		\label{02_Healthy}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/02_GR_OI_LMM}
+		\caption{OI group}
+		\label{02_OI}
+	\end{subfigure}
+	\caption{Regression results using the fixed effects of the linear mixed-effect model on original data sets. $\lambda_{ii}$ stands for the diagonal terms of normal components of $\mathbb{S}$ in Mandel notation\cite{MANDEL1965}, $\lambda_{ij}$ for the off-diagonal terms of normal components, and $\mu_{ij}$ for the shear components. The dashed line represents the fitted line.}
+	\label{02_GeneralRegression}
+\end{figure}
+
+The CV in relation to BV/TV is shown in Figure \ref{02_CV_BVTV}. The OI data reach higher values of CV and stay at lower values of BV/TV than healthy data. Generally, the CV tends to increase with decreasing BV/TV. The Spearman coefficient is shown above the plot as value [95\% CI]. Its value is negative and strictly different from zero. Finally, the CV threshold value used to filter the data is represented by the dashed line. It can be observed that a relatively important part of OI data will be filtered out. On the other hand, relatively few healthy data will be removed by the filtering. Examples of extreme ROIs in terms of CV and BV/TV are shown in Appendix \ref{A2}.\\
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\linewidth]
+	{Pictures/03_CV_BVTV}
+	\caption{Coefficient of variation in relation to BV/TV. Spearman correlation coefficient $\rho$ assess monotonic relation between two variable}
+	\label{02_CV_BVTV}
+\end{figure}
+
+The regression results of the filtered data are presented in Figure \ref{04_FilteredRegression}. After filtering, healthy group is reduced to 119 individuals and 603 ROIs. This leads to 7236 points for the regression. Results shown similar values as for the complete data set, namely a $R^2_{adj}$ close to 0.95 and a NE of 16\% $\pm$ 8\%, see Figure \ref{04_Healthy}. The OI group lost more individuals after filtering leading to 38 people and 115 ROIs. Regression is performed on 1380 points then. Figure \ref{04_OI} presents results with a $R^2_{adj}$ rounded to 0.95 and a NE of 17\% $\pm$ 8\%.\\
+
+\begin{figure}[h!]
+	\centering
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/04_FR_Healthy_LMM}
+		\caption{Healthy group}
+		\label{04_Healthy}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]
+		{Pictures/04_FR_OI_LMM}
+		\caption{OI group}
+		\label{04_OI}
+	\end{subfigure}
+	\caption{Regression results using the fixed effects of the linear mixed-effect model on filtered data sets. $\lambda_{ii}$ stands for the diagonal terms of normal components of $\mathbb{S}$ in Mandel notation\cite{MANDEL1965}, $\lambda_{ij}$ for the off-diagonal terms of normal components, and $\mu_{ij}$ for the shear components. The dashed line represents the fitted line.}
+	\label{04_FilteredRegression}
+\end{figure}
+
+Regression results after BV/TV \& DA ROI matching are shown in Table \ref{Table3}. The columns show which data set was used, the fives parameters of the Zysset-Curnier model and the assessment of fit quality. Grouping healthy and OI data together for regression lead to a $k$ of 1.91 and a $l$ of 0.95. Regression result shows a $R^2_{adj}$ of 0.94 and a NE of 18\% $\pm$ 9\%. Second and last rows show regression results using separated data sets and imposing the exponents $k$ and $l$. OI values are higher than healthy one. The increase is of 15\%, 1\%, and 2\% for $\lambda_0$, $\lambda_0'$, and $\mu_0$, respectively. The ANCOVA performed to quantify the group statistical significance shows a p value of 0.7.\\
+
+\begin{table*}[b]
+	\caption{Constants obtained with BV/TV and DA matched data sets. Comparison is performed between grouped (N ROIs = 166) and separated data sets (N ROIs = 83). Values are presented as value [95\% CI] or mean $\pm$ standard deviation. Values in gray were imposed in the regression.}
+	\label{Table3}
+	\begin{tabular}{cccccccc}
+		\toprule
+		Data set & $\lambda_0$ & $\lambda_0'$ & $\mu_0$ & $k$ & $l$ & $R^2_{adj}$ & NE (\%) \\
+		\midrule
+		Grouped & 4626 [3892-5494] & 2695 [2472-2937] & 3541 [3246-3862] & 1.91 [1.86-1.95] & 0.95 [0.93-0.97] & 0.936 & 19 $\pm$ 9\\
+		
+		Healthy & 4318 [3844-4851] & 2685 [2533-2845] & 3512 [3306-3731] & \textcolor{gray}{1.91} & \textcolor{gray}{0.95} & 0.835 & 21 $\pm$ 10\\
+		
+		OI & 4983 [4345-5716] & 2727 [2547-2921] & 3600 [3355-3863] & \textcolor{gray}{1.91} & \textcolor{gray}{0.95} & 0.860 & 20 $\pm$ 10\\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+Table \ref{Table4} shows results obtained compared to literature. \citeauthor{Gross2013} \cite{Gross2013} has the larger number of ROIs. Data sets of \citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015} show BV/TV ranges slightly higher than in the present study and the one of \citeauthor{Gross2013} \cite{Gross2013}. On the other hand, DA is higher in the present study than for \citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015} and \citeauthor{Gross2013} \cite{Gross2013}. Setting the exponents $k$ and $l$ to the same values lead to lower stiffness constants for the observed data set than for the other studies.\\
+
+\begin{table*}[b]
+	\caption{Comparison with literature. N stands for the number of ROIs observed. Values are presented as computed value only or mean $\pm$ standard deviation. The present study shows values obtained with tibia XCTII scans. \citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015} and \citeauthor{Gross2013} \cite{Gross2013} show values obtained with femur \si{\micro}CT scans. Values in gray were imposed in the regression.}
+	\label{Table4}
+	\begin{tabular}{lcccccccccc}
+		\toprule
+		Data set & N & BV/TV & DA & $\lambda_0$ & $\lambda_0'$ & $\mu_0$ & $k$ & $l$ & $R^2_{adj}$ & NE (\%) \\
+		\midrule
+		\multicolumn{11}{c}{\cellcolor[HTML]{D9D9D9}Filtered data sets}\\
+		
+		\citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015} & 126 & 0.27 $\pm$ 0.08 & 1.57 $\pm$ 0.18 & 3306 & 2736 & 2837 & 1.55 & 0.82 & 0.984 & 8 $\pm$ 3\\
+		
+		\multirow{2}{*}{Present study} & 720 & 0.27 $\pm$ 0.09 & 1.94 $\pm$ 0.24 & 2507 & 1620 & 2052 & \textcolor{gray}{1.55} & \textcolor{gray}{0.82} & 0.832 & 21 $\pm$ 11\\
+		& 720 & 0.27 $\pm$ 0.09 & 1.94 $\pm$ 0.24 & 4778 & 3087 & 3911 & 1.99 & 0.85 & 0.949 & 17 $\pm$ 9\\[1ex]
+		
+		\multicolumn{11}{c}{\cellcolor[HTML]{D9D9D9}Non-filtered data sets}\\
+		\citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015} & 167 & 0.25 $\pm$ 0.08 & 1.54 $\pm$ 0.20 & 3841 & 3076 & 3115 & \textcolor{gray}{1.60} & \textcolor{gray}{0.99} & 0.983 & 14\\
+		
+		\citeauthor{Gross2013} \cite{Gross2013} & 264 & 0.19 $\pm$ 0.10 & 1.67 $\pm$ 0.34 & 4609 & 3692 & 3738 & 1.60 & 0.99 & 0.981 & 14\\
+		
+		\multirow{2}{*}{Present study} & 1014 & 0.23 $\pm$ 0.11 & 1.94 $\pm$ 0.26 & 2738 & 1662 & 2187 & \textcolor{gray}{1.60} & \textcolor{gray}{0.99} & 0.622 & 40 $\pm$ 177\\
+		& 1014 & 0.23 $\pm$ 0.11 & 1.94 $\pm$ 0.26 & 5020 & 3047 & 4010 & 1.98 & 0.91 & 0.916 & 30 $\pm$ 113\\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\section{Discussion}
+The age of matched individuals lies in the spectrum of the others studies which allow to compare the morphological values. The main explanation for differences between the absolute values of the present study compared to the others lies in the imaging system. \citeauthor{Folkestad2012}\cite{Folkestad2012}, \citeauthor{Kocijan2015}\cite{Kocijan2015}, and \citeauthor{Rolvien2018}\cite{Rolvien2018} have performed first generation Xtreme CT scans and the present study use image from XCTII. The work from \citeauthor{Agarwal2016}\cite{Agarwal2016} showed that BV/TV, Tb Th, and Tb Sp is higher in second generation Xtreme CT and, on the other hand, Tb N is higher in first generation Xtreme CT. These results give confidence on the observed values. Another bias is introduced by the fact that the present study analyses the median values of six cubic ROIs with 5.3 mm side length. This conditions the Tb N and Tb Sp as they depend on the ROI size. Moreover, conditions imposed for ROI random selection can lead to further biased values, specially of OI patient, as it can not be empty of trabecular bone. The CV presenting the stronger significant difference between groups even given the low sample size show that heterogeneity is a main difference in OI patient compared to healthy individuals. Finally, the significant differences observed in BV/TV and DA even with age \& gender matched individuals justify the choice of a variable matching for fabric-elasticity relationships analysis.\\
+
+Regression performed on original data sets shows $R^2_{adj}$ and NE in the expected range for the healthy group. Components of the stiffness tensors are distributed to both sides of the diagonal. On the other hand, regression of the OI data set presents lower $R^2_{adj}$ than such fit reach usually. The important value of NE and its standard deviation shows that the fitted stiffness can deviate significantly from the observation. These differences come from the ROIs presenting a low stiffness. It can be seen on the regression plot that when the stiffness term decrease about $10^0$ and under, the fit tends to overestimate the stiffness. This is due to the fact that ROI stiffness is highly impacted by BV/TV. Some low BV/TV ROIs do not have every side of the cube connected by bone leading to extremely low terms in the stiffness tensor, see Appendix \ref{A2}. Trying to homogenize such ROI can lead to error of multiple order of magnitude, as observed on the plot. Therefore, a filtering is indispensable to assess and compare fabric-elasticity relationships, as done by \citeauthor{Panyasantisuk2015} \cite{Panyasantisuk2015}. An alternative of CV filtering could be to compute the area ratio filled by bone on each of the six faces of the ROI to assess the ROI heterogeneity.\\
+
+Figure \ref{02_CV_BVTV} presenting the CV in relation to BV/TV shows that there is a tendency of CV to increase with a decreasing BV/TV. Effectively, if the quantity of material inside the ROI decreases, the distribution homogeneity of this mass is more sensitive and therefore can quickly becomes highly heterogeneous. A simple assumption about this relation is that it could be monotonic. Pearson's correlation coefficient being strictly negative confirms a negative monotonic relation. As some higher BV/TV ROIs still present high CV, imposing a fixed threshold make sense for subsequent homogenization.\\
+
+The fits performed on filtered data sets present direct effect of filtering. For the healthy group (N=603), the relatively small decrease of $R^2_{adj}$ (5\textperthousand) is negligible. On the other hand, NE presents an improved value decreasing by 2\%. These results are due to the filtering of point further away from the diagonal (better NE) and some points close to the diagonal leading to a smaller number of points ($R^2_{adj}$). For the OI group, filtering leads to a important improvement of the fit. Results become similar to the healthy group in terms of $R^2_{adj}$, NE, and the range of stiffness values. These results give confidence to the filtering procedure and are a first step to the hypothesis of no different fabric-elasticity relationships between healthy and OI trabecular bone.\\
+
+After BV/TV and DA matching, grouping the data sets together lead to similar $R^2_{adj}$ and NE as for individual filtered data set. This allows to give values for $k$ and $l$ for the tibia at a spatial resolution of 61 \si{\micro}m. Imposing these values to perform the fit on individual match data set allow to highlight differences, if any, between healthy and OI trabecular bone. The relatively low differences for $\lambda_0'$ and $\mu_0$ once again provide arguments for similar relationships between the two groups. For $\lambda_0$ this relative difference being higher could rise some doubts about this similarity but 95\% CI intervals still show a common range. Moreover, ANCOVA performed comparing the original formulation and the one with addition of a regressor for the group shown a p value far above the 5\% significance level. With this statistical non-significance of the group and low relative differences in the computed stiffness constants, it can be stated that: if trabecular bone is homogeneous enough, there is no reason to suppose differences in fabric-elasticity relationships between healthy and OI trabecular bone. In FEA simulations, it is not possible to exclude part of the mesh because of high heterogeneity. Nevertheless, the error created by such ROIs are negligible as this concerns ROIs with extremely low stiffness leading to a minor impact on the full model.\\
+
+Imposing $k$ and $l$ allows to estimate the effect of different image resolutions.  \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015} and \citeauthor{Gross2013}\cite{Gross2013} both used femur scans with 18 \si{\micro}m spatial resolution and coarsened it to 36 \si{\micro}m. \citeauthor{Gross2013}\cite{Gross2013} shown that different anatomical locations lead to only slight differences. Comparing regression of filtered data set of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015} with the present study, the lower stiffness constants observed can be explained partially by the higher DA range and by the coarser resolution. Differences of $R^2_{adj}$ and NE come from the imposition of $k$ and $l$ to a different value than the optimal ones. Then, comparing regression results of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015}, \citeauthor{Gross2013}\cite{Gross2013}, and the present study, BV/TV ranges stay overlapped. As for filtered data sets, DA is higher in the present study and the stiffness constants remain lower than for the two other studies. Here, differences in DA can mainly be explained by the different anatomical location and differences in stiffness constants by resolution. The distal tibia, unlike the proximal femur, is mainly loaded in one direction which explain this increase of DA. Lower stiffness constants are obtained because the coarser structure resulting from XCTII can not be as optimized as the fine detailed structure obtained by \si{\micro}CT. Effectively, the architecture resulting from \si{\micro}CT scans can reproduce the optimized morphology of trabecular bone with a high fidelity. By decreasing the scan spatial resolution, the scanned structure becomes more bulky. Performing a fit on this less optimized structure lead to the observed lower stiffness constants. Finally, the comparison between $R^2_{adj}$ and NE of current study without imposing $k$ and $l$ and the ones of \citeauthor{Panyasantisuk2015}\cite{Panyasantisuk2015} and  \citeauthor{Gross2013}\cite{Gross2013} show that lower spatial resolution lead to lower fit quality. Nevertheless, $l$ stands in the same range as for the two other studies meaning the relative weight of DA remains constant. On the other hand, the higher $k$ highlight an increased relative weight of BV/TV.\\
+
+The main limitations of this study are the definition of "homogeneous enough" and the fact that it is limited to tibiae XCTII scans. The ROI homogeneity has an important impact on the analysis quality. As proposed earlier, ROI homogeneity could be assessed in another way to be able to propose a more precise ROI filtering for fitting. More investigations could be performed to improve the model for highly heterogeneous ROIs but as it concerns mainly ROI with low stiffness the impact on FEA models can be negligible. Similar study could be performed using XCTII radii scans to confirm the low differences between anatomical locations for coarser resolution.\\
+
+In conclusions, the sample analyzed in the this study have similar morphology that data reported in the literature. We find no differences in fabric-elasticity relationships between healthy and OI trabecular bone if the ROI is homogeneous enough. \citeauthor{Indermaur2021}\cite{Indermaur2021} shown that compressive behavior of OI bone tissue is similar to healthy control. If tensile and shearing behaviors agree, fabric-strength relationships will hold too. Therefore, OI bone fragility might mostly result from the decrease in BV/TV and loss of homogeneity in its organization.
+
+\section*{Acknowledgments}
+The authors acknowledge Christina Wapp from the ARTORG Center for Biomedical Engineering Research for her contribution to the building and interpretation of linear mixed-effect model and Mereo BioPharma for sharing the tibia XCTII scans of OI individuals. This work was internally funded by the ARTORG Center for Biomedical Engineering Research and Mereo BioPharma.
+
+\clearpage
+\appendix
+\section{Linear Models}\label{A1}
+
+The standard linear model has the form:
+
+\begin{equation}
+	\ln(S_{rc}) = X \beta + \epsilon
+\end{equation}
+
+Where $\epsilon$ is the vector of residuals. For one ROI, the system take the following form:
+
+\begin{equation}
+	\ln
+	\begin{pmatrix}
+		S_{11} \\
+		S_{12} \\
+		S_{13} \\
+		S_{21} \\
+		S_{22} \\
+		S_{23} \\
+		S_{31} \\
+		S_{32} \\
+		S_{33} \\
+		S_{44} \\
+		S_{55} \\
+		S_{66} \\
+	\end{pmatrix} = \begin{pmatrix}
+		1 & 0 & 0 & \ln(\rho) & \ln(m_1^2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_3) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_1) \\
+		1 & 0 & 0 & \ln(\rho) & \ln(m_2^2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_3) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_1) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_2) \\
+		1 & 0 & 0 & \ln(\rho) & \ln(m_3^2) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_2 m_3) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_3 m_1) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_1 m_2) \\
+	\end{pmatrix} \begin{pmatrix}
+		\ln(\lambda^{*}) \\
+		\ln(\lambda_0') \\
+		\ln(\mu_0) \\
+		k \\
+		l \\
+	\end{pmatrix} + \begin{pmatrix}
+		\epsilon_{1} \\
+		\epsilon_{2} \\
+		\epsilon_{3} \\
+		\epsilon_{4} \\
+		\epsilon_{5} \\
+		\epsilon_{6} \\
+		\epsilon_{7} \\
+		\epsilon_{8} \\
+		\epsilon_{9} \\
+		\epsilon_{10} \\
+		\epsilon_{11} \\
+		\epsilon_{12} \\
+	\end{pmatrix}
+\end{equation}
+
+Where $\lambda^{*} = \lambda_0 + 2\mu_0$. Then, the mixed-effect model, which handles multiple measurement on the same individual, has the following general form:
+
+\begin{equation}
+	\ln(S_{rc}) = X \beta + Z \delta + \epsilon
+\end{equation}
+
+Where $Z$ is a design matrix composed of the observations which are correlated on the same individual and, in general, is a subset of $X$. In the present case, the stiffness variables ($\lambda_0$, $\lambda_0'$, and $\mu_0$) can vary between individuals but the hypothesis is that they all vary by an identical factor. Therefore, the design matrix $Z$ is composed of the addition of the three first columns of $X$ and the system for one ROI takes the following form:\\
+
+\begin{equation}
+	\begin{split}
+	\ln
+	\begin{pmatrix}
+		S_{11} \\
+		S_{12} \\
+		S_{13} \\
+		S_{21} \\
+		S_{22} \\
+		S_{23} \\
+		S_{31} \\
+		S_{32} \\
+		S_{33} \\
+		S_{44} \\
+		S_{55} \\
+		S_{66} \\
+	\end{pmatrix} & = \begin{pmatrix}
+		1 & 0 & 0 & \ln(\rho) & \ln(m_1^2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_3) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_1) \\
+		1 & 0 & 0 & \ln(\rho) & \ln(m_2^2) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_3) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_1) \\
+		0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_2) \\
+		1 & 0 & 0 & \ln(\rho) & \ln(m_3^2) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_2 m_3) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_3 m_1) \\
+		0 & 0 & 1 & \ln(\rho) & \ln(m_1 m_2) \\
+	\end{pmatrix} \begin{pmatrix}
+		\ln(\lambda^{*}) \\
+		\ln(\lambda_0') \\
+		\ln(\mu_0) \\
+		k \\
+		l \\
+	\end{pmatrix}\\ & + \begin{pmatrix}
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+		1 \\
+	\end{pmatrix}\begin{pmatrix}
+	\delta \\
+	\end{pmatrix} + \begin{pmatrix}
+		\epsilon_{1} \\
+		\epsilon_{2} \\
+		\epsilon_{3} \\
+		\epsilon_{4} \\
+		\epsilon_{5} \\
+		\epsilon_{6} \\
+		\epsilon_{7} \\
+		\epsilon_{8} \\
+		\epsilon_{9} \\
+		\epsilon_{10} \\
+		\epsilon_{11} \\
+		\epsilon_{12} \\
+	\end{pmatrix}
+	\end{split}
+\end{equation}
+
+As the linear regression is performed in the log space, it is necessary to impose the exponent $k$ and $l$ in order to compare the stiffness values between groups. The system is then modified as follow:
+
+\begin{equation}
+	\begin{split}
+		\ln
+		\begin{pmatrix}
+			S_{11} \\
+			S_{12} \\
+			S_{13} \\
+			S_{21} \\
+			S_{22} \\
+			S_{23} \\
+			S_{31} \\
+			S_{32} \\
+			S_{33} \\
+			S_{44} \\
+			S_{55} \\
+			S_{66} \\
+		\end{pmatrix} - & \begin{pmatrix}
+			\ln(\rho) & \ln(m_1^2) \\
+			\ln(\rho) & \ln(m_1 m_2) \\
+			\ln(\rho) & \ln(m_1 m_3) \\
+			\ln(\rho) & \ln(m_2 m_1) \\
+			\ln(\rho) & \ln(m_2^2) \\
+			\ln(\rho) & \ln(m_2 m_3) \\
+			\ln(\rho) & \ln(m_3 m_1) \\
+			\ln(\rho) & \ln(m_3 m_2) \\
+			\ln(\rho) & \ln(m_3^2) \\
+			\ln(\rho) & \ln(m_2 m_3) \\
+			\ln(\rho) & \ln(m_3 m_1) \\
+			\ln(\rho) & \ln(m_1 m_2) \\
+		\end{pmatrix} \begin{pmatrix}
+			k \\
+			l \\
+		\end{pmatrix} = \\ & \begin{pmatrix}
+			1 & 0 & 0 \\
+			0 & 1 & 0 \\
+			0 & 1 & 0 \\
+			0 & 1 & 0 \\
+			1 & 0 & 0 \\
+			0 & 1 & 0 \\
+			0 & 1 & 0 \\
+			0 & 1 & 0 \\
+			1 & 0 & 0 \\
+			0 & 0 & 1 \\
+			0 & 0 & 1 \\
+			0 & 0 & 1 \\
+		\end{pmatrix} \ln\begin{pmatrix}
+			\lambda^{*} \\
+			\lambda_0' \\
+			\mu_0 \\
+		\end{pmatrix} + \begin{pmatrix}
+			\epsilon_{1} \\
+			\epsilon_{2} \\
+			\epsilon_{3} \\
+			\epsilon_{4} \\
+			\epsilon_{5} \\
+			\epsilon_{6} \\
+			\epsilon_{7} \\
+			\epsilon_{8} \\
+			\epsilon_{9} \\
+			\epsilon_{10} \\
+			\epsilon_{11} \\
+			\epsilon_{12} \\
+		\end{pmatrix}
+	\end{split}
+\end{equation}
+
+Finally, a modification of the model is to add a regressor for the group variable. Using a grouped data set (healthy and OI), it allows to determine if the group is statistically significant using ANCOVA. In such case the system is written under the form:\\
+
+\begin{equation}
+	\begin{split}
+		\ln
+		\begin{pmatrix}
+			S_{11} \\
+			S_{12} \\
+			S_{13} \\
+			S_{21} \\
+			S_{22} \\
+			S_{23} \\
+			S_{31} \\
+			S_{32} \\
+			S_{33} \\
+			S_{44} \\
+			S_{55} \\
+			S_{66} \\
+		\end{pmatrix} = &\begin{pmatrix}
+			1 & 0 & 0 & \ln(\rho) & \ln(m_1^2) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_2) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_1 m_3) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_1) & S_g \\
+			1 & 0 & 0 & \ln(\rho) & \ln(m_2^2) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_2 m_3) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_1) & S_g \\
+			0 & 1 & 0 & \ln(\rho) & \ln(m_3 m_2) & S_g \\
+			1 & 0 & 0 & \ln(\rho) & \ln(m_3^2) & S_g \\
+			0 & 0 & 1 & \ln(\rho) & \ln(m_2 m_3) & S_g \\
+			0 & 0 & 1 & \ln(\rho) & \ln(m_3 m_1) & S_g \\
+			0 & 0 & 1 & \ln(\rho) & \ln(m_1 m_2) & S_g \\
+		\end{pmatrix} \\ & \begin{pmatrix}
+			\ln(\lambda^{*}) \\
+			\ln(\lambda_0') \\
+			\ln(\mu_0) \\
+			k \\
+			l \\
+			\ln(\beta_{S_g})\\
+		\end{pmatrix} + \begin{pmatrix}
+			\epsilon_{1} \\
+			\epsilon_{2} \\
+			\epsilon_{3} \\
+			\epsilon_{4} \\
+			\epsilon_{5} \\
+			\epsilon_{6} \\
+			\epsilon_{7} \\
+			\epsilon_{8} \\
+			\epsilon_{9} \\
+			\epsilon_{10} \\
+			\epsilon_{11} \\
+			\epsilon_{12} \\
+		\end{pmatrix}
+	\end{split}
+\end{equation}
+
+Where $S_g$ is coded using a summation constrain \cite{Fox2016}, meaning, $S_g = -1$ for the healthy group and $S_g = 1$ for the OI group.
+
+\clearpage
+\section{Extreme ROI Examples}\label{A2}
+
+\vfill
+
+\begin{minipage}{2.\linewidth}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_BVTV_Frontview}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_BVTV_Isoview}\\
+	\captionof{figure}{ROI with maximum BV/TV observed. BV/TV: 0.59; CV:0.19;  DA:1.48. Left: front view; right: isometric view}
+	\label{A2_MaxBVTV}
+\end{minipage}
+
+\vfill
+
+\begin{minipage}{2.\linewidth}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_MinBVTV_Frontview}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_MinBVTV_Isoview}\\
+	\captionof{figure}{ROI with minimum BV/TV after filtering. BV/TV: 0.04; CV:0.19;  DA:1.58. Left: front view; right: isometric view}
+	\label{A2_MinBVTV}
+\end{minipage}
+
+\vfill
+
+\begin{minipage}{2.\linewidth}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_CV_Frontview}
+	\centering
+	\includegraphics[width=0.45\textwidth]
+	{Pictures/A2_CV_Isoview}\\
+	\captionof{figure}{ROI with maximum CV observed. BV/TV: 0.02; CV:1.56;  DA:2.25. Left: front view; right: isometric view}
+	\label{A2_MaxCV}
+\end{minipage}
+
+\vfill
+
+\clearpage
+% Loading bibliography database
+\bibliographystyle{BibStyle}
+\bibliography{Bibliography}
+
+\end{document}
+
