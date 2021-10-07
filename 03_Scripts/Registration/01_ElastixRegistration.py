@@ -567,8 +567,8 @@ for Index in Indices:
                 Axes[0].set_title('Initial')
                 Axes[1].set_title('Registered')
                 plt.title('DSC :' + str(round(DSC,3)))
-                plt.savefig(ResultsDirectory+'/R'+Name+'.png')
-                # plt.show()
+                # plt.savefig(ResultsDirectory+'/R'+Name+'.png')
+                plt.show()
                 plt.close(Figure)
                 Tac = time.clock_gettime(0)
                 LogFile.write('Perform plotting in %.3f s' % (Tac - Tic) + '\n')
@@ -606,15 +606,15 @@ for Index in Indices:
 
                 ## Perform jacobian unimodular decomposition
                 JacobianArray = sitk.GetArrayFromImage(ResampledJacobian)
-                SubSampling = i[-1]
+                # SubSampling = i[-1]
                 SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianArray)
                 Tac = time.clock_gettime(0)
                 LogFile.write('Read and decompose jacobian in %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
 
                 ## Write results
                 Tic = time.clock_gettime(0)
-                WriteMHD(SphericalCompression, np.array(New_Spacing), ResultsDirectory, 'J', PixelType='float')
-                WriteMHD(IsovolumicDeformation, np.array(New_Spacing), ResultsDirectory, 'F_Tilde', PixelType='float')
+                WriteMHD(SphericalCompression, np.array([0.098, 0.098, 0.098]), ResultsDirectory, 'J', PixelType='float')
+                WriteMHD(IsovolumicDeformation, np.array([0.098, 0.098, 0.098]), ResultsDirectory, 'F_Tilde', PixelType='float')
                 Tac = time.clock_gettime(0)
                 LogFile.write('Write decomposition results in %.3f s' % (Tac - Tic) + '\n\n')
 

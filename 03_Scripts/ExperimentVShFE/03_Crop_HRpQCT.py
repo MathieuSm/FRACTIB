@@ -24,7 +24,7 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
     TransformixImageFilter.ComputeDeformationFieldOff()
     TransformixImageFilter.ComputeSpatialJacobianOff()
     TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
-    TransformixImageFilter.SetMovingImage(MovingImage)
+    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
     TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
     TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
 
@@ -134,22 +134,77 @@ for Index in range(len(SampleList)):
     uCT_Scan = sitk.ReadImage(SamplePath + '/uCT.mhd')
     uCT_Mask = sitk.ReadImage(SamplePath + '/uCT_Mask.mhd')
     HRpQCT_Scan = sitk.ReadImage(SamplePath + '/HR-pQCT_Registered.mhd')
-    HRpQCT_Mask = sitk.ReadImage(SamplePath + '/HR-pQCT_Mask.mhd')
+    HRpQCT_Mask_Image = sitk.ReadImage(SamplePath + '/HR-pQCT_Mask.mhd')
+    J = sitk.ReadImage(SamplePath + '/J.mhd')
+    F_Tilde = sitk.ReadImage(SamplePath + '/F_Tilde.mhd')
+
+
+    # Get arrays from images
+    uCT_Mask_Array = sitk.GetArrayFromImage(uCT_Mask)
+    HRpQCT_Mask_Array = sitk.GetArrayFromImage(HRpQCT_Mask_Image)
 
     Spacing = uCT_Scan.GetSpacing()
 
     # 04 Transform HR-pQCT mask
     TransformParameterMap = sitk.ReadParameterFile(SamplePath + '/TransformParameters.0.txt')
-    HRpQCT_Mask = TransformixTransformations(HRpQCT_Mask, TransformParameterMap, ResultsDirectory=SamplePath)
+    HRpQCT_Mask = TransformixTransformations(HRpQCT_Mask_Array, TransformParameterMap, ResultsDirectory=SamplePath)
     ## Re-binarize mask
     HRpQCT_Mask[HRpQCT_Mask < 0.5] = 0
     HRpQCT_Mask[HRpQCT_Mask >= 0.5] = 1
+    HRpQCT_Mask = sitk.GetImageFromArray(HRpQCT_Mask)
+    HRpQCT_Mask.SetSpacing(HRpQCT_Mask_Image.GetSpacing())
 
-    uCT_Mask = sitk.GetArrayFromImage(uCT_Mask)
+    # 06 Resample masks to get same sampling as HR-pQCT
+    Offset = HRpQCT_Mask_Image.GetOrigin()
+    Direction = HRpQCT_Mask_Image.GetDirection()
+    Orig_Size = np.array(HRpQCT_Mask.GetSize(), dtype=np.int)
+    Orig_Spacing = HRpQCT_Mask_Image.GetSpacing()
+
+    New_Spacing = (0.9712, 0.9712, 0.9712)
+
+    Resample = sitk.ResampleImageFilter()
+    Resample.SetInterpolator = sitk.sitkLinear
+    Resample.SetOutputDirection(Direction)
+    Resample.SetOutputOrigin(Offset)
+    Resample.SetOutputSpacing(New_Spacing)
+
+    New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
+    New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
+    New_Size = [int(s) for s in New_Size]
+    Resample.SetSize(New_Size)
+
+    ResampledImage = Resample.Execute(HRpQCT_Mask)
+    HRpQCT_Mask = sitk.GetArrayFromImage(ResampledImage)
+
+    # Do the same fot other images
+    Orig_Size = np.array(uCT_Mask.GetSize(), dtype=np.int)
+
+    New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
+    New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
+    New_Size = [int(s) for s in New_Size]
+    Resample.SetSize(New_Size)
+
+    ResampledImage = Resample.Execute(uCT_Mask)
+    uCT_Mask = sitk.GetArrayFromImage(ResampledImage)
+
+    ResampledImage = Resample.Execute(uCT_Scan)
+    uCT_Scan = sitk.GetArrayFromImage(ResampledImage)
+
+    ResampledImage = Resample.Execute(HRpQCT_Scan)
+    HRpQCT_Scan = sitk.GetArrayFromImage(ResampledImage)
+
+    ResampledImage = Resample.Execute(J)
+    J = sitk.GetArrayFromImage(ResampledImage)
+
+    ResampledImage = Resample.Execute(F_Tilde)
+    F_Tilde = sitk.GetArrayFromImage(ResampledImage)
+
+
+
 
     # 05 Compute first slice to keep
     DSCs = pd.DataFrame()
-    for Slice in range(50):
+    for Slice in range(10):
 
         if np.sum(uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :]) > 0:
             DSC = 2 * np.sum(uCT_Mask[Slice, :, :] * HRpQCT_Mask[Slice, :, :]) / np.sum(uCT_Mask[Slice, :, :] + HRpQCT_Mask[Slice, :, :])
@@ -160,7 +215,7 @@ for Index in range(len(SampleList)):
         if i > 0:
             DSCs.loc[i,'Slope'] = DSCs.loc[i,'DSC'] - DSCs.loc[i-1,'DSC']
 
-    Tolerance = 1E-3
+    Tolerance = 1E-2
     FirstSlice = DSCs.loc[DSCs[DSCs['Slope'] > Tolerance]['Slice'].idxmax(),'Slice'].astype('int')
 
     Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
@@ -171,7 +226,7 @@ for Index in range(len(SampleList)):
 
     # 06 Compute last slice to keep
     DSCs = pd.DataFrame()
-    for SliceIndex in range(50):
+    for SliceIndex in range(10):
 
         Slice = uCT_Mask.shape[0]-SliceIndex-1
 
@@ -185,24 +240,33 @@ for Index in range(len(SampleList)):
         if i > 0:
             DSCs.loc[i, 'Slope'] = DSCs.loc[i, 'DSC'] - DSCs.loc[i - 1, 'DSC']
 
-    Tolerance = 1E-3
+    Tolerance = 1E-2
     LastSlice = DSCs.loc[DSCs[DSCs['Slope'] > Tolerance]['Slice'].idxmin(),'Slice'].astype('int')
 
+    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
+    Axes.imshow(uCT_Mask[LastSlice+1, :, :], cmap='bone', alpha=0.5)
+    Axes.imshow(HRpQCT_Mask[LastSlice+1, :, :], cmap='bone', alpha=0.5)
+    plt.show()
+    plt.close(Figure)
 
-    uCT_Scan = sitk.GetArrayFromImage(uCT_Scan)
-    HRpQCT_Scan = sitk.GetArrayFromImage(HRpQCT_Scan)
-
+    # Crop images
     uCT_Cropped = uCT_Scan[FirstSlice:LastSlice, :, :]
     HRpQCT_Cropped = HRpQCT_Scan[FirstSlice:LastSlice, :, :]
 
     uMask_Cropped = uCT_Mask[FirstSlice:LastSlice, :, :]
     HRMask_Cropped = HRpQCT_Mask[FirstSlice:LastSlice, :, :]
 
-    Origin = np.array([0, 0, 0])
-    WriteMHD(uCT_Cropped,Spacing,Origin,SamplePath, 'uCT_Cropped', PixelType='float')
-    WriteMHD(HRpQCT_Cropped,Spacing,Origin,SamplePath, 'HRpQCT_Cropped', PixelType='float')
-    WriteMHD(uMask_Cropped,Spacing,Origin,SamplePath, 'uCT_Mask_Cropped', PixelType='float')
-    WriteMHD(HRMask_Cropped,Spacing,Origin,SamplePath, 'HRpQCT_Mask_Cropped', PixelType='float')
+    J_Cropped = J[FirstSlice:LastSlice, :, :]
+    F_Tilde_Cropped = F_Tilde[FirstSlice:LastSlice, :, :]
+
+
+    Origin = np.array([0,0,New_Spacing[2]]) * FirstSlice
+    WriteMHD(uCT_Cropped,New_Spacing,Origin,SamplePath, 'uCT_Cropped', PixelType='float')
+    WriteMHD(HRpQCT_Cropped,New_Spacing,Origin,SamplePath, 'HRpQCT_Cropped', PixelType='float')
+    WriteMHD(uMask_Cropped,New_Spacing,Origin,SamplePath, 'uCT_Mask_Cropped', PixelType='float')
+    WriteMHD(HRMask_Cropped,New_Spacing,Origin,SamplePath, 'HRpQCT_Mask_Cropped', PixelType='float')
+    WriteMHD(J_Cropped,New_Spacing,Origin,SamplePath, 'J_Cropped', PixelType='float')
+    WriteMHD(F_Tilde_Cropped,New_Spacing,Origin,SamplePath, 'F_Tilde_Cropped', PixelType='float')
 
 
 
