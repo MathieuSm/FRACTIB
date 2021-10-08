@@ -102,7 +102,7 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 # 01 Set variables
 WorkingDirectory = os.getcwd()
 RegistrationDirectory = os.path.join(WorkingDirectory,'04_Results/04_Registration/')
-FEADirectory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
+FEADirectory = os.path.join(WorkingDirectory,'04_Results/06_FractureLinePrediction/')
 
 SampleList = [Dir for Dir in os.listdir(RegistrationDirectory) if os.path.isdir(RegistrationDirectory+Dir)]
 SampleList.sort()

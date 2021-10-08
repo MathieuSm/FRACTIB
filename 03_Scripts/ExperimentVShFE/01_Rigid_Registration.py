@@ -169,7 +169,7 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-Registration_Directory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
+Registration_Directory = os.path.join(WorkingDirectory,'04_Results/06_FractureLinePrediction/')
 Mask_Directory = os.path.join(WorkingDirectory,'02_Data/03_uCT/')
 
 ## Set registration parameters

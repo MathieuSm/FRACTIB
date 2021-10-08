@@ -141,7 +141,7 @@ for Index in range(len(SampleList)):
 
     Registration_Path = os.path.join(Registration_Directory,Sample)
 
-    ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/05_FractureLinePrediction', Sample)
+    ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/06_FractureLinePrediction', Sample)
     os.makedirs(ResultsDirectory, exist_ok=True)
 
     # 03 Load Masks

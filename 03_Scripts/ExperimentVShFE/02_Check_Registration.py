@@ -19,7 +19,7 @@ plt.rc('font', size=12)
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-DataDirectory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
+DataDirectory = os.path.join(WorkingDirectory,'04_Results/06_FractureLinePrediction/')
 
 SampleList = os.listdir(DataDirectory)
 SampleList.sort()

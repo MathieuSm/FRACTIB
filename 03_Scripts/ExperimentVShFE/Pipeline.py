@@ -45,7 +45,7 @@ def PlotsImages(Image1, Image2, C1=np.array([[0, 0, 0], [255, 0, 0]]), C2=np.arr
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-Data_Directory = os.path.join(WorkingDirectory,'04_Results/05_FractureLinePrediction/')
+Data_Directory = os.path.join(WorkingDirectory,'04_Results/06_FractureLinePrediction/')
 
 SampleList = [Dir for Dir in os.listdir(Data_Directory) if os.path.isdir(Data_Directory+Dir)]
 SampleList.sort()
