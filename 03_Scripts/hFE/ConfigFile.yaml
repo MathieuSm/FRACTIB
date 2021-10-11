@@ -39,7 +39,15 @@ All_Mask: True
 nlgeom: off # affects NLGEOM parameter in abaqus simulation (on/off)
 nprocs: 4
 max_increments: 1000 # int number [1-1000]
-Control: Force # [Force/Displacement] discribes the loading boundary conditions
+Control: Force       # [Force/Displacement] discribes the loading boundary conditions
+BCs_Mode: 5          # 0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
+Fz_Max_Factor: 0.4   # Displacement in FZ direction for no psl FZ_MAX
+BCs_Load: [[1.0, 0, 0, 0, 0, 0],
+           [0, 1.0, 0, 0, 0, 0],
+           [0, 0, 1.0, 0, 0, 0],
+           [0, 0, 0, 1.0, 0, 0],
+           [0, 0, 0, 0, 1.0, 0],
+           [0, 0, 0, 0, 0, 1.0]]
 
 # Fitting variables
 sca1: 2.29
@@ -118,5 +126,3 @@ Folder_IDs:
   C0003118: 454_L_94_F
   C0003112: 455_L_97_F
   C0003105: 456_R_97_F
-
-

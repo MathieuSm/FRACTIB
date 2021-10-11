@@ -3500,12 +3500,12 @@ def UpDate_BCs_Files(Config):
         load_my = bc_folder + "boundary_conditions_mom_y.inp"
         load_mz = bc_folder + "boundary_conditions_mom_z.inp"
 
-        Replace(load_fx, "REF_NODE, 1, 1,", "REF_NODE, 1, 1," + str(float(Config['bc_load'][0][0])))
-        Replace(load_fy, "REF_NODE, 2, 2,", "REF_NODE, 2, 2," + str(float(Config['bc_load'][1][1])))
-        Replace(load_fz, "REF_NODE, 3, 3,", "REF_NODE, 3, 3," + str(float(Config['bc_load'][2][2])))
-        Replace(load_mx, "REF_NODE, 4, 4,", "REF_NODE, 4, 4," + str(float(Config['bc_load'][3][3])))
-        Replace(load_my, "REF_NODE, 5, 5,", "REF_NODE, 5, 5," + str(float(Config['bc_load'][4][4])))
-        Replace(load_mz, "REF_NODE, 6, 6,", "REF_NODE, 6, 6," + str(float(Config['bc_load'][5][5])))
+        Replace(load_fx, "REF_NODE, 1, 1,", "REF_NODE, 1, 1," + str(float(Config['BCs_Load'][0][0])))
+        Replace(load_fy, "REF_NODE, 2, 2,", "REF_NODE, 2, 2," + str(float(Config['BCs_Load'][1][1])))
+        Replace(load_fz, "REF_NODE, 3, 3,", "REF_NODE, 3, 3," + str(float(Config['BCs_Load'][2][2])))
+        Replace(load_mx, "REF_NODE, 4, 4,", "REF_NODE, 4, 4," + str(float(Config['BCs_Load'][3][3])))
+        Replace(load_my, "REF_NODE, 5, 5,", "REF_NODE, 5, 5," + str(float(Config['BCs_Load'][4][4])))
+        Replace(load_mz, "REF_NODE, 6, 6,", "REF_NODE, 6, 6," + str(float(Config['BCs_Load'][5][5])))
 
     elif Config['Control'] == 'Force':
         load_fx = bc_folder + "boundary_conditions_disp_x_force.inp"
@@ -3515,12 +3515,12 @@ def UpDate_BCs_Files(Config):
         load_my = bc_folder + "boundary_conditions_mom_y_force.inp"
         load_mz = bc_folder + "boundary_conditions_mom_z_force.inp"
 
-        Replace(load_fx, "REF_NODE, 1,", "REF_NODE, 1, " + str(float(Config['bc_load'][0][0])))
-        Replace(load_fy, "REF_NODE, 2,", "REF_NODE, 2, " + str(float(Config['bc_load'][1][1])))
-        Replace(load_fz, "REF_NODE, 3,", "REF_NODE, 3, " + str(float(Config['bc_load'][2][2])))
-        Replace(load_mx, "REF_NODE, 4,", "REF_NODE, 4, " + str(float(Config['bc_load'][3][3])))
-        Replace(load_my, "REF_NODE, 5,", "REF_NODE, 5, " + str(float(Config['bc_load'][4][4])))
-        Replace(load_mz, "REF_NODE, 6,", "REF_NODE, 6, " + str(float(Config['bc_load'][5][5])))
+        Replace(load_fx, "REF_NODE, 1,", "REF_NODE, 1, " + str(float(Config['BCs_Load'][0][0])))
+        Replace(load_fy, "REF_NODE, 2,", "REF_NODE, 2, " + str(float(Config['BCs_Load'][1][1])))
+        Replace(load_fz, "REF_NODE, 3,", "REF_NODE, 3, " + str(float(Config['BCs_Load'][2][2])))
+        Replace(load_mx, "REF_NODE, 4,", "REF_NODE, 4, " + str(float(Config['BCs_Load'][3][3])))
+        Replace(load_my, "REF_NODE, 5,", "REF_NODE, 5, " + str(float(Config['BCs_Load'][4][4])))
+        Replace(load_mz, "REF_NODE, 6,", "REF_NODE, 6, " + str(float(Config['BCs_Load'][5][5])))
 
     else:
         raise ValueError('experiment control variable CONTROL is not set properly!')
@@ -3609,7 +3609,7 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
     bc_fmax_file = open(bc_fmax_file_pwd, "w")
 
     # BC_mode NUMBERS:  0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
-    if Config['BC_mode'] == 0:
+    if Config['BCs_Mode'] == 0:
         for line in bc_file:
             if "REF_NODE, 1, 1," in line:
                 bc_fmax_file.write("REF_NODE, 1, 1, 0.0" + "\n")
@@ -3625,14 +3625,14 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
                 bc_fmax_file.write("REF_NODE, 6, 6, 0.0" + "\n")
             else:
                 bc_fmax_file.write(line)
-    elif Config['BC_mode'] == 2:
+    elif Config['BCs_Mode'] == 2:
         for line in bc_file:
             if "REF_NODE, 1, 1," in line:
                 bc_fmax_file.write("REF_NODE, 1, 1, 0.0" + "\n")
             elif "REF_NODE, 2, 2," in line:
                 bc_fmax_file.write("REF_NODE, 2, 2, 0.0" + "\n")
             elif "REF_NODE, 3, 3," in line:
-                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['fz_max_factor']) + "\n")
+                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['Fz_Max_Factor']) + "\n")
             elif "REF_NODE, 4, 4," in line:
                 bc_fmax_file.write("")
             elif "REF_NODE, 5, 5," in line:
@@ -3642,14 +3642,14 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
             else:
                 bc_fmax_file.write(line)
 
-    elif Config['BC_mode'] == 5:
+    elif Config['BCs_Mode'] == 5:
         for line in bc_file:
             if "REF_NODE, 1, 1," in line:
                 bc_fmax_file.write("")
             elif "REF_NODE, 2, 2," in line:
                 bc_fmax_file.write("")
             elif "REF_NODE, 3, 3," in line:
-                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['fz_max_factor']) + "\n")
+                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['Fz_Max_Factor']) + "\n")
             elif "REF_NODE, 4, 4," in line:
                 bc_fmax_file.write("")
             elif "REF_NODE, 5, 5," in line:
@@ -3660,7 +3660,7 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
                 bc_fmax_file.write(line)
 
     else:
-        raise ValueError('BC_mode was not properly defined. Was ' + str(Config['BC_mode']) + ', but should be [0, 2, 5]')
+        raise ValueError('BC_mode was not properly defined. Was ' + str(Config['BCs_Mode']) + ', but should be [0, 2, 5]')
 
     bc_file.close()
     bc_fmax_file.close()
