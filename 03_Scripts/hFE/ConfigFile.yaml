@@ -48,7 +48,7 @@ kmax: 0.018
 
 # Relative directories
 AIMDir:  '02_Data/05_hFE/01_AIM/'
-FEADir:  '05_Results/05_hFE/'
+FEADir:  '04_Results/05_hFE/'
 BCs:     '02_Data/05_hFE/BC_PSL/boundary_conditions_basic.inp'
 PSL_LoadCases_BCs_Folder: '02_Data/05_hFE/BC_PSL/'
 

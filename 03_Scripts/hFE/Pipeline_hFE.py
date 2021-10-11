@@ -3364,7 +3364,12 @@ def Plot_MSL_Fabric_Fast(Config, Bone, Sample):
 
     def quiver_3d_MSL(EigenValues, EigenVectors, COGs, path):
         cmap = 'jet'
-        c = (EigenValues - EigenValues.min()) / EigenValues.ptp()
+        if EigenValues.ptp() != 0:
+            c = (EigenValues - EigenValues.min()) / EigenValues.ptp()
+        elif EigenValues.max() == EigenValues.min():
+            c = EigenValues
+        else:
+            c = (EigenValues - EigenValues.min())
         c = np.concatenate((c, np.repeat(c,2)))
         c = getattr(plt.cm, cmap)(c)
 

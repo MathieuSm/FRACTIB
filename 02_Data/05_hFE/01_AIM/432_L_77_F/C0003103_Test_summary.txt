@@ -4,7 +4,7 @@
 **                hFE pipeline Denis Schenk 2018                **
 ******************************************************************
 File                 : 02_Data/05_hFE/01_AIM/432_L_77_F/C0003103_UNCOMP.AIM
-System computed on   : mathieu-Surface-Book-3
+System computed on   : Snow
 Simulation Type      : Fast model (one phase / isotropic)
 Fitting Variables    : 2.29 | 2.30 | 0.018 |
 *****************************************************************
