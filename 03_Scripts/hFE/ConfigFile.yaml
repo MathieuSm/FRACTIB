@@ -41,6 +41,10 @@ nprocs: 4
 max_increments: 1000 # int number [1-1000]
 Control: Force # [Force/Displacement] discribes the loading boundary conditions
 
+# Fitting variables
+sca1: 2.29
+sca2: 2.30
+kmax: 0.018
 
 # Relative directories
 AIMDir:  '02_Data/05_hFE/01_AIM/'

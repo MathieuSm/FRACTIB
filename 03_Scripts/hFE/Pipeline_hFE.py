@@ -87,10 +87,10 @@ def Set_FileNames(Config, Sample):
     FileName["INPname"] = os.path.join(AIMDir, New_FileName)
 
     New_FileName = "{}_{}_summary.txt".format(Sample, Version)
-    FileName["SUMname"] = os.path.join(AIMDir, New_FileName)
+    FileName['SummaryName'] = os.path.join(AIMDir, New_FileName)
 
-    New_FileName = "{}_{}_BPVb".format(Sample, Version)
-    FileName["VER_BPVname"] = os.path.join(AIMDir, New_FileName)
+    # New_FileName = "{}_{}_BPVb".format(Sample, Version)
+    # FileName['VER_BPVname'] = os.path.join(AIMDir, New_FileName)
 
     return FileName
 def Print_Memory_Usage():
@@ -1363,7 +1363,6 @@ def WriteAbaqus(outFileName, title, nodes, nsets, elems, elsets, NscaResults=Non
 
     else:
         os.write('** no ELEMENTS and ELSET written\n')
-    print('     -> write finished in    :   %8.1f sec' % (time2 - time1))
     os.close
     return
 
@@ -2818,18 +2817,17 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
                 # Evaluate Fabric using MSL
                 if FabricType == 'local':
-                    # Differentiation between only cort, only trab and mixed phase element
 
                     # Element contains only trabecular bone
                     if Phi_Cort == 0.0:
                         only_trab_element = only_trab_element + 1
-                        evalue, evect = Compute_EigenValues_EigenVectors(i, Element, MSL_kernel_list_trab, BVtrabseg,
+                        EigenValues, EigenVectors = Compute_EigenValues_EigenVectors(i, Element, MSL_kernel_list_trab, BVtrabseg,
                                                                  projection=False)
 
                     # Element contains only cortical bone
                     elif Phi_Trab == 0.0:
                         only_cort_element = only_cort_element + 1
-                        evalue, evect = Compute_EigenValues_EigenVectors(i, Element, MSL_kernel_list_cort, BVcortseg,
+                        EigenValues, EigenVectors = Compute_EigenValues_EigenVectors(i, Element, MSL_kernel_list_cort, BVcortseg,
                                                                  projection=True)
 
 
@@ -2850,20 +2848,20 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                         MSL_air = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
                         MSL_mixed = Phi_Cort * MSL_cort + Phi_Trab * MSL_trab + (1 - Phi_Cort - Phi_Trab) * MSL_air
 
-                        evalue, evect = scipy.linalg.eig(MSL_mixed)
+                        EigenValues, EigenVectors = scipy.linalg.eig(MSL_mixed)
                         # order eigenvalues 0=min, 1=mid, 2=max
-                        idx = evalue.argsort()
-                        evalue = evalue[idx]
-                        evect = evect[:, idx]
-                        evalue = [e.real for e in evalue]
-                        evect = [evect[:, p] for p in [0, 1, 2]]
+                        idx = EigenValues.argsort()
+                        EigenValues = EigenValues[idx]
+                        EigenVectors = EigenVectors[:, idx]
+                        EigenValues = [e.real for e in EigenValues]
+                        EigenVectors = [EigenVectors[:, p] for p in [0, 1, 2]]
 
 
-                m[Element], mm[Element] = evalue, evect
-                DOA[Element] = evalue[0] / evalue[2]
+                m[Element], mm[Element] = EigenValues, EigenVectors
+                DOA[Element] = EigenValues[0] / EigenValues[2]
                 COGs[Element] = COG
 
-        sys.stdout.write("\r" + " ... material mapping Elementent " + str(i) + "/" + str(len(Elements) - 1))
+        sys.stdout.write("\r" + " ... material mapping element " + str(i) + "/" + str(len(Elements) - 1))
         sys.stdout.flush()
 
     print("\nThe following number of elements were mapped for each phase\n  - cortical:   %5d \n"
@@ -3329,7 +3327,7 @@ def Log_Summary(Config, Bone, FileNames, Summary_Variables):
 
     print(Summary)
 
-    with open(FileNames["SumName"], "w") as SumFile:
+    with open(FileNames['SummaryName'], "w") as SumFile:
         SumFile.write(Summary)
 
     return
@@ -3378,8 +3376,7 @@ def Plot_MSL_Fabric_Fast(Config, Bone, Sample):
         q.set_facecolor(c)
         plt.savefig(path)
 
-    Path = Config['FEADir'] + '/' + Config['Folder_IDs'][Config] + "/" + Sample + '_' + Config[
-        'Version'] + '_'
+    Path = os.getcwd() + '/' + Config['FEADir'] + Config['Folder_IDs'][Sample] + '/' + Sample + '_' + Config['Version'] + '_'
 
     quiver_3d_MSL(eval1, evect1, cogs_plot, Path + 'MSL_1.png')
     quiver_3d_MSL(eval2, evect2, cogs_plot, Path + 'MSL_2.png')
