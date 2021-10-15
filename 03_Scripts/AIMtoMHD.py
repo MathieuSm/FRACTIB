@@ -204,20 +204,22 @@ def AIM2mhd(fileInName):
 
 ## Set variables
 WorkingDirectory = os.getcwd()
-DataPath = os.path.join(WorkingDirectory,'04_Results/01_StandardhFE/')
+DataPath = os.path.join(WorkingDirectory,'NewAIMs/')
 
 SamplesDirectories = pd.DataFrame(os.listdir(DataPath))
 SamplesDirectories = SamplesDirectories.sort_values(by=0,ignore_index=True)
 
-for Sample in SamplesDirectories[0].values:
-    SamplesDirectory = os.path.join(DataPath, Sample)
+Sample = SamplesDirectories[0].values[1]
+# for Sample in SamplesDirectories[0].values:
 
-    VersionFile = [VersionFile for VersionFile in os.listdir(SamplesDirectory) if VersionFile.endswith(";1")]
-    for File in VersionFile:
-        os.rename(os.path.join(SamplesDirectory,File),os.path.join(SamplesDirectory,File[:-2]))
+SamplesDirectory = os.path.join(DataPath, Sample)
 
-    hFEFile = [hFEFile for hFEFile in os.listdir(SamplesDirectory) if hFEFile.endswith(".AIM")]
+VersionFile = [VersionFile for VersionFile in os.listdir(SamplesDirectory) if VersionFile.endswith(";1")]
+for File in VersionFile:
+    os.rename(os.path.join(SamplesDirectory,File),os.path.join(SamplesDirectory,File[:-2]))
 
-    fileInName = os.path.join(SamplesDirectory, hFEFile[0])
+hFEFile = [hFEFile for hFEFile in os.listdir(SamplesDirectory) if hFEFile.endswith(".AIM")]
 
-    AIM2mhd(fileInName)
+fileInName = os.path.join(SamplesDirectory, hFEFile[3])
+
+AIM2mhd(fileInName)
