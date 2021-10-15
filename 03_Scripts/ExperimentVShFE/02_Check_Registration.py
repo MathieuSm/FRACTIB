@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
-import time
+from matplotlib.colors import ListedColormap
 from matplotlib.widgets import Slider
 
 desired_width = 500
@@ -32,7 +32,7 @@ for Index in range(len(SampleList)):
     SamplePath = os.path.join(DataDirectory,Sample)
 
     # 03 Load files
-    uCT_Scan = sitk.ReadImage(SamplePath + '/uCT.mhd')
+    uCT_Scan = sitk.ReadImage(SamplePath + '/uCT_Mask.mhd')
     HRpQCT_Scan = sitk.ReadImage(SamplePath + '/HR-pQCT_Registered.mhd')
 
 
@@ -48,8 +48,10 @@ for Index in range(len(SampleList)):
     # 08 Plot images        
     Figure, Axes = plt.subplots(1, 1, figsize=(11, 9), dpi=100)
 
-    uCT_Show = Axes.imshow(uCT_Scan[:, :, Mid_Position], cmap='bone', alpha=1)
-    HRpQCT_Show = Axes.imshow(HRpQCT_Scan[:, :, Mid_Position], cmap='jet', alpha=0.5)
+    HRpQCT_Show = Axes.imshow(HRpQCT_Scan[:, :, Mid_Position], cmap='bone', alpha=1)
+    Mask_ColorMap = ListedColormap(np.array([[0, 0, 0, 0],[1, 0, 0, 1]]).astype('float'))
+    uCT_Show = Axes.imshow(uCT_Scan[:, :, Mid_Position], cmap=Mask_ColorMap, alpha=0.5)
+
 
     SliderAxis = plt.axes([0.25, 0.15, 0.65, 0.03])
     Mid_Position_Slider = Slider(SliderAxis, 'Y Position', 0, uCT_Scan.shape[1], valinit=Mid_Position)
