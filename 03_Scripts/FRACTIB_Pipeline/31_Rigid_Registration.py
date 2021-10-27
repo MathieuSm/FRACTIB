@@ -5,8 +5,9 @@ import os
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
+from scipy import ndimage
 import matplotlib.pyplot as plt
-import time
+from matplotlib.widgets import Slider
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -36,7 +37,7 @@ def ElastixRegistration(Dictionary):
 
     ## Set parameter map
     ParameterMapVector = sitk.VectorOfParameterMap()
-    Dimension = len(FixedImage.shape)
+    Dimension = FixedImage.GetDimension()
     ImagePyramidSchedule = np.repeat(PyramidSchedule,Dimension)
 
     for Transformation in Transformations:
@@ -56,11 +57,12 @@ def ElastixRegistration(Dictionary):
     ## Set Elastix and perform registration
     ElastixImageFilter = sitk.ElastixImageFilter()
     ElastixImageFilter.SetParameterMap(ParameterMapVector)
-    ElastixImageFilter.SetFixedImage(sitk.GetImageFromArray(FixedImage))
-    ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
-    ElastixImageFilter.SetFixedMask(sitk.GetImageFromArray(FixedMask))
-    ElastixImageFilter.SetMovingMask(sitk.GetImageFromArray(MovingMask))
+    ElastixImageFilter.SetFixedImage(FixedImage)
+    ElastixImageFilter.SetMovingImage(MovingImage)
+    ElastixImageFilter.SetFixedMask(FixedMask)
+    ElastixImageFilter.SetMovingMask(MovingMask)
     ElastixImageFilter.SetOutputDirectory(ResultsDirectory)
+    ElastixImageFilter.SetInitialTransformParameterFileName(ResultsDirectory + 'InitialTranslation.txt')
     ElastixImageFilter.LogToConsoleOn()
     ElastixImageFilter.Execute()
 
@@ -68,23 +70,10 @@ def ElastixRegistration(Dictionary):
     ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
     TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
 
-    return sitk.GetArrayFromImage(ResultImage), TransformParameterMap
-def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirectory=False):
+    ## Rename parameter file
+    os.rename(Results_Path + '/TransformParameters.0.txt', ResultsDirectory + 'TransformParameters.txt')
 
-    ## Compute jacobian of deformation field using transformix
-    TransformixImageFilter = sitk.TransformixImageFilter()
-    TransformixImageFilter.ComputeDeformationFieldOff()
-    TransformixImageFilter.ComputeSpatialJacobianOff()
-    TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
-    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
-    TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
-    TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
-
-    TransformixImageFilter.Execute()
-
-    ResultImage = TransformixImageFilter.GetResultImage()
-
-    return sitk.GetArrayFromImage(ResultImage)
+    return ResultImage, TransformParameterMap
 def WriteRaw(ImageArray, OutputFileName, PixelType):
 
     if PixelType == 'uint':
@@ -169,82 +158,107 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
 # 01 Set variables
 WorkingDirectory = os.getcwd()
-Registration_Directory = os.path.join(WorkingDirectory,'04_Results/06_FractureLinePrediction/')
-Mask_Directory = os.path.join(WorkingDirectory,'02_Data/03_uCT/')
-
-## Set registration parameters
-Transformation = 'rigid'
-PyramidSchedules = [[50,20,10]]
-NIterations = [2000]
-Alphas = [0.6]
-As = [10]
+uCTFolder = os.path.join(WorkingDirectory, '02_Data/03_uCT/')
+HRpQCTFolder = os.path.join(WorkingDirectory, '02_Data/02_HRpQCT/')
+ResultsFolder = os.path.join(WorkingDirectory, '04_Results/06_FractureLinePrediction/')
 
 
-SampleList = [Dir for Dir in os.listdir(Registration_Directory) if os.path.isdir(Registration_Directory+Dir)]
+SampleList = [Dir for Dir in os.listdir(HRpQCTFolder) if os.path.isdir(HRpQCTFolder+Dir)]
 SampleList.sort()
 
-SampleList = ['443_L_73_F']
-
+Index = 0
 for Index in range(len(SampleList)):
 
+    ## Set sample paths
     Sample = SampleList[Index]
+    uCT_Path = os.path.join(uCTFolder + Sample + '/')
+    HRpQCT_Path = os.path.join(HRpQCTFolder + Sample + '/')
+    Results_Path = os.path.join(ResultsFolder + Sample + '/')
 
-    # 02 Set Paths and Scans
-    SamplePath = os.path.join(Registration_Directory,Sample)
+    ## List files
+    uCT_Files = os.listdir(uCT_Path)
+    uCT_Mask_File = [File for File in uCT_Files if File.endswith('MASK.mhd')][0]
+    uCT_Scan_File = uCT_Mask_File[:-13] + '.mhd'
+    HRpQCT_Files = [File for File in os.listdir(HRpQCT_Path) if File.endswith('.mhd')]
+    HRpQCT_Files.sort()
 
-    # 03 Load Scans
-    uCT_Scan = sitk.ReadImage(SamplePath + '/uCT.mhd')
-    uCT_Mask = sitk.ReadImage(SamplePath + '/uCT_Mask.mhd')
-    HRpQCT_Scan = sitk.ReadImage(SamplePath + '/HR-pQCT.mhd')
-    HRpQCT_Mask = sitk.ReadImage(SamplePath + '/HR-pQCT_Mask.mhd')
-    Spacing = HRpQCT_Scan.GetSpacing()
+    ## Load Scans
+    uCT_Scan = sitk.ReadImage(uCT_Path + uCT_Scan_File)
+    uCT_Mask = sitk.ReadImage(uCT_Path + uCT_Mask_File)
+    uCT_Scan_Array = sitk.GetArrayFromImage(uCT_Scan)
 
-    # 04 Get Array from Images
-    uCT_Scan = sitk.GetArrayFromImage(uCT_Scan)
-    uCT_Mask = sitk.GetArrayFromImage(uCT_Mask)
-    HRpQCT_Scan = sitk.GetArrayFromImage(HRpQCT_Scan)
-    HRpQCT_Mask = sitk.GetArrayFromImage(HRpQCT_Mask)
+    HRpQCT_Scan = sitk.ReadImage(HRpQCT_Path + HRpQCT_Files[3])
+    HRpQCT_Cort = sitk.ReadImage(HRpQCT_Path + HRpQCT_Files[0])
+    HRpQCT_Trab = sitk.ReadImage(HRpQCT_Path + HRpQCT_Files[2])
+    HRpQCT_Mask = HRpQCT_Cort + HRpQCT_Trab
 
+    ## Apply initial rotations on HRpQCT scans
+    DSCs = pd.read_csv(Results_Path+'DSCs.csv')
+    BestAngle = int(DSCs.loc[DSCs['DSC'].idxmax(), 'Angle'])
+    for Index, Image in enumerate([HRpQCT_Scan,HRpQCT_Mask]):
+        print('\n Image number:' + str(Index))
+        print(Image)
+        Spacing = Image.GetSpacing()
+        Origin = Image.GetOrigin()
+        Direction = Image.GetDirection()
+        Array = sitk.GetArrayFromImage(Image)
+        Array = np.rot90(Array, 2, (0, 1))
+        Array = ndimage.rotate(Array, BestAngle, (1, 2), reshape=True)
 
-    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(uCT_Scan[:, :, int(uCT_Scan.shape[-1] / 2)], cmap='bone')
-    plt.show()
-    plt.close(Figure)
+        if Index == 1:
+            Otsu_Filter = sitk.OtsuThresholdImageFilter()
+            Otsu_Filter.SetInsideValue(0)
+            Otsu_Filter.SetOutsideValue(1)
+            Segmentation = Otsu_Filter.Execute(Image)
+            R_Threshold = Otsu_Filter.GetThreshold()
+            Array[Array <= R_Threshold] = 0
+            Array[Array > 0] = 1
 
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(uCT_Mask[:, :, int(uCT_Mask.shape[-1] / 2)], cmap='bone')
-    # plt.show()
-    # plt.close(Figure)
-    #
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(HRpQCT_Scan[:, :, int(HRpQCT_Scan.shape[-1] / 2)], cmap='bone')
-    # plt.show()
-    # plt.close(Figure)
-    #
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(HRpQCT_Mask[:, :, int(HRpQCT_Mask.shape[-1] / 2)], cmap='bone')
-    # plt.show()
-    # plt.close(Figure)
+        Image = sitk.GetImageFromArray(Array)
+        Image.SetSpacing(Spacing)
+        Image.SetOrigin(Origin)
+        Image.SetDirection(Direction)
 
+        if Index == 0:
+            HRpQCT_Scan = Image
+        elif Index == 1:
+            HRpQCT_Mask = Image
 
-    Dictionary = {'Transformations':Transformation,
-                  'FixedImage':uCT_Scan,
-                  'MovingImage':HRpQCT_Scan,
-                  'FixedMask': uCT_Mask.astype('uint8'),
-                  'MovingMask':HRpQCT_Mask.astype('uint8'),
-                  'PyramidSchedule':PyramidSchedules[0],
-                  'NIterations':NIterations[0],
-                  'Alpha': Alphas[0],
-                  'A': As[0],
-                  'ResultsDirectory':SamplePath}
+    ## Crop HRpQCT scan for lower registration memory
+    HRpQCT_Scan_Cropped = sitk.Crop(HRpQCT_Scan,(0,0,322),(0,0,0))
+    HRpQCT_Mask_Cropped = sitk.Crop(HRpQCT_Mask,(0,0,322),(0,0,0))
+
+    ## Perform registration
+    Dictionary = {'Transformations': 'rigid',
+                  'FixedImage': uCT_Scan,
+                  'MovingImage': HRpQCT_Scan_Cropped,
+                  'FixedMask': sitk.Cast(uCT_Mask, sitk.sitkUInt8),
+                  'MovingMask': sitk.Cast(HRpQCT_Mask_Cropped, sitk.sitkUInt8),
+                  'PyramidSchedule': [50,20,10],
+                  'NIterations': 2000,
+                  'Alpha': 0.6,
+                  'A': 10,
+                  'ResultsDirectory': Results_Path}
     ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
+    ResultImage_Array = sitk.GetArrayFromImage(ResultImage)
 
-    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(ResultImage[:, :, int(ResultImage.shape[-1] / 2)], cmap='bone')
+    ## Plot registration results
+    Figure, Axes = plt.subplots(1, 1, figsize=(8.25, 6.75), dpi=100)
+    Mid_Position = int(round(uCT_Scan_Array.shape[2]/2))
+    uCT_Show = Axes.imshow(uCT_Scan_Array[:, :, Mid_Position], cmap='bone', alpha=1)
+    HRpQCT_Show = Axes.imshow(ResultImage_Array[:, :, Mid_Position], cmap='jet', alpha=0.5)
+
+    SliderAxis = plt.axes([0.25, 0.15, 0.65, 0.03])
+    Mid_Position_Slider = Slider(SliderAxis, 'Y Position', 0, uCT_Scan_Array.shape[1], valinit=Mid_Position)
+
+    def Update(Value):
+        Position = Mid_Position_Slider.Value
+        uCT_Show.set_data(uCT_Scan_Array[:, :, int(Position)])
+        HRpQCT_Show.set_data(ResultImage_Array[:, :, int(Position)])
+        Figure.canvas.draw_idle()
+
+    Mid_Position_Slider.on_changed(Update)
+
+    Axes.set_title(Sample + ' Registration Results')
     plt.show()
     plt.close(Figure)
-
-    ResultImage = TransformixTransformations(HRpQCT_Scan, TransformParameterMap, ResultsDirectory=SamplePath)
-
-    Origin = np.array([0, 0, 0])
-    WriteMHD(ResultImage,Spacing,Origin,SamplePath, 'HR-pQCT_Registered2', PixelType='float')
