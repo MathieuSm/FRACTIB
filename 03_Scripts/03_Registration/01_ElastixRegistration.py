@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
-
+#%% #!/usr/bin/env python3
 # 00 Initialization
+
 import os
+import time
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
+from pathlib import Path
 import matplotlib.pyplot as plt
-import time
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -15,8 +16,55 @@ pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width,suppress=True,formatter={'float_kind':'{:3}'.format})
 plt.rc('font', size=12)
 
+#%% Functions
+# 01 Define functions
+def PrintTime(Tic, Toc):
 
-## Define functions
+    """
+    Print elapsed time in seconds to time in HH:MM:SS format
+    :param Tic: Actual time at the beginning of the process
+    :param Toc: Actual time at the end of the process
+    """
+
+    Delta = Toc - Tic
+
+    Hours = np.floor(Delta / 60 / 60)
+    Minutes = np.floor(Delta / 60) - 60 * Hours
+    Seconds = Delta - 60 * Minutes - 60 * 60 * Hours
+
+    print('Process executed in %02i:%02i:%02i (HH:MM:SS)' % (Hours, Minutes, Seconds))
+
+    return
+def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
+
+    Array = sitk.GetArrayFromImage(Image)
+    
+    if Axis == 'Z':
+        if Slice:
+            Array = Array[Slice,:,:]
+        else:
+            Array = Array[Array.shape[0]//2,:,:]
+    if Axis == 'Y':
+        if Slice:
+            Array = Array[:,Slice,:]
+        else:
+            Array = Array[:,Array.shape[1]//2,:]
+    if Axis == 'X':
+        if Slice:
+            Array = Array[:,:,Slice]
+        else:
+            Array = Array[:,:,Array.shape[2]//2]
+
+    Figure, Axis = plt.subplots()
+    Axis.imshow(Array,interpolation=None, cmap='binary_r')
+    Axis.axis('Off')
+    
+    if(Title):
+        Axis.set_title(Title)
+
+    plt.show(Figure)
+
+    return
 def ElastixRegistration(Dictionary):
 
     # Get dictionary parameters
@@ -345,22 +393,23 @@ def DecomposeJacobian(JacobianArray):
     return SphericalCompression, IsovolumicDeformation
 
 
+#%% Variables
+# 02 Set variables
+WorkingDirectory = Path.cwd() / '../..'
+DataDirectory = WorkingDirectory / '02_Data/02_uCT/'
 
-# 01 Set variables
-WorkingDirectory = os.getcwd()
-DataDirectory = os.path.join(WorkingDirectory,'02_Data/03_uCT/')
-
-## Set registration parameters
-Transformations = ['rigid','affine','bspline']
+#%% Registration parameters
+# 03 Set registration parameters
+Transformations = ['rigid','bspline']
 PyramidSchedules = [[50,20,10]]
 NIterations = [2000]
 Alphas = [0.6]
 As = [1000]
 
-
-# 03 Load files, perform registrations and save results
-SampleList = pd.read_csv(DataDirectory+'BMD_Values.csv')
-LogFile = open(os.path.join(WorkingDirectory, '03_Scripts/Registration', 'Registration.log'),'w')
+#%% Files loading
+# 04 Load files
+SampleList = pd.read_csv(str(DataDirectory /'BMD_Values.csv'))
+LogFile = open(str(WorkingDirectory / '03_Scripts/03_Registration' / 'Registration.log'),'w')
 LogFile.write('Registration Log File\n\n')
 
 Fixed_Crop = [[[0,342],[25,500],[65,485]],
@@ -414,71 +463,96 @@ Moving_Crop = [[[0,342],[70,575],[120,605]],
                [[0,325],[35,585],[105,595]],
                [[0,325],[140,575],[50,575]]]
 Data = pd.DataFrame()
-Data = pd.read_csv(os.path.join(WorkingDirectory,'04_Results/04_Registration','RegistrationResults2.csv'))
+# Data = pd.read_csv(os.path.join(WorkingDirectory,'04_Results/03_Registration','RegistrationResults.csv'))
 
 Indices = [1,9,20]
 Indices = [20]
 
-for Index in Indices:
+#%% Set index
+# for Index in Indices:
+Index = 0
 
-    ## Files loading
-    Tic = time.clock_gettime(0)
-    Sample = SampleList.loc[Index,'Sample']
-    ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/04_Registration', Sample)
-    os.makedirs(ResultsDirectory,exist_ok=True)
-    SampleData = {'Sample': Sample}
-    LogFile.write('Sample: ' + Sample + '\n')
-    SampleDirectory = os.path.join(DataDirectory,Sample+'/')
-    Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.mhd')]
-    Files.sort()
+#%% uCT files loading
+# 05 Load uCT files
+print('\nLoad uCT files')
+Tic = time.time()
+Sample = SampleList.loc[Index,'Sample']
+ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/04_Registration', Sample)
+os.makedirs(ResultsDirectory,exist_ok=True)
+SampleData = {'Sample': Sample}
+LogFile.write('Sample: ' + Sample + '\n')
+SampleDirectory = os.path.join(DataDirectory,Sample+'/')
+Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.mhd')]
+Files.sort()
 
-    FixedImage = sitk.ReadImage(SampleDirectory + Files[0])
-    MovingImage = sitk.ReadImage(SampleDirectory + Files[1])
-    FixedMask = sitk.ReadImage(SampleDirectory + Files[0][:-4] + '_FULLMASK.mhd')
-    Tac = time.clock_gettime(0)
-    LogFile.write('Files loaded in %.3f s'%(Tac-Tic) + '\n')
+FixedImage = sitk.ReadImage(SampleDirectory + Files[0])
+MovingImage = sitk.ReadImage(SampleDirectory + Files[1])
+FixedMask = sitk.ReadImage(SampleDirectory + Files[0][:-4] + '_FULLMASK.mhd')
+Toc = time.time()
+PrintTime(Tic, Toc)
+LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
+
+#%% Convert to array
+# 06 Convert images to arrays
+print('\nConvert images to np arrays')
+Tic = time.time()
+FixedImage = sitk.GetArrayFromImage(FixedImage)
+MovingImage = sitk.GetArrayFromImage(MovingImage)
+FixedMask = sitk.GetArrayFromImage(FixedMask).astype('uint8')
+# Fixed_C = Fixed_Crop[Index]
+# Moving_C = Moving_Crop[Index]
+# FixedImage = FixedImage[Fixed_C[0][0]:Fixed_C[0][1],Fixed_C[1][0]:Fixed_C[1][1],Fixed_C[2][0]:Fixed_C[2][1]]
+# MovingImage = MovingImage[Moving_C[0][0]:Moving_C[0][1],Moving_C[1][0]:Moving_C[1][1],Moving_C[2][0]:Moving_C[2][1]]
+# FixedMask = FixedMask
+Toc = time.time()
+PrintTime(Tic,Toc)
+LogFile.write('Image converted into arrays in %.3f s' % (Toc - Tic) + '\n')
+
+#%% MHD writing
+# 07 Write MHDs
+print('\Write MHDs')
+Tic = time.time()
+WriteMHD(FixedImage, np.array([1, 1, 1]), ResultsDirectory, 'FixedImage', PixelType='float')
+WriteMHD(MovingImage, np.array([1, 1, 1]), ResultsDirectory, 'MovingImage', PixelType='float')
+Toc = time.time()
+PrintTime(Tic,Toc)
+LogFile.write('Write fixed and moving images in %.3f s' % (Toc - Tic) + '\n')
+
+#%% Initial alignment
+# 08 Perform initial alignment
+CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
+IniTransform = sitk.CenteredTransformInitializer(FixedImage, MovingImage, sitk.Euler3DTransform(), CenterType)
+IniMove = sitk.Resample(MovingImage, FixedImage, IniTransform, sitk.sitkLinear, 0.0, MovingImage.GetPixelID())
+
+ShowSlice(FixedImage)
+ShowSlice(MovingImage)
+ShowSlice(IniMove)
 
 
-    ## Convert images to arrays
-    Tic = time.clock_gettime(0)
-    FixedImage = sitk.GetArrayFromImage(FixedImage)
-    MovingImage = sitk.GetArrayFromImage(MovingImage)
-    FixedMask = sitk.GetArrayFromImage(FixedMask).astype('uint8')
-    Fixed_C = Fixed_Crop[Index]
-    Moving_C = Moving_Crop[Index]
-    FixedImage = FixedImage[Fixed_C[0][0]:Fixed_C[0][1],Fixed_C[1][0]:Fixed_C[1][1],Fixed_C[2][0]:Fixed_C[2][1]]
-    MovingImage = MovingImage[Moving_C[0][0]:Moving_C[0][1],Moving_C[1][0]:Moving_C[1][1],Moving_C[2][0]:Moving_C[2][1]]
-    FixedMask = FixedMask
-    Tac = time.clock_gettime(0)
-    LogFile.write('Image converted into arrays in %.3f s' % (Tac - Tic) + '\n')
+#%%
+# 09 Perform rigid registration and write MHD
+Tic = time.clock_gettime(0)
+Dictionary = {'Transformations':Transformations[0],
+                'FixedImage':FixedImage,
+                'MovingImage':MovingImage,
+                'FixedMask': FixedMask,
+                'PyramidSchedule':PyramidSchedules[-1],
+                'NIterations':NIterations[-1],
+                'Alpha': Alphas[0],
+                'A': 1000,
+                'ResultsDirectory':ResultsDirectory}
+ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
+Tac = time.clock_gettime(0)
+LogFile.write('Perform rigid registration %i min %i s' % (np.floor((Tac-Tic)/60),np.mod(Tac-Tic,60)) + '\n')
+SampleData['Rigid'] = round(Tac-Tic)
 
-    Tic = time.clock_gettime(0)
-    WriteMHD(FixedImage, np.array([1, 1, 1]), ResultsDirectory, 'FixedImage', PixelType='float')
-    WriteMHD(MovingImage, np.array([1, 1, 1]), ResultsDirectory, 'MovingImage', PixelType='float')
-    Tac = time.clock_gettime(0)
-    LogFile.write('Write fixed and moving images in %.3f s' % (Tac - Tic) + '\n')
+Tic = time.clock_gettime(0)
+WriteMHD(ResultImage,np.array([1,1,1]),ResultsDirectory,'RigidResult', PixelType='float')
+Tac = time.clock_gettime(0)
+LogFile.write('Write rigid result image %.3f s' % (Tac - Tic) + '\n')
 
-    ## Build parameters dictionary for rigid registration
-    Tic = time.clock_gettime(0)
-    Dictionary = {'Transformations':Transformations[0],
-                  'FixedImage':FixedImage,
-                  'MovingImage':MovingImage,
-                  'FixedMask': FixedMask,
-                  'PyramidSchedule':PyramidSchedules[-1],
-                  'NIterations':NIterations[-1],
-                  'Alpha': Alphas[0],
-                  'A': 1000,
-                  'ResultsDirectory':ResultsDirectory}
-    ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
-    Tac = time.clock_gettime(0)
-    LogFile.write('Perform rigid registration %i min %i s' % (np.floor((Tac-Tic)/60),np.mod(Tac-Tic,60)) + '\n')
-    SampleData['Rigid'] = round(Tac-Tic)
-
-    Tic = time.clock_gettime(0)
-    WriteMHD(ResultImage,np.array([1,1,1]),ResultsDirectory,'RigidResult', PixelType='float')
-    Tac = time.clock_gettime(0)
-    LogFile.write('Write rigid result image %.3f s' % (Tac - Tic) + '\n')
-
+#%%
+def Test():
     ## Build parameters dictionary for non-rigid registration
     N_k = 0
     for k in As:
@@ -626,5 +700,7 @@ for Index in Indices:
                 N_i += 1
             N_j += 1
         N_k += 1
-
+#%%
 LogFile.close()
+
+# %%
