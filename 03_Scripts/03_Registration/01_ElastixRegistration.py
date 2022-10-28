@@ -65,6 +65,80 @@ def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
     plt.show(Figure)
 
     return
+def GetSlice(Image, Slice, Axis='Z'):
+
+    Direction = Image.GetDirection()
+    Origin =  Image.GetOrigin()
+    Spacing = Image.GetSpacing()
+    Array = sitk.GetArrayFromImage(Image)
+
+    if Axis == 'Z':
+        Sliced = Array[Slice,:,:]
+        ISliced = sitk.GetImageFromArray(Sliced)
+        ISliced.SetDirection((Direction[0], Direction[1], Direction[3], Direction[4]))
+        ISliced.SetOrigin((Origin[0], Origin[1]))
+        ISliced.SetSpacing((Spacing[0], Spacing[1]))
+
+    elif Axis == 'Y':
+        Sliced = Array[:,Slice,:]
+        ISliced = sitk.GetImageFromArray(Sliced)
+        ISliced.SetDirection((Direction[0], Direction[2], Direction[6], Direction[8]))
+        ISliced.SetOrigin((Origin[0], Origin[2]))
+        ISliced.SetSpacing((Spacing[0], Spacing[2]))
+
+    elif Axis == 'X':
+        Sliced = Array[:,:,Slice]
+        ISliced = sitk.GetImageFromArray(Sliced)
+        ISliced.SetDirection((Direction[4], Direction[5], Direction[7], Direction[8]))
+        ISliced.SetOrigin((Origin[1], Origin[2]))
+        ISliced.SetSpacing((Spacing[1], Spacing[2]))
+
+    return ISliced
+def ElastixRotation(Dictionary):
+
+    # Get dictionary parameters
+    FixedImage = Dictionary['FixedImage']
+    MovingImage = Dictionary['MovingImage']
+    FixedMask = Dictionary['FixedMask']
+    PyramidSchedule = Dictionary['PyramidSchedule']
+    NIterations = Dictionary['NIterations']
+    Alpha = Dictionary['Alpha']
+    A = Dictionary['A']
+    ResultsDirectory = Dictionary['ResultsDirectory']
+    os.makedirs(ResultsDirectory,exist_ok=True)
+
+    ## Set parameter map
+    ParameterMapVector = sitk.VectorOfParameterMap()
+    Dimension = FixedImage.GetDimension()
+    ImagePyramidSchedule = np.repeat(PyramidSchedule,Dimension)
+
+    ParameterMap = sitk.GetDefaultParameterMap('rigid')
+    ParameterMap['ResultImageFormat'] = ['mhd']
+    ParameterMap['NewSamplesEveryIteration'] = ['true']
+    ParameterMap['FixedImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+    ParameterMap['MovingImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+    ParameterMap['MaximumNumberOfIterations'] = [str(NIterations)]
+    ParameterMap['SP_alpha'] = [str(Alpha)]
+    ParameterMap['SP_A'] = [str(A)]
+
+    ParameterMapVector.append(ParameterMap)
+
+
+    ## Set Elastix and perform registration
+    ElastixImageFilter = sitk.ElastixImageFilter()
+    ElastixImageFilter.SetParameterMap(ParameterMapVector)
+    ElastixImageFilter.SetFixedImage(FixedImage)
+    ElastixImageFilter.SetMovingImage(MovingImage)
+    ElastixImageFilter.SetFixedMask(sitk.Cast(FixedMask, sitk.sitkUInt8))
+    ElastixImageFilter.SetOutputDirectory(ResultsDirectory)
+    ElastixImageFilter.LogToConsoleOn()
+    ElastixImageFilter.Execute()
+
+    ## Get results
+    ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
+    TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
+
+    return ResultImage, TransformParameterMap
 def ElastixRegistration(Dictionary):
 
     # Get dictionary parameters
@@ -471,13 +545,13 @@ Indices = [20]
 #%% Set index
 # for Index in Indices:
 Index = 0
-
+SampleTime = time.time()
 #%% uCT files loading
 # 05 Load uCT files
 print('\nLoad uCT files')
 Tic = time.time()
 Sample = SampleList.loc[Index,'Sample']
-ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/04_Registration', Sample)
+ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/03_Registration', Sample)
 os.makedirs(ResultsDirectory,exist_ok=True)
 SampleData = {'Sample': Sample}
 LogFile.write('Sample: ' + Sample + '\n')
@@ -518,15 +592,34 @@ Toc = time.time()
 PrintTime(Tic,Toc)
 LogFile.write('Write fixed and moving images in %.3f s' % (Toc - Tic) + '\n')
 
-#%% Initial alignment
-# 08 Perform initial alignment
+#%% Cog alignment
+# 08 Align centers of gravity
+print('\nAlign centers of gravity')
+Tic = time.time()
 CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
 IniTransform = sitk.CenteredTransformInitializer(FixedImage, MovingImage, sitk.Euler3DTransform(), CenterType)
 IniMove = sitk.Resample(MovingImage, FixedImage, IniTransform, sitk.sitkLinear, 0.0, MovingImage.GetPixelID())
+Toc = time.time()
+PrintTime(Tic, Toc)
+LogFile.write('Align centers of gravity in %.3f s' % (Toc - Tic) + '\n')
 
-ShowSlice(FixedImage)
-ShowSlice(MovingImage)
-ShowSlice(IniMove)
+#%% Initial rotation
+print('\nPerform initial registration (rotation only)')
+Tic = time.time()
+
+Dictionary = {'FixedImage':FixedImage,
+              'MovingImage':MovingImage,
+              'FixedMask': FixedMask,
+              'PyramidSchedule':PyramidSchedules[-1],
+              'NIterations':NIterations[-1],
+              'Alpha': Alphas[0],
+              'A': 1000,
+              'ResultsDirectory':ResultsDirectory}
+ResultImage, TransformParameterMap = ElastixRotation(Dictionary)
+
+Toc = time.time()
+PrintTime(Tic, Toc)
+
 
 
 #%%
