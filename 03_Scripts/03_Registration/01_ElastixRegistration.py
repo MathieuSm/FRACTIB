@@ -139,6 +139,21 @@ def ElastixRotation(Dictionary):
     TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
 
     return ResultImage, TransformParameterMap
+def ShowRegistration(FixedImage, MovingImage):
+
+    # Perform Otsu's segmentation to compare Dice
+    OtsuFilter = sitk.OtsuThresholdImageFilter()
+    F_Otsu = OtsuFilter.Execute(FixedImage)
+    F_Otsu = sitk.GetArrayFromImage(F_Otsu)
+    M_Otsu = OtsuFilter.Execute(MovingImage)
+    M_Otsu = sitk.GetArrayFromImage(M_Otsu)
+    Dice = 2 * np.sum(F_Otsu * M_Otsu) / np.sum(F_Otsu + M_Otsu)
+
+    # Plot both images
+    Zeros = np.zeros((F_Otsu.shape[0], F_Otsu.shape[1], 3),'uint8')
+    
+
+    return Dice
 def ElastixRegistration(Dictionary):
 
     # Get dictionary parameters
@@ -604,19 +619,18 @@ PrintTime(Tic, Toc)
 LogFile.write('Align centers of gravity in %.3f s' % (Toc - Tic) + '\n')
 
 #%% Initial rotation
-print('\nPerform initial registration (rotation only)')
+print('\nPerform initial registration (2D only)')
 Tic = time.time()
-
-Dictionary = {'FixedImage':FixedImage,
-              'MovingImage':MovingImage,
-              'FixedMask': FixedMask,
+Slice = 60
+Dictionary = {'FixedImage':GetSlice(FixedImage, Slice),
+              'MovingImage':GetSlice(IniMove, Slice),
+              'FixedMask': GetSlice(FixedMask, Slice),
               'PyramidSchedule':PyramidSchedules[-1],
               'NIterations':NIterations[-1],
               'Alpha': Alphas[0],
               'A': 1000,
               'ResultsDirectory':ResultsDirectory}
 ResultImage, TransformParameterMap = ElastixRotation(Dictionary)
-
 Toc = time.time()
 PrintTime(Tic, Toc)
 
