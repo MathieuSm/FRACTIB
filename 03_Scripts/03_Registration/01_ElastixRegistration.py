@@ -65,7 +65,7 @@ def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
     plt.show(Figure)
 
     return
-def GetSlice(Image, Slice, Axis='Z'):
+def GetSlice(Image, Slice=None, Axis='Z'):
 
     Direction = Image.GetDirection()
     Origin =  Image.GetOrigin()
@@ -73,21 +73,36 @@ def GetSlice(Image, Slice, Axis='Z'):
     Array = sitk.GetArrayFromImage(Image)
 
     if Axis == 'Z':
-        Sliced = Array[Slice,:,:]
+
+        if Slice:
+            Sliced = Array[Slice,:,:]
+        else:
+            Sliced = Array[Array.shape[0] // 2, :, :]
+
         ISliced = sitk.GetImageFromArray(Sliced)
         ISliced.SetDirection((Direction[0], Direction[1], Direction[3], Direction[4]))
         ISliced.SetOrigin((Origin[0], Origin[1]))
         ISliced.SetSpacing((Spacing[0], Spacing[1]))
 
     elif Axis == 'Y':
-        Sliced = Array[:,Slice,:]
+
+        if Slice:
+            Sliced = Array[:,Slice,:]
+        else:
+            Sliced = Array[:, Array.shape[1] // 2, :]
+
         ISliced = sitk.GetImageFromArray(Sliced)
         ISliced.SetDirection((Direction[0], Direction[2], Direction[6], Direction[8]))
         ISliced.SetOrigin((Origin[0], Origin[2]))
         ISliced.SetSpacing((Spacing[0], Spacing[2]))
 
     elif Axis == 'X':
-        Sliced = Array[:,:,Slice]
+
+        if Slice:
+            Sliced = Array[:,:,Slice]
+        else:
+            Sliced = Array[:, :, Array.shape[2] // 2]
+
         ISliced = sitk.GetImageFromArray(Sliced)
         ISliced.SetDirection((Direction[4], Direction[5], Direction[7], Direction[8]))
         ISliced.SetOrigin((Origin[1], Origin[2]))
@@ -150,16 +165,26 @@ def ShowRegistration(FixedImage, MovingImage):
     Dice = 2 * np.sum(F_Otsu * M_Otsu) / np.sum(F_Otsu + M_Otsu)
 
     # Plot both images
-    Zeros = np.zeros((F_Otsu.shape[0], F_Otsu.shape[1], 3),'uint8')
-    
+    Image1 = np.zeros((F_Otsu.shape[0], F_Otsu.shape[1], 4),'uint8')
+    Image1[:,:,0] = (1-F_Otsu) * 255
+    Image1[:,:,3] = (1-M_Otsu) * 255
 
+    Image2 = np.zeros((M_Otsu.shape[0], M_Otsu.shape[1], 4),'uint8')
+    Image2[:,:,2] = (1-M_Otsu) * 255
+    Image2[:,:,3] = (1-M_Otsu) * 255
+
+    Figure, Axis = plt.subplots(1,1)
+    Axis.imshow(Image1)
+    Axis.imshow(Image2, alpha=0.5)
+    Axis.axis('Off')
+    plt.subplots_adjust(0,0,1,1)
+    plt.show()
+    
     return Dice
 def ElastixRegistration(Dictionary):
 
     # Get dictionary parameters
-    Transformations = Dictionary['Transformations']
-    if type(Transformations) is not list:
-        Transformations = list([Transformations])
+    Transformation = Dictionary['Transformation']
     FixedImage = Dictionary['FixedImage']
     MovingImage = Dictionary['MovingImage']
     FixedMask = Dictionary['FixedMask']
@@ -171,39 +196,42 @@ def ElastixRegistration(Dictionary):
     os.makedirs(ResultsDirectory,exist_ok=True)
 
     ## Set parameter map
-    ParameterMapVector = sitk.VectorOfParameterMap()
-    Dimension = len(FixedImage.shape)
+    Dimension = FixedImage.GetDimension()
     ImagePyramidSchedule = np.repeat(PyramidSchedule,Dimension)
 
-    for Transformation in Transformations:
+    ParameterMapVector = sitk.VectorOfParameterMap()
+    ParameterMap = sitk.GetDefaultParameterMap(Transformation)
+    # ParameterMap['InitialTransformParametersFileName'] = 'InitialTransform.txt'
+    ParameterMap['ResultImageFormat'] = ['mhd']
+    ParameterMap['NewSamplesEveryIteration'] = ['true']
+    ParameterMap['FixedImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+    ParameterMap['MovingImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+    ParameterMap['MaximumNumberOfIterations'] = [str(NIterations)]
+    ParameterMap['SP_alpha'] = [str(Alpha)]
+    ParameterMap['SP_A'] = [str(A)]
 
-        ParameterMap = sitk.GetDefaultParameterMap(Transformation)
-        ParameterMap['ResultImageFormat'] = ['mhd']
-        ParameterMap['NewSamplesEveryIteration'] = ['true']
-        ParameterMap['FixedImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
-        ParameterMap['MovingImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
-        ParameterMap['MaximumNumberOfIterations'] = [str(NIterations)]
-        ParameterMap['SP_alpha'] = [str(Alpha)]
-        ParameterMap['SP_A'] = [str(A)]
-
-        ParameterMapVector.append(ParameterMap)
+    # if Transformation == 'bspline':
+        # ParameterMap['NumberOfSpatialSamples'] = '4096'
+        # ParameterMap['BSplineInterpolationOrder'] = 3
+    ParameterMapVector.append(ParameterMap)
 
 
     ## Set Elastix and perform registration
     ElastixImageFilter = sitk.ElastixImageFilter()
     ElastixImageFilter.SetParameterMap(ParameterMapVector)
-    ElastixImageFilter.SetFixedImage(sitk.GetImageFromArray(FixedImage))
-    ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
-    ElastixImageFilter.SetFixedMask(sitk.GetImageFromArray(FixedMask))
+    ElastixImageFilter.SetFixedImage(FixedImage)
+    ElastixImageFilter.SetMovingImage(MovingImage)
+    ElastixImageFilter.SetFixedMask(sitk.Cast(FixedMask, sitk.sitkUInt8))
     ElastixImageFilter.SetOutputDirectory(ResultsDirectory)
     ElastixImageFilter.LogToConsoleOn()
+    ElastixImageFilter.LogToFileOn()
     ElastixImageFilter.Execute()
 
     ## Get results
     ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
     TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
 
-    return sitk.GetArrayFromImage(ResultImage), TransformParameterMap
+    return ResultImage, TransformParameterMap
 def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirectory=False):
 
     ## Compute jacobian of deformation field using transformix
@@ -211,12 +239,14 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
     # TransformixImageFilter.ComputeDeformationFieldOn()
     TransformixImageFilter.ComputeSpatialJacobianOn()
     # TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOn()
-    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
+    TransformixImageFilter.SetMovingImage(MovingImage)
     TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
     TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
 
     TransformixImageFilter.Execute()
-def WriteRaw(ImageArray, OutputFileName, PixelType):
+def WriteRaw(Image, OutputFileName, PixelType):
+
+    ImageArray = sitk.GetArrayFromImage(Image)
 
     if PixelType == 'uint':
 
@@ -241,15 +271,15 @@ def WriteRaw(ImageArray, OutputFileName, PixelType):
     elif PixelType == 'float':
         CastedImageArray = ImageArray.astype('float32')
 
-    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape)
+    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='F')
     File[:] = CastedImageArray[:]
     del File
 
     return
-def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
+def WriteMHD(Image, Path, FileName, PixelType='uint'):
 
     if PixelType == 'short' or PixelType == 'float':
-        if len(ImageArray.shape) == 2:
+        if Image.GetDimension() == 2:
 
             Array_3D = np.zeros((1,ImageArray.shape[0],ImageArray.shape[1]))
 
@@ -259,11 +289,9 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
 
             ImageArray = Array_3D
 
-    nz, ny, nx = np.shape(ImageArray)
+    nz, ny, nx = Image.GetSize()
 
-    lx = float(Spacing[0])
-    ly = float(Spacing[1])
-    lz = float(Spacing[2])
+    lx, ly, lz = Image.GetSpacing()
 
     TransformMatrix = '1 0 0 0 1 0 0 0 1'
     Offset = '0 0 0'
@@ -293,7 +321,7 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
     outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
     outs.close()
 
-    WriteRaw(ImageArray, os.path.join(Path, FileName) + '.raw', PixelType)
+    WriteRaw(Image, os.path.join(Path, FileName) + '.raw', PixelType)
 
     return
 def WriteVTK(VectorField,FilePath,FileName,SubSampling=1):
@@ -397,9 +425,10 @@ def WriteVTK(VectorField,FilePath,FileName,SubSampling=1):
     File.close()
 
     return
-def DecomposeJacobian(JacobianArray):
+def DecomposeJacobian(JacobianImage):
 
     # Determine 2D of 3D jacobian array
+    JacobianArray = sitk.GetArrayFromImage(JacobianImage)
     JacobianTerms = JacobianArray.shape[-1]
 
     if JacobianTerms == 4:
@@ -479,6 +508,14 @@ def DecomposeJacobian(JacobianArray):
                     # VM_Strain = np.sqrt(3/2) * np.linalg.norm(Deviatoric_E)
                     # VonMises_Strain[k,j,i] = VM_Strain
 
+    SphericalCompression = sitk.GetImageFromArray(SphericalCompression)
+    IsovolumicDeformation = sitk.GetImageFromArray(IsovolumicDeformation)
+
+    for Image in [SphericalCompression, IsovolumicDeformation]:
+        Image.SetSpacing(JacobianImage.GetSpacing())
+        Image.SetDirection(JacobianImage.GetDirection())
+        Image.SetOrigin(JacobianImage.GetOrigin())
+
     return SphericalCompression, IsovolumicDeformation
 
 
@@ -487,327 +524,241 @@ def DecomposeJacobian(JacobianArray):
 WorkingDirectory = Path.cwd() / '../..'
 DataDirectory = WorkingDirectory / '02_Data/02_uCT/'
 
-#%% Registration parameters
-# 03 Set registration parameters
-Transformations = ['rigid','bspline']
-PyramidSchedules = [[50,20,10]]
-NIterations = [2000]
-Alphas = [0.6]
-As = [1000]
-
 #%% Files loading
 # 04 Load files
 SampleList = pd.read_csv(str(DataDirectory /'BMD_Values.csv'))
-LogFile = open(str(WorkingDirectory / '03_Scripts/03_Registration' / 'Registration.log'),'w')
+LogFile = open(str(WorkingDirectory / '03_Scripts/03_Registration' / 'Registration.log'),'w+')
 LogFile.write('Registration Log File\n\n')
 
-Fixed_Crop = [[[0,342],[25,500],[65,485]],
-              [[0,326],[75,540],[75,500]],
-              [[0,330],[10,500],[55,545]],
-              [[0,330],[75,485],[35,525]],
-              [[0,311],[140,605],[100,570]],
-              [[0,325],[70,465],[35,505]],
-              [[0,320],[25,549],[55,530]],
-              [[0,325],[35,549],[40,525]],
-              [[0,310],[100,630],[40,610]],
-              [[0,325],[65,535],[0,549]],
-              [[10,330],[50,475],[50,549]],
-              [[0,337],[100,570],[150,600]],
-              [[0,311],[125,585],[130,610]],
-              [[0,311],[100,540],[105,580]],
-              [[10,335],[95,515],[40,515]],
-              [[0,330],[20,549],[0,530]],
-              [[0,311],[20,630],[100,640]],
-              [[0,330],[170,580],[80,570]],
-              [[0,323],[15,510],[5,525]],
-              [[0,325],[50,510],[80,549]],
-              [[0,325],[60,460],[30,530]],
-              [[0,325],[45,520],[0,549]],
-              [[0,325],[105,500],[50,515]],
-              [[0,325],[0,535],[85,520]],
-              [[0,330],[95,500],[5,505]]]
-Moving_Crop = [[[0,342],[70,575],[120,605]],
-               [[0,326],[110,600],[120,585]],
-               [[0,330],[75,560],[75,580]],
-               [[0,330],[120,570],[20,520]],
-               [[0,330],[110,585],[120,580]],
-               [[0,320],[115,575],[60,545]],
-               [[0,320],[90,625],[85,595]],
-               [[0,325],[80,615],[110,590]],
-               [[0,323],[95,660],[90,650]],
-               [[10,325],[90,630],[70,620]],
-               [[5,320],[115,545],[100,600]],
-               [[0,337],[120,600],[140,670]],
-               [[5,330],[100,590],[105,600]],
-               [[0,335],[80,530],[120,600]],
-               [[0,340],[160,580],[120,600]],
-               [[15,325],[90,630],[60,635]],
-               [[20,330],[30,655],[95,674]],
-               [[10,330],[145,570],[80,580]],
-               [[5,325],[115,630],[100,615]],
-               [[5,325],[100,580],[135,600]],
-               [[0,325],[110,555],[75,590]],
-               [[0,325],[55,570],[30,630]],
-               [[0,325],[170,580],[75,555]],
-               [[0,325],[35,585],[105,595]],
-               [[0,325],[140,575],[50,575]]]
 Data = pd.DataFrame()
-# Data = pd.read_csv(os.path.join(WorkingDirectory,'04_Results/03_Registration','RegistrationResults.csv'))
-
-Indices = [1,9,20]
-Indices = [20]
 
 #%% Set index
-# for Index in Indices:
-Index = 0
-SampleTime = time.time()
-#%% uCT files loading
-# 05 Load uCT files
-print('\nLoad uCT files')
-Tic = time.time()
-Sample = SampleList.loc[Index,'Sample']
-ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/03_Registration', Sample)
-os.makedirs(ResultsDirectory,exist_ok=True)
-SampleData = {'Sample': Sample}
-LogFile.write('Sample: ' + Sample + '\n')
-SampleDirectory = os.path.join(DataDirectory,Sample+'/')
-Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.mhd')]
-Files.sort()
+for Index in range(len(SampleList)):
+# Index = 8
+    SampleTime = time.time()
+    #%% uCT files loading
+    # 05 Load uCT files
+    print('\nLoad uCT files')
+    Tic = time.time()
+    Sample = SampleList.loc[Index,'Sample']
+    ResultsDirectory = os.path.join(WorkingDirectory, '04_Results/03_Registration', Sample)
+    os.makedirs(ResultsDirectory,exist_ok=True)
+    SampleData = {'Sample': Sample}
+    LogFile.write('Sample: ' + Sample + '\n')
+    SampleDirectory = os.path.join(DataDirectory,Sample+'/')
+    Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.mhd')]
+    Files.sort()
 
-FixedImage = sitk.ReadImage(SampleDirectory + Files[0])
-MovingImage = sitk.ReadImage(SampleDirectory + Files[1])
-FixedMask = sitk.ReadImage(SampleDirectory + Files[0][:-4] + '_FULLMASK.mhd')
-Toc = time.time()
-PrintTime(Tic, Toc)
-LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
+    FixedImage = sitk.ReadImage(SampleDirectory + Files[0])
+    MovingImage = sitk.ReadImage(SampleDirectory + Files[1])
+    FixedMask = sitk.ReadImage(SampleDirectory + Files[0][:-4] + '_FULLMASK.mhd')
+    FixedMask.SetSpacing(FixedImage.GetSpacing())
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
 
-#%% Convert to array
-# 06 Convert images to arrays
-print('\nConvert images to np arrays')
-Tic = time.time()
-FixedImage = sitk.GetArrayFromImage(FixedImage)
-MovingImage = sitk.GetArrayFromImage(MovingImage)
-FixedMask = sitk.GetArrayFromImage(FixedMask).astype('uint8')
-# Fixed_C = Fixed_Crop[Index]
-# Moving_C = Moving_Crop[Index]
-# FixedImage = FixedImage[Fixed_C[0][0]:Fixed_C[0][1],Fixed_C[1][0]:Fixed_C[1][1],Fixed_C[2][0]:Fixed_C[2][1]]
-# MovingImage = MovingImage[Moving_C[0][0]:Moving_C[0][1],Moving_C[1][0]:Moving_C[1][1],Moving_C[2][0]:Moving_C[2][1]]
-# FixedMask = FixedMask
-Toc = time.time()
-PrintTime(Tic,Toc)
-LogFile.write('Image converted into arrays in %.3f s' % (Toc - Tic) + '\n')
+    #%% Cog alignment
+    # 08 Align centers of gravity
+    print('\nAlign centers of gravity')
+    Tic = time.time()
+    CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
+    Otsu = sitk.OtsuThresholdImageFilter()
+    Otsu.SetInsideValue(1)
+    Otsu.SetOutsideValue(0)
+    # F_Otsu = Otsu.Execute(FixedImage)
+    # M_Otsu = Otsu.Execute(MovingImage)
+    IniTransform = sitk.CenteredTransformInitializer(FixedImage, MovingImage, sitk.Euler3DTransform(), CenterType)
+    IniMove = sitk.Resample(MovingImage, FixedImage, IniTransform, sitk.sitkLinear, 0.0, MovingImage.GetPixelID())
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Align centers of gravity in %.3f s' % (Toc - Tic) + '\n')
 
-#%% MHD writing
-# 07 Write MHDs
-print('\Write MHDs')
-Tic = time.time()
-WriteMHD(FixedImage, np.array([1, 1, 1]), ResultsDirectory, 'FixedImage', PixelType='float')
-WriteMHD(MovingImage, np.array([1, 1, 1]), ResultsDirectory, 'MovingImage', PixelType='float')
-Toc = time.time()
-PrintTime(Tic,Toc)
-LogFile.write('Write fixed and moving images in %.3f s' % (Toc - Tic) + '\n')
-
-#%% Cog alignment
-# 08 Align centers of gravity
-print('\nAlign centers of gravity')
-Tic = time.time()
-CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
-IniTransform = sitk.CenteredTransformInitializer(FixedImage, MovingImage, sitk.Euler3DTransform(), CenterType)
-IniMove = sitk.Resample(MovingImage, FixedImage, IniTransform, sitk.sitkLinear, 0.0, MovingImage.GetPixelID())
-Toc = time.time()
-PrintTime(Tic, Toc)
-LogFile.write('Align centers of gravity in %.3f s' % (Toc - Tic) + '\n')
-
-#%% Initial rotation
-print('\nPerform initial registration (2D only)')
-Tic = time.time()
-Slice = 60
-Dictionary = {'FixedImage':GetSlice(FixedImage, Slice),
-              'MovingImage':GetSlice(IniMove, Slice),
-              'FixedMask': GetSlice(FixedMask, Slice),
-              'PyramidSchedule':PyramidSchedules[-1],
-              'NIterations':NIterations[-1],
-              'Alpha': Alphas[0],
-              'A': 1000,
-              'ResultsDirectory':ResultsDirectory}
-ResultImage, TransformParameterMap = ElastixRotation(Dictionary)
-Toc = time.time()
-PrintTime(Tic, Toc)
-
-
-
-#%%
-# 09 Perform rigid registration and write MHD
-Tic = time.clock_gettime(0)
-Dictionary = {'Transformations':Transformations[0],
-                'FixedImage':FixedImage,
-                'MovingImage':MovingImage,
-                'FixedMask': FixedMask,
-                'PyramidSchedule':PyramidSchedules[-1],
-                'NIterations':NIterations[-1],
-                'Alpha': Alphas[0],
+    #%% Initial rotation
+    # Perform initial rotation
+    ###!! If needed compute ellipse and align directions using cog !!
+    print('\nPerform initial registration (2D only)')
+    Tic = time.time()
+    Slice = 60
+    Dictionary = {'FixedImage':GetSlice(FixedImage, Slice),
+                'MovingImage':GetSlice(IniMove, Slice),
+                'FixedMask': GetSlice(FixedMask, Slice),
+                'PyramidSchedule': [50, 20, 10],
+                'NIterations': 2000,
+                'Alpha': 0.6,
                 'A': 1000,
                 'ResultsDirectory':ResultsDirectory}
-ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
-Tac = time.clock_gettime(0)
-LogFile.write('Perform rigid registration %i min %i s' % (np.floor((Tac-Tic)/60),np.mod(Tac-Tic,60)) + '\n')
-SampleData['Rigid'] = round(Tac-Tic)
+    ResultImage, TransformParameterMap = ElastixRotation(Dictionary)
+    Dice = ShowRegistration(GetSlice(FixedImage,Slice),ResultImage)
+    print('Dice coefficient: %.3f' % (Dice))
+    Toc = time.time()
+    PrintTime(Tic, Toc)
 
-Tic = time.clock_gettime(0)
-WriteMHD(ResultImage,np.array([1,1,1]),ResultsDirectory,'RigidResult', PixelType='float')
-Tac = time.clock_gettime(0)
-LogFile.write('Write rigid result image %.3f s' % (Tac - Tic) + '\n')
+    #%% Build 3D initial transform
+    # Build initial transform
+    TransformParameters = TransformParameterMap[0]['TransformParameters']
+    TransformParameters = ('0',
+                        '0',
+                        str(TransformParameters[0]),
+                        str(TransformParameters[1]),
+                        str(TransformParameters[2]),
+                        '0')
+    CR = TransformParameterMap[0]['CenterOfRotationPoint']
 
-#%%
-def Test():
-    ## Build parameters dictionary for non-rigid registration
-    N_k = 0
-    for k in As:
-        SampleData['A'] = k
-        N_j = 0
-        for j in NIterations:
-            SampleData['N iterations'] = j
-            N_i = 0
-            for i in PyramidSchedules:
-                SampleData['Pyramid Schedule'] = i
+    InitialTransform = TransformParameterMap[0]
+    InitialTransform['CenterOfRotationPoint'] = (CR[0], CR[1], '0.0')
+    InitialTransform['Direction'] = [str(d) for d in FixedImage.GetDirection()]
+    InitialTransform['FixedImageDimension'] = str(FixedImage.GetDimension())
+    InitialTransform['Index'] = ('0', '0', '0')
+    InitialTransform['MovingImageDimension'] = str(MovingImage.GetDimension())
+    InitialTransform['NumberOfParameters'] = '6'
+    InitialTransform['Origin'] = [str(o) for o in FixedImage.GetOrigin()]
+    InitialTransform['Size'] = [str(s) for s in FixedImage.GetSize()]
+    InitialTransform['Spacing'] = [str(s) for s in FixedImage.GetSpacing()]
+    InitialTransform['TransformParameters'] = TransformParameters
 
-                Name = '_P' + str(PyramidSchedules[N_i][-1]) + '_I' + str(NIterations[N_j]) + '_A' + str(As[N_k])
+    TransformFile = open(ResultsDirectory + '/TransformParameters.0.txt')
+    Text = TransformFile.read()
+    TransformFile.close()
+    for K in InitialTransform.keys():
+        Start = Text.find(K)
+        Stop = Text[Start:].find(')')
+        OldText = Text[Start:Start+Stop]
+        NewText = Text[Start:Start+len(K)]
+        for i in InitialTransform[K]:
+            NewText += ' ' + str(i)
+        Text = Text.replace(OldText,NewText)
+    TransformFile = open(ResultsDirectory + '/InitialTransform.txt', 'w')
+    TransformFile.write(Text)
+    TransformFile.close()
 
-                ## Perform non-rigid registration and write results
-                Tic = time.clock_gettime(0)
-                Dictionary = {'Transformations': Transformations[1:],
-                              'FixedImage': FixedImage,
-                              'MovingImage': MovingImage,
-                              'FixedMask': FixedMask,
-                              'PyramidSchedule': i,
-                              'NIterations': j,
-                              'Alpha': Alphas[0],
-                              'A': k,
-                              'ResultsDirectory':ResultsDirectory}
-                ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
-                Tac = time.clock_gettime(0)
-                LogFile.write('Perform non-rigid registration %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
-                SampleData['Non-Rigid'] = round(Tac - Tic)
 
-                Tic = time.clock_gettime(0)
-                WriteMHD(ResultImage,np.array([1,1,1]),ResultsDirectory,'ResultImage', PixelType='float')
-                Tac = time.clock_gettime(0)
-                LogFile.write('Write rigid result image in %.3f s' % (Tac - Tic) + '\n')
+    #%% Rigid registration
+    # 09 Perform rigid registration and write MHD
+    print('\nPerform 3D rigid registration')
+    Tic = time.time()
+    Dictionary = {'Transformation':'rigid',
+                'FixedImage':FixedImage,
+                'MovingImage':IniMove,
+                'FixedMask':FixedMask,
+                'PyramidSchedule':[50, 20, 10],
+                'NIterations':2000,
+                'Alpha': 0.6,
+                'A': 1000,
+                'ResultsDirectory':ResultsDirectory}
+    ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
+    Dice = ShowRegistration(GetSlice(FixedImage, Slice), GetSlice(ResultImage, Slice))
+    print('Dice coefficient: %.3f' % (Dice))
+    Dice = ShowRegistration(GetSlice(FixedImage, Axis='Y'), GetSlice(ResultImage, Axis='Y'))
+    print('Dice coefficient: %.3f' % (Dice))
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Perform rigid registration %i min %i s' % (np.floor((Toc-Tic)/60),np.mod(Toc-Tic,60)) + '\n')
 
-                ## Evaluate Registration - Dice similarity coefficient (DSC)
-                Tic = time.clock_gettime(0)
-                SEG_R = np.zeros(ResultImage.shape)
-                SEG_R += ResultImage
-                SEG_R[SEG_R < 0] = 0
+    #%% Non-rigid registration
+    # 10 Perform non-rigid registration
+    print('\nPerform non-rigid registration')
+    Tic = time.time()
+    Dictionary = {'Transformation':'bspline',
+                'FixedImage':FixedImage,
+                'MovingImage':ResultImage,
+                'FixedMask':FixedMask,
+                'PyramidSchedule':[64, 32, 16, 8, 4, 2, 1],
+                'NIterations':2000,
+                'Alpha':0.6,
+                'A':1000,
+                'ResultsDirectory':ResultsDirectory}
+    DeformedImage, DeformedParameterMap = ElastixRegistration(Dictionary)
+    Dice = ShowRegistration(GetSlice(FixedImage, Axis='Y'), GetSlice(DeformedImage, Axis='Y'))
+    print('Dice coefficient: %.3f' % (Dice))
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Perform non-rigid registration %i min %i s' % (np.floor((Toc-Tic)/60),np.mod(Toc-Tic,60)) + '\n')
 
-                SEG_F = np.zeros(FixedImage.shape)
-                SEG_F += FixedImage
-                SEG_F[SEG_F < 0] = 0
 
-                Otsu_Filter = sitk.OtsuThresholdImageFilter()
-                Otsu_Filter.SetInsideValue(0)
-                Otsu_Filter.SetOutsideValue(1)
-                Segmentation = Otsu_Filter.Execute(sitk.GetImageFromArray(SEG_R))
-                R_Threshold = Otsu_Filter.GetThreshold()
-                SEG_R[SEG_R < R_Threshold] = 0
-                SEG_R[SEG_R > 0] = 1
+    #%% Registration Dice
 
-                Otsu_Filter = sitk.OtsuThresholdImageFilter()
-                Otsu_Filter.SetInsideValue(0)
-                Otsu_Filter.SetOutsideValue(1)
-                Segmentation = Otsu_Filter.Execute(sitk.GetImageFromArray(SEG_F))
-                F_Threshold = Otsu_Filter.GetThreshold()
-                SEG_F[SEG_F < F_Threshold] = 0
-                SEG_F[SEG_F > 0] = 1
+    Otsu = sitk.OtsuThresholdImageFilter()
+    OtsuFixed = Otsu.Execute(FixedImage)
+    OtsuDeformed = Otsu.Execute(DeformedImage)
+    FixedArray = sitk.GetArrayFromImage(OtsuFixed).astype('bool') * 1
+    DeformedArray = sitk.GetArrayFromImage(OtsuDeformed).astype('bool') * 1
+    Dice = 2 * np.sum(FixedArray * DeformedArray) / np.sum(FixedArray + DeformedArray)
+    print('\nDice coefficient: %.3f' % (Dice))
+    LogFile.write('Dice coefficient of the registration: %.3f (-)' % (Dice) + '\n')
 
-                DSC = 2*np.sum(SEG_F * SEG_R)/np.sum(SEG_F + SEG_R)
-                SampleData['DSC'] = np.round(DSC,3)
-                Tac = time.clock_gettime(0)
-                LogFile.write('Compute DSC index in %.3f s' % (Tac - Tic) + '\n')
 
-                ## Evaluate Registration - Plotting
-                Tic = time.clock_gettime(0)
-                AbsMax = 1e4
-                F_Shape = np.array(FixedImage.shape)
-                M_Shape = np.array(MovingImage.shape)
-                Shape = np.min(np.array([F_Shape,M_Shape]),axis=0)
+    #%% Write registration results
+    # Write registration results
+    print('\nWrite registration results')
+    Tic = time.time()
+    WriteMHD(FixedImage, ResultsDirectory, 'Fixed', PixelType='short')
+    WriteMHD(DeformedImage, ResultsDirectory, 'Registered', PixelType='uint')
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Write registration result image %.3f s' % (Toc - Tic) + '\n')
 
-                F_Shaped = FixedImage[:Shape[0], :Shape[1], int(Shape[2]/2)]
-                M_Shaped = MovingImage[:Shape[0], :Shape[1], int(Shape[2] / 2)]
-                R_Shaped = ResultImage[:Shape[0], :Shape[1], int(Shape[2] / 2)]
+    #%% Transformix
+    ## Use transformix to compute spatial jacobian
+    print('\nUse transformix to compute jacobian')
+    Tic = time.time()
+    TransformixTransformations(MovingImage, TransformParameterMap, ResultsDirectory)
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Compute transformation jacobian in %i min %i s' % (np.floor((Toc - Tic) / 60), np.mod(Toc - Tic, 60)) + '\n')
 
-                Figure, Axes = plt.subplots(1, 2, figsize=(11, 4.5), dpi=100)
-                Axes[0].imshow(F_Shaped - M_Shaped, cmap='jet', vmin=-AbsMax, vmax=AbsMax)
-                ColorBar = Axes[1].imshow(F_Shaped - R_Shaped, cmap='jet', vmin=-AbsMax, vmax=AbsMax)
-                for Axis in range(2):
-                    Axes[Axis].set_xlim([0, F_Shaped.shape[1]])
-                    Axes[Axis].set_ylim([0, F_Shaped.shape[0]])
-                plt.subplots_adjust(bottom=0.3)
-                ColorBarAxis = Figure.add_axes([0.25, 0.1, 0.5, 0.05])
-                Figure.colorbar(ColorBar, cax=ColorBarAxis, orientation='horizontal')
-                Axes[0].set_title('Initial')
-                Axes[1].set_title('Registered')
-                plt.title('DSC :' + str(round(DSC,3)))
-                # plt.savefig(ResultsDirectory+'/R'+Name+'.png')
-                plt.show()
-                plt.close(Figure)
-                Tac = time.clock_gettime(0)
-                LogFile.write('Perform plotting in %.3f s' % (Tac - Tic) + '\n')
+    #%% Jacobian resampling
+    Tic = time.time()
+    JacobianImage = sitk.ReadImage(ResultsDirectory + '/fullSpatialJacobian.mhd')
+    JacobianImage.SetSpacing(FixedImage.GetSpacing())
 
-                ## Use transformix to compute spatial jacobian
-                Tic = time.clock_gettime(0)
-                TransformixTransformations(MovingImage, TransformParameterMap, ResultsDirectory)
-                Tac = time.clock_gettime(0)
-                LogFile.write('Compute transformation jacobian in %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
+    ## Resample Jacobian image
+    Offset = JacobianImage.GetOrigin()
+    Direction = JacobianImage.GetDirection()
+    Orig_Size = np.array(JacobianImage.GetSize(), dtype=np.int)
+    Orig_Spacing = JacobianImage.GetSpacing()
 
-                Tic = time.clock_gettime(0)
-                JacobianImage = sitk.ReadImage(ResultsDirectory + '/fullSpatialJacobian.mhd')
-                JacobianImage.SetSpacing((0.098, 0.098, 0.098))
+    New_Spacing = (0.9712, 0.9712, 0.9712)
 
-                ## Resample Jacobian image
-                Offset = JacobianImage.GetOrigin()
-                Direction = JacobianImage.GetDirection()
-                Orig_Size = np.array(JacobianImage.GetSize(), dtype=np.int)
-                Orig_Spacing = JacobianImage.GetSpacing()
+    Resample = sitk.ResampleImageFilter()
+    Resample.SetInterpolator = sitk.sitkLinear
+    Resample.SetOutputDirection(Direction)
+    Resample.SetOutputOrigin(Offset)
+    Resample.SetOutputSpacing(New_Spacing)
 
-                New_Spacing = (0.9712, 0.9712, 0.9712)
+    New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
+    New_Size = np.ceil(New_Size).astype(np.int)
+    New_Size = [int(s) for s in New_Size]
+    Resample.SetSize(New_Size)
 
-                Resample = sitk.ResampleImageFilter()
-                Resample.SetInterpolator = sitk.sitkLinear
-                Resample.SetOutputDirection(Direction)
-                Resample.SetOutputOrigin(Offset)
-                Resample.SetOutputSpacing(New_Spacing)
+    ResampledJacobian = Resample.Execute(JacobianImage)
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Jacobian resample in %.3f s' % (Toc - Tic) + '\n')
 
-                New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
-                New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
-                New_Size = [int(s) for s in New_Size]
-                Resample.SetSize(New_Size)
+    #%% Jacobian decomposition
+    ## Perform jacobian unimodular decomposition
+    print('\nUnimodular decomposition')
+    Tic = time.time()
+    SphericalCompression, IsovolumicDeformation = DecomposeJacobian(ResampledJacobian)
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Read and decompose jacobian in %i min %i s' % (np.floor((Toc - Tic) / 60), np.mod(Toc - Tic, 60)) + '\n')
 
-                ResampledJacobian = Resample.Execute(JacobianImage)
+    #%% Write results
+    ## Write results
+    print('\nWrite results to MHD')
+    Tic = time.time()
+    WriteMHD(SphericalCompression, ResultsDirectory, 'J', PixelType='float')
+    WriteMHD(IsovolumicDeformation, ResultsDirectory, 'F_Tilde', PixelType='float')
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+    LogFile.write('Write decomposition results in %.3f s' % (Toc - Tic) + '\n\n')
 
-                ## Perform jacobian unimodular decomposition
-                JacobianArray = sitk.GetArrayFromImage(ResampledJacobian)
-                # SubSampling = i[-1]
-                SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianArray)
-                Tac = time.clock_gettime(0)
-                LogFile.write('Read and decompose jacobian in %i min %i s' % (np.floor((Tac - Tic) / 60), np.mod(Tac - Tic, 60)) + '\n')
-
-                ## Write results
-                Tic = time.clock_gettime(0)
-                WriteMHD(SphericalCompression, np.array([0.098, 0.098, 0.098]), ResultsDirectory, 'J', PixelType='float')
-                WriteMHD(IsovolumicDeformation, np.array([0.098, 0.098, 0.098]), ResultsDirectory, 'F_Tilde', PixelType='float')
-                Tac = time.clock_gettime(0)
-                LogFile.write('Write decomposition results in %.3f s' % (Tac - Tic) + '\n\n')
-
-                ## Add results to dataframe
-                Data = Data.append(SampleData,ignore_index=True)
-                Data.to_csv(os.path.join(WorkingDirectory,'04_Results/04_Registration','RegistrationResults2.csv'),index=False)
-
-                ## Update name variable
-                N_i += 1
-            N_j += 1
-        N_k += 1
-#%%
-LogFile.close()
-
+    #%% Store data
+    # Store registration results
+    print('\nStore registration results')
+    Data.loc[Index, 'Sample'] = Sample
+    Data.loc[Index, 'Time'] = time.time() - SampleTime
+    Data.loc[Index, 'Dice'] = Dice
 # %%
+LogFile.close
