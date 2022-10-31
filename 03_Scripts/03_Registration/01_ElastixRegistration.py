@@ -201,18 +201,66 @@ def ElastixRegistration(Dictionary):
 
     ParameterMapVector = sitk.VectorOfParameterMap()
     ParameterMap = sitk.GetDefaultParameterMap(Transformation)
-    # ParameterMap['InitialTransformParametersFileName'] = 'InitialTransform.txt'
-    ParameterMap['ResultImageFormat'] = ['mhd']
-    ParameterMap['NewSamplesEveryIteration'] = ['true']
-    ParameterMap['FixedImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
-    ParameterMap['MovingImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
-    ParameterMap['MaximumNumberOfIterations'] = [str(NIterations)]
-    ParameterMap['SP_alpha'] = [str(Alpha)]
-    ParameterMap['SP_A'] = [str(A)]
 
-    # if Transformation == 'bspline':
+    if Transformation == 'rigid':
+        # ParameterMap['InitialTransformParametersFileName'] = 'InitialTransform.txt'
+        ParameterMap['ResultImageFormat'] = ['mhd']
+        ParameterMap['NewSamplesEveryIteration'] = ['true']
+        ParameterMap['FixedImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+        ParameterMap['MovingImagePyramidSchedule'] = [str(ImagePyramidSchedule)[1:-1]]
+        ParameterMap['MaximumNumberOfIterations'] = [str(NIterations)]
+        ParameterMap['SP_alpha'] = [str(Alpha)]
+        ParameterMap['SP_A'] = [str(A)]
+
+    if Transformation == 'bspline':
+        ParameterMap = sitk.ParameterMap()
         # ParameterMap['NumberOfSpatialSamples'] = '4096'
         # ParameterMap['BSplineInterpolationOrder'] = 3
+
+        ParameterMap['FixedInternalImagePixelType'] = ("float",)
+        ParameterMap['MovingInternalImagePixelType'] = ("float",)
+        ParameterMap['FixedImagePyramid'] = ("FixedRecursiveImagePyramid",)
+        ParameterMap['MovingImagePyramid'] = ("MovingRecursiveImagePyramid",)
+        ParameterMap['AutomaticParameterEstimation'] = ('true',)
+        ParameterMap['CheckNumberOfSamples'] = ('true',)
+        ParameterMap['DefaultPixelValue'] = (f'{0.0}',)
+        ParameterMap['BSplineInterpolationOrder'] = ('3',)
+        ParameterMap['FinalBSplineInterpolationOrder'] = ('3',)
+        ParameterMap['FinalGridSpacingInVoxels'] = ('24',)
+        # ParameterMap['FinalGridSpacingInPhysicalUnits'] = ('8.000000',)
+        # ParameterMap['FixedImagePyramid'] = ('FixedSmoothingImagePyramid',)
+        # ParameterMap['GridSpacingSchedule'] = ('4.0', '4.0', '4.0', '2.0', '2.0', '2.0', '1.0', '1.0','1.0',)  # ('2.803221', '1.988100', '1.410000', '1.000000')
+
+        ParameterMap['NumberOfHistogramBins'] = ('16', '32', '64')  # , '128')   ###
+
+        ParameterMap['ImageSampler'] = ('RandomCoordinate',)
+        ParameterMap['Interpolator'] = ('LinearInterpolator',)
+        ParameterMap['MaximumNumberOfIterations'] = ('2000',)  # ('256',)
+        ParameterMap['MaximumNumberOfSamplingAttempts'] = ('5',)  ###
+        ParameterMap['Metric'] = ('AdvancedMattesMutualInformation')
+        ParameterMap['Metric0Weight'] = ('1.0',)
+        ParameterMap['Metric1Weight'] = ('1.0',)
+        ParameterMap['MovingImagePyramid'] = ('MovingSmoothingImagePyramid',)
+        ParameterMap['ImagePyramidSchedule'] = ('8', '8', '8', '4', '4', '4', '2', '2', '2', '1', '1', '1',)
+        ParameterMap['NewSamplesEveryIteration'] = ('true',)
+        ParameterMap['NumberOfResolutions'] = ('6',)
+        ParameterMap['NumberOfSamplesForExactGradient'] = ('4096',)
+        ParameterMap['NumberOfSpatialSamples'] = ('2048',)  ###
+        ParameterMap['Optimizer'] = ('AdaptiveStochasticGradientDescent',)
+        ParameterMap['Registration'] = ('MultiResolutionRegistration',)
+        # ParameterMap['Registration'] = ("MultiResolutionRegistration",)
+        ParameterMap['Interpolator'] = ("BSplineInterpolator",)
+        ParameterMap['Metric'] = ('AdvancedMattesMutualInformation',)
+        ParameterMap['ResampleInterpolator'] = ('FinalBSplineInterpolator',)
+        ParameterMap['Resampler'] = ('DefaultResampler',)
+        ParameterMap['HowToCombineTransforms'] = ('Compose',)
+
+        ParameterMap['ResultImageFormat'] = ('mhd',)
+        # ParameterMap['SP_A'] = ('100',)
+        # ParameterMap['SP_alpha'] = ('0.6',)
+        ParameterMap['Transform'] = ('BSplineTransform',)
+        ParameterMap['WriteIterationInfo'] = ('false',)
+        ParameterMap['WriteResultImage'] = ('true',)
     ParameterMapVector.append(ParameterMap)
 
 
@@ -533,7 +581,7 @@ LogFile.write('Registration Log File\n\n')
 Data = pd.DataFrame()
 
 #%% Set index
-for Index in range(len(SampleList)):
+for Index in range(1):
 # Index = 8
     SampleTime = time.time()
     #%% uCT files loading
@@ -676,6 +724,7 @@ for Index in range(len(SampleList)):
 
 
     #%% Registration Dice
+    # Registration Dice coefficient
 
     Otsu = sitk.OtsuThresholdImageFilter()
     OtsuFixed = Otsu.Execute(FixedImage)
@@ -756,9 +805,12 @@ for Index in range(len(SampleList)):
 
     #%% Store data
     # Store registration results
-    print('\nStore registration results')
+    print('\nStore registration results for sample ' + Sample)
     Data.loc[Index, 'Sample'] = Sample
     Data.loc[Index, 'Time'] = time.time() - SampleTime
     Data.loc[Index, 'Dice'] = Dice
 # %%
+print('\nRegistration done!')
+FileName = os.path.join(WorkingDirectory, '04_Results/03_Registration', 'Results.csv')
+Data.to_csv(FileName, index=False)
 LogFile.close
