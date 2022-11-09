@@ -3,6 +3,7 @@
 
 import os
 import time
+import yaml
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
@@ -109,6 +110,70 @@ def GetSlice(Image, Slice=None, Axis='Z'):
         ISliced.SetSpacing((Spacing[1], Spacing[2]))
 
     return ISliced
+def ReadConfigFile(Filename):
+
+    """ Read configuration file and store to dictionary """
+
+    print('\n\nReading initialization file', Filename)
+    with open(Filename, 'r') as File:
+        Configuration = yaml.load(File, Loader=yaml.FullLoader)
+
+    return Configuration
+def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
+
+    """
+    Adapted from Denis's utils_SA.py
+    Images are adjusted according to CropType:
+    0 = CropType.expand     (Expand image by copying layers)
+    1 = CropType.crop       (Crop image)
+    2 = CropType.variable   (Either crop or expand, depending on what includes less layers)
+    """
+
+    # Get array
+    Array = sitk.GetArrayFromImage(Image)
+    Array = Array.transpose(2, 1, 0)
+
+    # Measure image shape
+    IMDimX = np.shape(Array)[0]
+    IMDimY = np.shape(Array)[1]
+    IMDimZ = np.shape(Array)[2]
+
+    AddDimX = CoarseFactor - (IMDimX % CoarseFactor)
+    AddDimY = CoarseFactor - (IMDimY % CoarseFactor)
+
+    # adjust in x and y direction
+    Shape_Diff = [AddDimX, AddDimY]
+    IMG_XY_Adjusted = np.lib.pad(Array,
+                                 ((0, Shape_Diff[0]), (0, Shape_Diff[1]), (0, 0)),
+                                 'constant', constant_values=(0),)
+
+    if CropZ == 'Crop':
+        Image_Adjusted = IMG_XY_Adjusted
+
+    if CropZ == 'Expand':
+        AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+        Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+        Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                    ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                    'edge')
+
+    if CropZ == 'Variable':
+        Limit = CoarseFactor / 2.0
+        if IMDimZ % CoarseFactor > Limit:
+            AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+            Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+            Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                        ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                        'edge')
+        if IMDimZ % CoarseFactor < Limit:
+            Image_Adjusted = IMG_XY_Adjusted
+
+    Image_Adjusted = sitk.GetImageFromArray(Image_Adjusted.transpose(2, 1, 0))
+    Image_Adjusted.SetSpacing(Image.GetSpacing())
+    Image_Adjusted.SetOrigin(Image.GetOrigin())
+    Image_Adjusted.SetDirection (Image.GetDirection())
+
+    return Image_Adjusted
 def ElastixRotation(Dictionary):
 
     # Get dictionary parameters
@@ -192,6 +257,7 @@ def ElastixRegistration(Dictionary):
     NIterations = Dictionary['NIterations']
     Alpha = Dictionary['Alpha']
     A = Dictionary['A']
+    ElementSize = Dictionary['ElementSize']
     ResultsDirectory = Dictionary['ResultsDirectory']
     os.makedirs(ResultsDirectory,exist_ok=True)
 
@@ -226,8 +292,8 @@ def ElastixRegistration(Dictionary):
         ParameterMap['DefaultPixelValue'] = (f'{0.0}',)
         ParameterMap['BSplineInterpolationOrder'] = ('3',)
         ParameterMap['FinalBSplineInterpolationOrder'] = ('3',)
-        ParameterMap['FinalGridSpacingInVoxels'] = ('24',)
-        # ParameterMap['FinalGridSpacingInPhysicalUnits'] = ('8.000000',)
+        # ParameterMap['FinalGridSpacingInVoxels'] = ('24',)
+        ParameterMap['FinalGridSpacingInPhysicalUnits'] = (str(ElementSize),str(ElementSize),str(ElementSize))
         # ParameterMap['FixedImagePyramid'] = ('FixedSmoothingImagePyramid',)
         # ParameterMap['GridSpacingSchedule'] = ('4.0', '4.0', '4.0', '2.0', '2.0', '2.0', '1.0', '1.0','1.0',)  # ('2.803221', '1.988100', '1.410000', '1.000000')
 
@@ -296,7 +362,7 @@ def WriteRaw(Image, OutputFileName, PixelType):
 
     ImageArray = sitk.GetArrayFromImage(Image)
 
-    if PixelType == 'uint':
+    if PixelType == 'uint' or 'norm':
 
         MinValue = ImageArray.min()
 
@@ -310,10 +376,12 @@ def WriteRaw(Image, OutputFileName, PixelType):
             ShiftedImageArray = ImageArray
             MaxValue = ShiftedImageArray.max()
 
-        ScaledImageArray = ShiftedImageArray / MaxValue * 255
+        ScaledImageArray = ShiftedImageArray / MaxValue
 
-        CastedImageArray = ScaledImageArray.astype(np.uint8)
-
+    if PixelType == 'uint':
+        CastedImageArray = ScaledImageArray.astype('uint8')
+    elif PixelType == 'norm':
+        CastedImageArray = ScaledImageArray.astype('float32')
     elif PixelType == 'short':
         CastedImageArray = ImageArray.astype(np.short)
     elif PixelType == 'float':
@@ -363,7 +431,7 @@ def WriteMHD(Image, Path, FileName, PixelType='uint'):
         outs.write('ElementType = %s\n' % 'MET_UCHAR')
     elif PixelType == 'short':
         outs.write('ElementType = %s\n' % 'MET_SHORT')
-    elif PixelType == 'float':
+    elif PixelType == 'float' or PixelType == 'norm':
         outs.write('ElementType = %s\n' % 'MET_FLOAT')
 
     outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
@@ -581,7 +649,7 @@ LogFile.write('Registration Log File\n\n')
 Data = pd.DataFrame()
 
 #%% Set index
-for Index in range(2):
+for Index in range(1):
 # Index = 8
     SampleTime = time.time()
     #%% uCT files loading
@@ -604,6 +672,19 @@ for Index in range(2):
     Toc = time.time()
     PrintTime(Tic, Toc)
     LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
+    
+    #%% Adapt image size to hFE meshing
+    ConfigFile = Path(WorkingDirectory,'03_Scripts/04_hFE/ConfigFile.yaml')
+
+    # Read config and store to dictionary
+    Config = ReadConfigFile(ConfigFile)
+
+    # coarsening factor = FE element size / CT voxel size
+    Spacing = FixedImage.GetSpacing()
+    CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
+    FixedImage = Adjust_Image_Size(FixedImage, CoarseFactor)
+
+
 
     #%% Cog alignment
     # 08 Align centers of gravity
@@ -692,6 +773,7 @@ for Index in range(2):
                 'NIterations':2000,
                 'Alpha': 0.6,
                 'A': 1000,
+                'ElementSize':Config['ElementSize'],
                 'ResultsDirectory':ResultsDirectory}
     ResultImage, TransformParameterMap = ElastixRegistration(Dictionary)
     Dice = ShowRegistration(GetSlice(FixedImage, Slice), GetSlice(ResultImage, Slice))
@@ -714,6 +796,7 @@ for Index in range(2):
                 'NIterations':2000,
                 'Alpha':0.6,
                 'A':1000,
+                'ElementSize':Config['ElementSize'],
                 'ResultsDirectory':ResultsDirectory}
     DeformedImage, DeformedParameterMap = ElastixRegistration(Dictionary)
     Dice = ShowRegistration(GetSlice(FixedImage, Axis='Y'), GetSlice(DeformedImage, Axis='Y'))
@@ -732,7 +815,7 @@ for Index in range(2):
     FixedArray = sitk.GetArrayFromImage(OtsuFixed).astype('bool') * 1
     DeformedArray = sitk.GetArrayFromImage(OtsuDeformed).astype('bool') * 1
     Dice = 2 * np.sum(FixedArray * DeformedArray) / np.sum(FixedArray + DeformedArray)
-    print('\nDice coefficient: %.3f' % (Dice))
+    print('\nDice coefficient of the full image: %.3f' % (Dice))
     LogFile.write('Dice coefficient of the registration: %.3f (-)' % (Dice) + '\n')
 
 
@@ -740,8 +823,8 @@ for Index in range(2):
     # Write registration results
     print('\nWrite registration results')
     Tic = time.time()
-    WriteMHD(FixedImage, ResultsDirectory, 'Fixed', PixelType='short')
-    WriteMHD(DeformedImage, ResultsDirectory, 'Registered', PixelType='uint')
+    WriteMHD(FixedImage, ResultsDirectory, 'Fixed', PixelType='norm')
+    WriteMHD(DeformedImage, ResultsDirectory, 'Registered', PixelType='norm')
     Toc = time.time()
     PrintTime(Tic, Toc)
     LogFile.write('Write registration result image %.3f s' % (Toc - Tic) + '\n')
@@ -756,6 +839,8 @@ for Index in range(2):
     LogFile.write('Compute transformation jacobian in %i min %i s' % (np.floor((Toc - Tic) / 60), np.mod(Toc - Tic, 60)) + '\n')
 
     #%% Jacobian resampling
+    # Resample jacobian to match with hFE
+    print('\nResample jacobian')
     Tic = time.time()
     JacobianImage = sitk.ReadImage(ResultsDirectory + '/fullSpatialJacobian.mhd')
     JacobianImage.SetSpacing(FixedImage.GetSpacing())
@@ -763,7 +848,7 @@ for Index in range(2):
     ## Resample Jacobian image
     Offset = JacobianImage.GetOrigin()
     Direction = JacobianImage.GetDirection()
-    Orig_Size = np.array(JacobianImage.GetSize(), dtype=np.int)
+    Orig_Size = np.array(JacobianImage.GetSize(), dtype='int')
     Orig_Spacing = JacobianImage.GetSpacing()
 
     New_Spacing = (0.9712, 0.9712, 0.9712)
@@ -775,7 +860,7 @@ for Index in range(2):
     Resample.SetOutputSpacing(New_Spacing)
 
     New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
-    New_Size = np.ceil(New_Size).astype(np.int)
+    New_Size = np.ceil(New_Size).astype('int')
     New_Size = [int(s) for s in New_Size]
     Resample.SetSize(New_Size)
 
@@ -802,6 +887,8 @@ for Index in range(2):
     Toc = time.time()
     PrintTime(Tic, Toc)
     LogFile.write('Write decomposition results in %.3f s' % (Toc - Tic) + '\n\n')
+    os.remove(os.path.join(ResultsDirectory, 'fullSpatialJacobian.mhd'))
+    os.remove(os.path.join(ResultsDirectory, 'fullSpatialJacobian.raw'))
 
     #%% Store data
     # Store registration results
@@ -809,8 +896,17 @@ for Index in range(2):
     Data.loc[Index, 'Sample'] = Sample
     Data.loc[Index, 'Time'] = time.time() - SampleTime
     Data.loc[Index, 'Dice'] = Dice
-# %%
+#%%
 print('\nRegistration done!')
 FileName = os.path.join(WorkingDirectory, '04_Results/03_Registration', 'Results.csv')
 Data.to_csv(FileName, index=False)
 LogFile.close
+
+#%% Show Dices
+
+Figure, Axis = plt.subplots(1,1)
+Axis.plot(Data['Sample'], Data['Dice'], color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
+Axis.set_xticklabels(Data['Sample'],rotation=90)
+Axis.set_ylabel('Dice coefficient (-)')
+plt.show()
+# %%
