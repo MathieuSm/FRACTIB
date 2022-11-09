@@ -55,17 +55,17 @@ sca2: 2.30
 kmax: 0.018
 
 # Relative directories
-AIMDir:  '02_Data/05_hFE/01_AIM/'
-FEADir:  '04_Results/05_hFE/'
-BCs:     '02_Data/05_hFE/BC_PSL/boundary_conditions_basic.inp'
-PSL_LoadCases_BCs_Folder: '02_Data/05_hFE/BC_PSL/'
+AIMDir:  '02_Data/04_hFE/01_AIM/'
+FEADir:  '04_Results/04_hFE/'
+BCs:     '02_Data/04_hFE/BC_PSL/boundary_conditions_basic.inp'
+PSL_LoadCases_BCs_Folder: '02_Data/04_hFE/BC_PSL/'
 
 
 # File name post fixes
 Postfix_CortMask: '_CORT_MASK_UNCOMP.AIM'
 Postfix_TrabMask: '_TRAB_MASK_UNCOMP.AIM'
 Postfix_BMD: '_UNCOMP.AIM'
-Postfix_SEG: '_UNCOMP_SEG.AIM'
+Postfix_SEG: '_SEG_UNCOMP.AIM'
 
 # Images type
 ImageType: "NATIVE"  # BMD/NATIVE

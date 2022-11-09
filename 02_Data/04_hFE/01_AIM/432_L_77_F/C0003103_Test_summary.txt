@@ -3,8 +3,8 @@
 **                         SUMMARY FILE                         **
 **                hFE pipeline Denis Schenk 2018                **
 ******************************************************************
-File                 : 02_Data/05_hFE/01_AIM/432_L_77_F/C0003103_UNCOMP.AIM
-System computed on   : Snow
+File                 : 02_Data/04_hFE/01_AIM/432_L_77_F/C0003103_UNCOMP.AIM
+System computed on   : msb-artorg
 Simulation Type      : Fast model (one phase / isotropic)
 Fitting Variables    : 2.29 | 2.30 | 0.018 |
 *****************************************************************
@@ -14,57 +14,57 @@ Ghost layer mode     : 1
 Ghost layers prox.   : 0
 Ghost layers dist.   : 0
 *****************************************************************
-Image Dimension      : (816, 688, 504)
+Image Dimension      : (816, 688, 672)
 Scaling              : 8192.0
 Slope                : 1566.072
 Intercept            : -386.045
 Spacing              : 0.061, 0.061, 0.061 mm
 FE element size      : 0.971, 0.971, 0.971 mm
-Number of elements   : 35368 + 0
+Number of elements   : 41317 + 0
 ******************************************************************
 Variables computed from scaled BMD image and original masks
 -------------------------------------------------------------------
 *BMD*
-CORT                 : 507.25 mgHA/ccm
-TRAB                 : 139.00 mgHA/ccm
-TOT                  : 158.44 mgHA/ccm
+CORT                 : 591.12 mgHA/ccm
+TRAB                 : 126.44 mgHA/ccm
+TOT                  : 159.15 mgHA/ccm
 *BMC*
-CORT                 : 790.96 mgHA/ccm
-TRAB                 : 3888.92 mgHA/ccm
-TOT                  : 4679.88 mgHA/ccm
+CORT                 : 1445.17 mgHA/ccm
+TRAB                 : 4082.36 mgHA/ccm
+TOT                  : 5527.53 mgHA/ccm
 *MASK Volumes*
-CORT                 : 1559.31 mm^3
-TRAB                 : 27977.57 mm^3
-TOT                  : 29536.89 mm^3
+CORT                 : 2444.81 mm^3
+TRAB                 : 32287.21 mm^3
+TOT                  : 34732.01 mm^3
 ******************************************************************
 Variables computed from element values - original, without BMC conversion
 -------------------------------------------------------------------
 *BMC*
-CORT                 : 804.28 mgHA/ccm
-TRAB                 : 3922.35 mgHA/ccm
-TOT                  : 4726.64 mgHA/ccm
+CORT                 : 1444.26 mgHA/ccm
+TRAB                 : 4113.89 mgHA/ccm
+TOT                  : 5558.16 mgHA/ccm
 ******************************************************************
 Variables computed from element values - corrected, with BMC conversion
 -------------------------------------------------------------------
 *BMC*
-CORT                 : 804.28 mgHA/ccm
-TRAB                 : 3888.92 mgHA/ccm
-TOT                  : 4679.88 mgHA/ccm
+CORT                 : 1444.26 mgHA/ccm
+TRAB                 : 4082.36 mgHA/ccm
+TOT                  : 5527.53 mgHA/ccm
 ******************************************************************
 Summary Benchmark Tests
 -------------------------------------------------------------------
 *without BMC conversion*
-BMC CORT             : 1.017
-BMC TRAB             : 1.009
-BMC TOT              : 1.010
+BMC CORT             : 0.999
+BMC TRAB             : 1.008
+BMC TOT              : 1.006
 *with BMC conversion*
 BMC CORT             : 1.000
 BMC TRAB             : 1.000
 BMC TOT              : 1.000
 *Volumes
-Mask volume CORT     : 1.014
-Mask volume TRAB     : 1.009
-Mask volume TOT      : 1.009
+Mask volume CORT     : 1.000
+Mask volume TRAB     : 1.000
+Mask volume TOT      : 1.000
 ******************************************************************
 ******************************************************************
 ******************************************************************

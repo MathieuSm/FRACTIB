@@ -3688,7 +3688,7 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
     return
 
 WorkingDirectory = os.getcwd()
-ConfigFile = os.path.join(WorkingDirectory,'03_Scripts/hFE/ConfigFile.yaml')
+ConfigFile = os.path.join(WorkingDirectory,'03_Scripts/04_hFE/ConfigFile.yaml')
 
 # Read config and store to dictionary
 Config = ReadConfigFile(ConfigFile)

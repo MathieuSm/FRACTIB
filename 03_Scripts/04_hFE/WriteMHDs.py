@@ -1,9 +1,10 @@
+#%%
 #!/usr/bin/env python3
 
 # 00 Initialization
-import os
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 desired_width = 500
@@ -13,6 +14,8 @@ pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width,suppress=True,formatter={'float_kind':'{:3}'.format})
 plt.rc('font', size=12)
 
+#%% Functions
+# Define functions
 def DecomposeJacobian(JacobianArray, SubSampling=1):
 
     # Determine 2D of 3D jacobian array
@@ -121,12 +124,12 @@ def WriteRaw(ImageArray, OutputFileName, PixelType):
     elif PixelType == 'float':
         CastedImageArray = ImageArray.astype('float32')
 
-    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape)
+    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='F')
     File[:] = CastedImageArray[:]
     del File
 
     return
-def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
+def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
 
     if PixelType == 'short' or PixelType == 'float':
         if len(ImageArray.shape) == 2:
@@ -139,14 +142,12 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
             ImageArray = Array_3D
 
-    nz, ny, nx = np.shape(ImageArray)
+    nz, ny, nx = ImageArray.shape
 
-    lx = float(Spacing[0])
-    ly = float(Spacing[1])
-    lz = float(Spacing[2])
+    lx, ly, lz = Spacing
 
     TransformMatrix = '1 0 0 0 1 0 0 0 1'
-    X_o, Y_o, Z_o = float(Offset[0]), float(Offset[1]), float(Offset[2])
+    Offset = '0 0 0'
     CenterOfRotation = '0 0 0'
     AnatomicalOrientation = 'LPS'
 
@@ -157,7 +158,7 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
     outs.write('BinaryDataByteOrderMSB = False\n')
     outs.write('CompressedData = False\n')
     outs.write('TransformMatrix = %s \n' % TransformMatrix)
-    outs.write('Offset = %g %g %g\n' % (X_o, Y_o, Z_o))
+    outs.write('Offset = %s \n' % Offset)
     outs.write('CenterOfRotation = %s \n' % CenterOfRotation)
     outs.write('AnatomicalOrientation = %s \n' % AnatomicalOrientation)
     outs.write('ElementSpacing = %g %g %g\n' % (lx, ly, lz))
@@ -178,16 +179,16 @@ def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
     return
 
 
+#%% Load files
 # 01 Set variables
-WorkingDirectory = os.getcwd()
-DataPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/02_FEA/432_L_77_F/')
-ResultsPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/02_FEA/432_L_77_F/')
-OffsetPath = os.path.join(WorkingDirectory,'02_Data/05_hFE/01_AIM/432_L_77_F/')
+FilePath = str(Path.cwd() / '../../04_Results/04_hFE/432_L_77_F')
 
 # 02 Load files
-ElementsPositions = pd.read_csv(DataPath + 'ElementsPositions.csv',names=['X','Y','Z'])
-DeformationGradients = pd.read_csv(DataPath + 'DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
+ElementsPositions = pd.read_csv(FilePath + '/ElementsPositions.csv',names=['X','Y','Z'])
+DeformationGradients = pd.read_csv(FilePath + '/DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
 
+#%% Build arrays
+# Build arrays
 X = np.unique(ElementsPositions['X'].values)
 Y = np.unique(ElementsPositions['Y'].values)
 Z = np.unique(ElementsPositions['Z'].values)
@@ -202,20 +203,15 @@ for Index in DeformationGradients.index:
     
     F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
 
+#%% Decompose deformation
 # Symmetry in Y plane is necessary
 SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
 
+#%% Write MHD
 # Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
 
-MHDFiles = [File for File in os.listdir(OffsetPath) if File.endswith('.mhd')]
-MHDFiles.sort()
-MHDFile = open(OffsetPath+MHDFiles[-1],'r')
-MHDText = MHDFile.read()
-Start = MHDText.find('Offset') + 9
-Stop = MHDText[Start:].find('\n')
-ScanOffset = np.array(MHDText[Start:Start+Stop].split()).astype('float')
+WriteMHD(SphericalCompression, Spacing,  FilePath, 'J', PixelType='float')
+WriteMHD(IsovolumicDeformation, Spacing, FilePath, 'F_Tilde', PixelType='float')
 
-# Offset = ScanOffset + np.array([min(X),min(Y),min(Z)])
-WriteMHD(SphericalCompression, Spacing, ScanOffset, ResultsPath, 'J', PixelType='float')
-WriteMHD(IsovolumicDeformation, Spacing, ScanOffset, ResultsPath, 'F_Tilde', PixelType='float')
+# %%

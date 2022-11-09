@@ -581,7 +581,7 @@ LogFile.write('Registration Log File\n\n')
 Data = pd.DataFrame()
 
 #%% Set index
-for Index in range(1):
+for Index in range(2):
 # Index = 8
     SampleTime = time.time()
     #%% uCT files loading

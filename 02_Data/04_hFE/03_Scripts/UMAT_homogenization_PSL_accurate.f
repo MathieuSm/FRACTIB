@@ -178,7 +178,7 @@ C     VISCOPLASTIC DAMAGE UMAT VARIABLES
       INTEGER ITER,MAXITER,K1,K2,DENSFL,VISCFL,PYFL
       DOUBLE PRECISION MM,ETA,TOL,KONSTD,CRITD
       DOUBLE PRECISION BVTV,BVTVC,BVTVT,PBVC,PBVT
-      DOUBLE PRECISION MM1,MM2,MM3,SCA1,SCA2, SCA3
+      DOUBLE PRECISION MM1,MM2,MM3,SCA1,SCA2, SCA3, SCA4
       DOUBLE PRECISION E0,V0,MU0,EAA,VA0,MUA0,KS,LS
       DOUBLE PRECISION SIGD0P,SIGD0N,ZETA0,TAUD0,PP,QQ
       DOUBLE PRECISION SIGDAP,SIGDAN,ZETAA0,TAUDA0,S0,SA
@@ -379,6 +379,7 @@ C     SCALAR INITIALISATION
       SCA1    = 0.0D0
       SCA2    = 0.0D0
       SCA3    = 0.0D0
+      SCA4    = 0.0D0
       I       = 0.0D0
       J       = 0.0D0
       NROTC   = 0.0D0
@@ -390,7 +391,6 @@ C     PERSONALIZED LOADING
       OF      = 0.0D0
 C     _______________________________________________________________
 C
-C      OPEN(unit=10, FILE="/home/schenk/NEW_AIM2FE_HR_Hosseini/3_SCRIPT/printout_001.dat", STATUS="OLD", position="append")
 C     ANALYSE PARAMETERS
 C     _______________________________________________________________
 C     TOLERANCE OF NUMERICAL ERROR  
@@ -407,19 +407,12 @@ C     INPUTFILE PARAMETERS (Read from .inp file)
       MM1   = PROPS(5)
       MM2   = PROPS(6)
       MM3   = PROPS(7)
-C
-C     CHECK FOR TOO HIGH DOA (SOURCE: FRANZOSO JBIMECHENG. 2009)
-C      IF(MM1/MM3.GT.1.6083) THEN
-C	MM1 = 1.168958949276091
-C	MM2 = 0.9299738069990019
-C	MM3 = 0.9010672437249067
-C      END IF
 C      
 C     CORRECT ELEMENTS WITH PBV =! 0 BUT BVTV = 0
-      IF(BVTVC.LT.0.01D0) THEN
+      IF(PBVC.GT.0.0D0.AND.BVTVC.LT.0.01D0) THEN
         BVTVC = 0.01D0
       ENDIF
-      IF(BVTVT.LT.0.01D0) THEN
+      IF(PBVT.GT.0.0D0.AND.BVTVT.LT.0.01D0) THEN
         BVTVT = 0.01D0
       ENDIF
 C    
@@ -439,14 +432,15 @@ C     YIELD/STRENGTH RATIO
 C     Adapted Denis 2018: RDY = 0.7D0+0.29D0*(PHIC/(PHIC+PHIT)) BEFORE: RDY = 0.7D0
 C     Only for accurate HFE! PYFL = 5!
       RDY = 0.7D0
-C      RDY = 0.7D0 + 0.29D0*(PBVC*BVTVC/(PBVC*BVTVC+PBVT*BVTVT))
-C      PRINT *,'RDY', RDY
 C
 C     TO BE FITTED
-      SCA1 = 2.45D0
-      SCA2 = 3.47D0
-      KMAX = 0.02D0
-      SCA3 = 1.0D0
+C     SCA1 stiffness parameters
+C     SCA2 strength parameters
+      SCA1 = 0.988D0
+      SCA2 = 0.973D0
+C      SCA3 = 0.75D0
+C      SCA4 = 1.6D0
+      KMAX = 0.01D0
 C    
 C     _______________________________________________________________
 C
@@ -454,20 +448,22 @@ C     MATERIAL PARAMETERS
 C     _______________________________________________________________
 C     FABRIC- AND DENSITY-BASED ORTHOTROPIC BONE, MAIN DIRECTION 3
 C     ___________________________________________________________________
-C     FOR TRABECULAR BONE
-C     FLAGS (See above YIELD/STRENGTH RATIO)
-      VISCFL = 0
-      PYFL   = 2
-C     POSTYIELD PARAMETERS (KMAX to be scaled)
-      KSLOPE = 1000.D0
-      KWIDTH = 8.0D0
-      KMIN   = 0.1D0
-      GMIN   = -2.0D0
-      EXPS   = 300.0D0
-      ND     = 2.0D0
+C_______________________________________________________________
+C_____MIXED PHASE ELEMENTS______________________________________
 C_______________________________________________________________
 C
       IF (PBVT.GT.0.0D0.AND.PBVC.GT.0.0D0) THEN
+C       FLAGS (See above YIELD/STRENGTH RATIO)
+        VISCFL = 0
+        PYFL   = 2
+C       POSTYIELD PARAMETERS (KMAX to be scaled)
+        KSLOPE = 1000.D0
+        KWIDTH = 8.0D0
+        KMIN   = 0.1D0
+        GMIN   = -2.0D0
+        EXPS   = 300.0D0
+        ND     = 2.0D0      
+C       TRABECULAR PARAMETERS
 C       ELASTICITY PARAMETERS (FABRGWTB PMUBC, PHZ, 2013) NEW VERSION 2017
         E0  = 9759.0D0*(12000.0D0/9759.0D0)*SCA1
         V0  = 0.2278D0
@@ -475,10 +471,10 @@ C       ELASTICITY PARAMETERS (FABRGWTB PMUBC, PHZ, 2013) NEW VERSION 2017
         KS  = 1.91D0
         LS  = 1.1D0
 C       STRENGTH PARAMETERS (FABRGWTB, PHZ, 2013)
-        SIGD0P = 57.69D0*SCA2
-        SIGD0N = 73.1D0*SCA2
+        SIGD0P = 57.69D0*(12000.0D0/9759.0D0)*SCA2
+        SIGD0N = 73.1D0*(12000.0D0/9759.0D0)*SCA2
         ZETA0  = 0.28D0
-        TAUD0  = 29.61D0*SCA2
+        TAUD0  = 29.61D0*(12000.0D0/9759.0D0)*SCA2
         PP     = 1.82D0
         QQ     = 0.98D0
 C       STIFFNESS TENSOR SSSS
@@ -544,19 +540,21 @@ C     QUADRIC SECOND ORDER TENSOR FF
         FFT(3,3) = -(SIGD0P-SIGD0N)/2.0D0/SIGD0P/SIGD0N
      &         /((BVTVT**PP)*MM3**(2.0D0*QQ))
 C
-C       ELASTICITY PARAMETERS (TIRBCT, JJS, 2013)
+C       CORTICAL PARAMETERS
+C       ELASTICITY PARAMETERS (TIRBCT, JJS, 2013) CORTEX
         E0   = 15079.6D0*(16000.0D0/24578.5D0)*SCA1
         EAA  = 24578.5D0*(16000.0D0/24578.5D0)*SCA1
         V0   = 0.4620D0
         VA0  = 0.354D0
+C        MU0 = 3117.0D0*(12000.0D0/9759.0D0)*SCA1
         MUA0 = 6578.01D0*(16000.0D0/24578.5D0)*SCA1
         KS   = 1.0D0
 C
-C       STRENGTH PARAMETERS (TIRBCT, JJS, 2013)
-        SIGD0P = 56.54D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGD0N = 201.28D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGDAP = 176.40D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGDAN = 268.00D0*(16000.0D0/24578.5D0)*SCA2*SCA3
+C       STRENGTH PARAMETERS (TIRBCT, JJS, 2013) CORTEX
+        SIGD0P = 56.54D0*(16000.0D0/24578.5D0)*SCA2
+        SIGD0N = 201.28D0*(16000.0D0/24578.5D0)*SCA2
+        SIGDAP = 176.40D0*(16000.0D0/24578.5D0)*SCA2
+        SIGDAN = 268.00D0*(16000.0D0/24578.5D0)*SCA2
         ZETA0  = 0.0074D0
         ZETAA0 = 1.4045D0
         TAUDA0 = 82.55D0*(16000.0D0/24578.5D0)*SCA2
@@ -627,26 +625,7 @@ C	STEP 2) SUPERPOSITION
 C	----------------
 	FFFFSUP = PBVC*FFFFINTC+PBVT*FFFFINTT
 	FFFFSUPMUL = MATMUL(FFFFSUP,FFFFSUP)
-C	IF(FFFFSUPMUL(1,1).EQ.0.0D0) THEN
-C	  PRINT *, 'PBVC', PBVC
-C	  PRINT *, 'PBVT', PBVT
-C	  PRINT *, 'BVTVC', BVTVC
-C	  PRINT *, 'BVTVT', BVTVT
-C	  PRINT *, '-------------------------------'
-C	  PRINT *, 'FFFFSUP'
-C	  call printmatrix6(FFFFSUP)
-C	  PRINT *, '-------------------------------'
-C	  PRINT *, 'FFFFSUPMUL'
-C	  call printmatrix6(FFFFSUPMUL)
-C	  PRINT *, '-------------------------------'
-C	  PRINT *, 'FFFFINTC'
-C	  call printmatrix6(FFFFINTC)
-C	  PRINT *, '-------------------------------'
-C	  PRINT *, 'FFFFINTT'
-C	  call printmatrix6(FFFFINTT)
-C	END IF
 	CALL MIGS(FFFFSUPMUL,6,FFFF)
-C	PRINT *, 'FFFF', FFFF
         CALL MIGS(FFT,3,FFTI)
         CALL MIGS(FFC,3,FFCI)
         FFTCI = FFCI*PBVC+FFTI*PBVT
@@ -657,34 +636,44 @@ C	PRINT *, 'FFFF', FFFF
         FF(4) = 0.0D0
         FF(5) = 0.0D0
         FF(6) = 0.0D0
-C        PRINT *, 'MIXED FINISH'
 C     IF ONLY ONE PHASE IS PRESENT
 C     ----------------------------------------------------------------------
 C     TRABECULAR SSSS, FFFF, FF
 C     POSTYIELD PARAMETERS TRAB: KS=1000/KW=8/KMIN=0.1/GMIN=-2/EXPS=300/ND=2
 C     KSLOPE CHANGED Denis 22.10.18 (300)
-C      
+C
+C_______________________________________________________________
+C_____TRABECULAR ELEMENTS_______________________________________
+C_______________________________________________________________
+C
       ELSE IF (PBVT.GT.0.0D0.AND.PBVC.EQ.0.0D0) THEN
 C      
+C       FLAGS (See above YIELD/STRENGTH RATIO)
+        VISCFL = 0
+        PYFL   = 2
+C       POSTYIELD PARAMETERS (KMAX to be scaled)
+        KSLOPE = 1000.D0
+        KWIDTH = 8.0D0
+        KMIN   = 0.1D0
+        GMIN   = -2.0D0
+        EXPS   = 300.0D0
+        ND     = 2.0D0     
+        
 C       BVTV was BVTVC*PBVC before. But as we now superimpose the stiffness matrices, I think we should change this to BVTV=BVTVC!
-        IF(BVTVT.GT.0.0D0) THEN
-          BVTV = BVTVT*PBVT
-        ELSE
-          BVTV = 0.01D0
-        ENDIF
+        BVTV = BVTVT
 C        
-C       ELASTICITY PARAMETERS (FABRGWTB PMUBC, PHZ, 2013) NEW VERSION 2017
+C       ELASTICITY PARAMETERS (FABRGWTB PMUBC, PHZ, 2013) NEW VERSION 2017 TRABECULAR BONE
         E0  = 9759.0D0*(12000.0D0/9759.0D0)*SCA1
         V0  = 0.2278D0
         MU0 = 3117.0D0*(12000.0D0/9759.0D0)*SCA1
         KS  = 1.91D0
         LS  = 1.1D0
 C        
-C       STRENGTH PARAMETERS (FABRGWTB, PHZ, 2013)
-        SIGD0P = 57.69D0*SCA2
-        SIGD0N = 73.1D0*SCA2
+C       STRENGTH PARAMETERS (FABRGWTB, PHZ, 2013) TRABECULAR BONE
+        SIGD0P = 57.69D0*(12000.0D0/9759.0D0)*SCA2
+        SIGD0N = 73.1D0*(12000.0D0/9759.0D0)*SCA2
         ZETA0  = 0.28D0
-        TAUD0  = 29.61D0*SCA2
+        TAUD0  = 29.61D0*(12000.0D0/9759.0D0)*SCA2
         PP     = 1.82D0
         QQ     = 0.98D0
 C        
@@ -762,34 +751,44 @@ C       DUMMY SUPERPOSITION FOR ONLY TRABECULAR BONE
         FF(4) = 0.0D0
         FF(5) = 0.0D0
         FF(6) = 0.0D0
+C
+C_______________________________________________________________
+C_____CORTICAL ELEMENTS_________________________________________
 C_______________________________________________________________
 C
-C    
 C     CORTICAL SSSS, FFFF, FF
       ELSE IF (PBVC.GT.0.0D0.AND.PBVT.EQ.0.0D0) THEN
 C     DENSITY-BASED TRANSVERSELY ISOTROPIC COMPACT BONE, MAIN DIRECTION 3
 C     ___________________________________________________________________
 C
-C       BVTV was BVTVC*PBVC before. But as we now superimpose the stiffness matrices, I think we should change this to BVTV=BVTVC!
-        IF(BVTVC.GT.0.0D0) THEN
-          BVTV = BVTVC*PBVC
-        ELSE
-          BVTV = 0.01D0
-        ENDIF
+        VISCFL = 0
+        PYFL   = 1
 C
-C       ELASTICITY PARAMETERS (TIRBCT, JJS, 2013)
+C       POSTYIELD PARAMETERS
+        KSLOPE = 300.D0
+        KWIDTH = 8.0D0
+        KMIN   = 0.1D0
+        GMIN   = -2.0D0
+        EXPS   = 300.0D0
+        ND     = 2.0D0
+C        
+C       BVTV was BVTVC*PBVC before. But as we now superimpose the stiffness matrices, I think we should change this to BVTV=BVTVC!
+        BVTV = BVTVC
+C
+C       ELASTICITY PARAMETERS (TIRBCT, JJS, 2013) CORTEX
         E0   = 15079.6D0*(16000.0D0/24578.5D0)*SCA1
         EAA  = 24578.5D0*(16000.0D0/24578.5D0)*SCA1
         V0   = 0.4620D0
         VA0  = 0.354D0
+C        MU0 = 3117.0D0*(12000.0D0/9759.0D0)*SCA1
         MUA0 = 6578.01D0*(16000.0D0/24578.5D0)*SCA1
         KS   = 1.0D0
 C
-C       STRENGTH PARAMETERS (TIRBCT, JJS, 2013)
-        SIGD0P = 56.54D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGD0N = 201.28D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGDAP = 176.40D0*(16000.0D0/24578.5D0)*SCA2*SCA3
-        SIGDAN = 268.00D0*(16000.0D0/24578.5D0)*SCA2*SCA3
+C       STRENGTH PARAMETERS (TIRBCT, JJS, 2013) CORTEX
+        SIGD0P = 56.54D0*(16000.0D0/24578.5D0)*SCA2
+        SIGD0N = 201.28D0*(16000.0D0/24578.5D0)*SCA2
+        SIGDAP = 176.40D0*(16000.0D0/24578.5D0)*SCA2
+        SIGDAN = 268.00D0*(16000.0D0/24578.5D0)*SCA2
         ZETA0  = 0.0074D0
         ZETAA0 = 1.4045D0
         TAUDA0 = 82.55D0*(16000.0D0/24578.5D0)*SCA2
@@ -852,36 +851,10 @@ C
         FF(5) = 0.0D0
         FF(6) = 0.0D0
       ENDIF
-      
-C     DEBGGING PRINT
-C      IF (PBVC.GT.0.0D0.AND.PBVT.GT.0.0D0) THEN
-C      	WRITE (10,*) 'PBVC:  ', PBVC
-C	WRITE (10,*) 'PBVT:  ', PBVT
-C	WRITE (10,*) 'BVTVC: ', BVTVC
-C	WRITE (10,*) 'BVTVT: ', BVTVT
-C	WRITE (10,*) 'FFFF1: ', FFFF(1,1), FFFF(1,2), FFFF(1,3)
-C	WRITE (10,*) 'FFFF2: ', FFFF(2,1), FFFF(2,2), FFFF(2,3)
-C	WRITE (10,*) 'FFFF3: ', FFFF(3,1), FFFF(3,2), FFFF(3,3)
-C	WRITE (10,*) 'FFFF4: ', FFFF(4,4)
-C	WRITE (10,*) 'FFFF5: ', FFFF(5,5)
-C	WRITE (10,*) 'FFFF6: ', FFFF(6,6)
-C	WRITE (10,*) '------------------------------------'
-C	WRITE (10,*) '------------------------------------'
-C      END IF
-C      call printmatrix6(FFFF)        
 C
-C      CLOSE(1)
-C     RECOVER STATE VARIABLES
 C     _______________________________________________________________
       ETOT1 = STRAN+DSTRAN
       ETOT0 = STRAN
-C     WRITE(*,*) 'Step : ',KSTEP
-      WRITE(*,*) 'EL number: ', NOEL
-      WRITE(*,*) 'Int num  : ', NPT
-      WRITE(*,*) 'tr(ETOT1): ', (ETOT1(1)+ETOT1(2)+ETOT1(3))
-      WRITE(*,*) 'dotpETOT1: ', DOTP(ETOT1,ETOT1)
-      WRITE(*,*) 'OF value : ' , (1.0D0/EPS0**2)*DOTP(ETOT1,ETOT1)+
-     &    (2.0D0/EPS0)*(ETOT1(1)+ETOT1(2)+ETOT1(3))+3.0D0
 C 
 C     SET ALL STATE VARIABLES TO ZERO AT THE BEGINNING OF THE SIMULATION
       IF (KSTEP.EQ.(1).AND.KINC .EQ.(1)) THEN
@@ -1459,6 +1432,17 @@ C     BVTV and PBV
       STATEV(21) = (BVTVC*PBVC+BVTVT*PBVT)*MM
       STATEV(22) = OF
 C      STATEV(22) = SSSS(3,3)
+
+C     Deformation Gradient
+      STATEV(23) = DFGRD1(1,1)
+      STATEV(24) = DFGRD1(1,2)
+      STATEV(25) = DFGRD1(1,3)
+      STATEV(26) = DFGRD1(2,1)
+      STATEV(27) = DFGRD1(2,2)
+      STATEV(28) = DFGRD1(2,3)
+      STATEV(29) = DFGRD1(3,1)
+      STATEV(30) = DFGRD1(3,2)
+      STATEV(31) = DFGRD1(3,3)
 
 C 
       IF (DKAPPA1.LT.0.0D0) THEN
