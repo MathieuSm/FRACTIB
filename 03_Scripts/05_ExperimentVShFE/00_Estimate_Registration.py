@@ -117,12 +117,6 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
 
     return sitk.GetArrayFromImage(ResultImage)
 
-
-class Arguments():
-
-    def __init__(self, File):
-        self.File = File
-
 # 01 Set variables
 HRpQCT_Data = Path.cwd() / '../../02_Data/01_HRpQCT'
 uCT_Data = Path.cwd() / '../../02_Data/02_uCT'
@@ -139,13 +133,13 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
 
     HRpQCT_Number = SampleList.loc[iSample, 'HRpQCT File 2 number']
     HRpQCT_File = 'C000' + str(HRpQCT_Number)
-    Cort = str(HRpQCT_Data / Sample / (HRpQCT_File + '_CORT_MASK_UNCOMP.AIM'))
-    Trab = str(HRpQCT_Data / Sample / (HRpQCT_File + '_TRAB_MASK_UNCOMP.AIM'))
-    HRpQCT_Cort_Mask, AdditionalData = ReadAIM(Arguments(Cort))
-    HRpQCT_Trab_Mask = sitk.ReadImage(SamplePath + '/' + Scan + '_TRAB_MASK_UNCOMP.mhd')
+    Cort_File = str(HRpQCT_Data / Sample / (HRpQCT_File + '_CORT_MASK_UNCOMP.AIM'))
+    Trab_File = str(HRpQCT_Data / Sample / (HRpQCT_File + '_TRAB_MASK_UNCOMP.AIM'))
+    HRpQCT_Cort_Mask, AdditionalData = ReadAIM(Cort_File)
+    HRpQCT_Trab_Mask, AdditionalData = ReadAIM(Trab_File)
     HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 
-
+#%%
     # 04 Resample HR-pQCT image
     Offset = HRpQCT_Mask.GetOrigin()
     Direction = HRpQCT_Mask.GetDirection()

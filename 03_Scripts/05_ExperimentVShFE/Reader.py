@@ -61,7 +61,7 @@ def Get_AIM_Ints(File):
 
     return header_int
 
-def ReadAIM(Arguments):
+def ReadAIM(File):
 
     """
     Reads an AIM file and provides
@@ -74,8 +74,6 @@ def ReadAIM(Arguments):
 
     print('\nRead AIM')
     Tic = time.time()
-
-    File = Arguments.File
 
     # read header
     print('\n\nRead AIM header of file: ' + File)
@@ -202,7 +200,7 @@ def ReadAIM(Arguments):
 
     return Image, AdditionalData
 
-def ReadISQ(Arguments):
+def ReadISQ(File, BMD=False, Echo=False, Info=False):
 
     """
     This function read an ISQ file from Scanco and return an ITK image and additional data.
@@ -263,27 +261,6 @@ def ReadISQ(Arguments):
      * the next line follows, until the last pixel of the last sclice in the
      * lower right.
      """
-     
-    Directory = Arguments.id
-    File = Arguments.File
-
-    try:
-        BMD = Arguments.BMD
-    except:
-        print('No argument set for BMD calibration, default behavior set to false')
-        BMD = False
-    
-    try:
-        Echo = Arguments.Echo
-    except:
-        print('No argument set for Echo print, default behavior is set to True')
-        Echo = True
-
-    try:
-        Info = Arguments.Info
-    except:
-        print('No argument set for info file writing, default behavior set to false')
-        Info = False
 
     if Echo:
         print('\nRead ISQ file')
@@ -291,7 +268,7 @@ def ReadISQ(Arguments):
     Tic = time.time()
 
     try:
-        f = open(str(Path(Directory, File)), 'rb')
+        f = open(File, 'rb')
     except IOError:
         print("\n **ERROR**: ISQReader: intput file ' % s' not found!\n\n" % File)
         print('\n E N D E D  with ERRORS \n\n')
@@ -377,7 +354,7 @@ def ReadISQ(Arguments):
     #    np.savetxt(inFileName.split('.')[0]+'.txt', Header_Txt)
 
     if Info:
-        Write_File = open(str(Path(Directory, File)).split('.')[0] + '_info.txt', 'w')
+        Write_File = open(File.split('.')[0] + '_info.txt', 'w')
         for Item in Header_Txt:
             Write_File.write("%s\n" % Item)
         Write_File.close()
@@ -683,13 +660,31 @@ if __name__ == '__main__':
     ScriptVersion = Parser.prog + ' version ' + Version
     Parser.add_argument('-v', '--Version', help='Show script version', action='version', version=ScriptVersion)
     Parser.add_argument('--BMD', default=False, help='Convert gray values to BMD (bool), !!! Depends on voltage, current and time !!!', type=bool)
-    Parser.add_argument('--Echo', default=True, help='Print out current operation and results (bool)', type=bool)
+    Parser.add_argument('--Echo', default=False, help='Print out current operation and results (bool)', type=bool)
+    Parser.add_argument('--Info', default=False, help='Write file info into text file (bool)', type=bool)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    if Arguments.File.endswith('.ISQ'):
-        ReadISQ(Arguments)
+    File = Arguments.File
 
-    elif Arguments.File.endswith('.AIM'):
-        ReadAIM(Arguments)
+    try:
+        BMD = Arguments.BMD
+    except:
+        BMD = False
+    
+    try:
+        Echo = Arguments.Echo
+    except:
+        Echo = False
+
+    try:
+        Info = Arguments.Info
+    except:
+        Info = False
+
+    if File.endswith('.ISQ'):
+        ReadISQ(File, BMD, Echo, Info)
+
+    elif File.endswith('.AIM'):
+        ReadAIM(File)
