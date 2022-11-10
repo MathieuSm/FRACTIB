@@ -41,10 +41,10 @@ for Sample in DataFolders:
 
 #%%
 # Compute mean Dice coefficient and store
-    FixedArray = sitk.GetArrayFromImage(FixedImage)
-    RegisteredArray = sitk.GetArrayFromImage(RegisteredImage)
+    FixedArray = sitk.GetArrayFromImage(FixedSegmented)
+    RegisteredArray = sitk.GetArrayFromImage(RegisteredSegmented)
 
-    Dice = 2 * (FixedArray * RegisteredArray) / (FixedArray + RegisteredArray)
+    Dice = 2 * np.sum(FixedArray * RegisteredArray) / np.sum(FixedArray + RegisteredArray)
 
     print('Sample ' + Sample + ' dice coefficient: ' + str(round(Dice,3)))
     Results.loc[Sample, 'Dice'] = Dice
