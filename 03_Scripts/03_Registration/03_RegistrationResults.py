@@ -40,7 +40,15 @@ for Sample in DataFolders:
     RegisteredSegmented = OtsuFilter.Execute(RegisteredImage)
 
 #%%
-# Compute mean Dice coefficient
-    
+# Compute mean Dice coefficient and store
+    FixedArray = sitk.GetArrayFromImage(FixedImage)
+    RegisteredArray = sitk.GetArrayFromImage(RegisteredImage)
+
+    Dice = 2 * (FixedArray * RegisteredArray) / (FixedArray + RegisteredArray)
+
+    print('Sample ' + Sample + ' dice coefficient: ' + str(round(Dice,3)))
+    Results.loc[Sample, 'Dice'] = Dice
+
+Results.to_csv(str(DataDirectory / 'RegistrationResults.csv'))    
         
 # %%
