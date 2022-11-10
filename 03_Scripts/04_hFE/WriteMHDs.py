@@ -124,7 +124,11 @@ def WriteRaw(ImageArray, OutputFileName, PixelType):
     elif PixelType == 'float':
         CastedImageArray = ImageArray.astype('float32')
 
-    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='F')
+    if os.name == 'posix':
+        File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='C')
+    else:
+        File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='F')
+    
     File[:] = CastedImageArray[:]
     del File
 
@@ -213,5 +217,11 @@ Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
 
 WriteMHD(SphericalCompression, Spacing,  FilePath, 'J', PixelType='float')
 WriteMHD(IsovolumicDeformation, Spacing, FilePath, 'F_Tilde', PixelType='float')
+
+# %%
+
+Figure, Axis = plt.subplots(1,1)
+Axis.imshow(SphericalCompression[20,:,:])
+plt.show()
 
 # %%
