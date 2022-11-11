@@ -9,7 +9,7 @@ from scipy import ndimage
 import SimpleITK as sitk
 from pathlib import Path
 import matplotlib.pyplot as plt
-from Reader import ReadAIM
+from Reader import ReadAIM, ShowSlice
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -143,7 +143,7 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
     # 04 Resample HR-pQCT image
     Offset = HRpQCT_Mask.GetOrigin()
     Direction = HRpQCT_Mask.GetDirection()
-    Orig_Size = np.array(HRpQCT_Mask.GetSize(), dtype=np.int)
+    Orig_Size = np.array(HRpQCT_Mask.GetSize(), dtype='int')
     Orig_Spacing = HRpQCT_Mask.GetSpacing()
 
     New_Spacing = uCT_Mask.GetSpacing()
@@ -155,12 +155,13 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
     Resample.SetOutputSpacing(New_Spacing)
 
     New_Size = Orig_Size * (np.array(Orig_Spacing) / np.array(New_Spacing))
-    New_Size = np.ceil(New_Size).astype(np.int)  # Image dimensions are in integers
+    New_Size = np.ceil(New_Size).astype('int')  # Image dimensions are in integers
     New_Size = [int(s) for s in New_Size]
     Resample.SetSize(New_Size)
 
     ResampledImage = Resample.Execute(HRpQCT_Mask)
 
+#%%
     # 05 Get arrays from images and binarize masks
     uCT_Mask = sitk.GetArrayFromImage(uCT_Mask)
     HRpQCT_Mask = sitk.GetArrayFromImage(ResampledImage)
