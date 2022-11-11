@@ -2,13 +2,14 @@
 #! /usr/bin/env python3
 
 import os
+import vtk
 import time
 import struct
 import argparse
 import numpy as np
 from pathlib import Path
 import SimpleITK as sitk
-import vtk
+import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 
 #%%
@@ -44,6 +45,37 @@ def PrintTime(Tic, Toc):
     Seconds = Delta - 60 * Minutes - 60 * 60 * Hours
 
     print('Process executed in %02i:%02i:%02i (HH:MM:SS)' % (Hours, Minutes, Seconds))
+
+    return
+
+def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
+
+    Array = sitk.GetArrayFromImage(Image)
+    
+    if Axis == 'Z':
+        if Slice:
+            Array = Array[Slice,:,:]
+        else:
+            Array = Array[Array.shape[0]//2,:,:]
+    if Axis == 'Y':
+        if Slice:
+            Array = Array[:,Slice,:]
+        else:
+            Array = Array[:,Array.shape[1]//2,:]
+    if Axis == 'X':
+        if Slice:
+            Array = Array[:,:,Slice]
+        else:
+            Array = Array[:,:,Array.shape[2]//2]
+
+    Figure, Axis = plt.subplots()
+    Axis.imshow(Array,interpolation=None, cmap='binary_r')
+    Axis.axis('Off')
+    
+    if(Title):
+        Axis.set_title(Title)
+
+    plt.show(Figure)
 
     return
 
