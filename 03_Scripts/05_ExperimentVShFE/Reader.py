@@ -108,25 +108,20 @@ def ReadAIM(File):
     Tic = time.time()
 
     # read header
-    print('\n\nRead AIM header of file: ' + File)
     with open(File, 'rb') as f:
         AIM_Ints = Get_AIM_Ints(f)
         # check AIM version
         if int(AIM_Ints[5]) == 16:
-            print("     -> version 020")
             if int(AIM_Ints[10]) == 131074:
                 Format = "short"
-                print("     -> format " + Format)
             elif int(AIM_Ints[10]) == 65537:
                 Format = "char"
-                print("     -> format " + Format)
             elif int(AIM_Ints[10]) == 1376257:
                 Format = "bin compressed"
                 print("     -> format " + Format + " not supported! Exiting!")
                 exit(1)
             else:
                 Format = "unknown"
-                print("     -> format " + Format + "! Exiting!")
                 exit(1)
             Header = f.read(AIM_Ints[2])
             Header_Length = len(Header) + 160
