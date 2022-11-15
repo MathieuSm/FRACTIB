@@ -5,12 +5,13 @@
 import os
 import time
 import numpy as np
+import sympy as sp
 import pandas as pd
 from scipy import ndimage
 import SimpleITK as sitk
 from pathlib import Path
 import matplotlib.pyplot as plt
-from Reader import ReadAIM, ShowSlice, PrintTime
+from Reader import ReadAIM, ShowSlice, PrintTime, ShowBinaryRegistration, GetSlice
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -21,6 +22,23 @@ plt.rc('font', size=12)
 
 #%% Functions
 ## Define functions
+def RotationMatrix(Alpha=0, Beta=0, Gamma=0):
+
+    Rx = sp.Matrix([[1,             0,              0],
+                    [0, sp.cos(Alpha), -sp.sin(Alpha)],
+                    [0, sp.sin(Alpha),  sp.cos(Alpha)]])
+
+    Ry = sp.Matrix([[ sp.cos(Beta), 0, sp.sin(Beta)],
+                    [0,             1,              0],
+                    [-sp.sin(Beta), 0, sp.cos(Beta)]])
+
+    Rz = sp.Matrix([[sp.cos(Gamma), -sp.sin(Gamma), 0],
+                    [sp.sin(Gamma),  sp.cos(Gamma), 0],
+                    [0,             0,              1]])
+
+    R = Rz * Ry * Rx
+
+    return np.array(R, dtype='float')
 def WriteRaw(ImageArray, OutputFileName, PixelType):
 
     if PixelType == 'uint':
@@ -108,7 +126,7 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
     TransformixImageFilter.ComputeDeformationFieldOff()
     TransformixImageFilter.ComputeSpatialJacobianOff()
     TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
-    TransformixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
+    TransformixImageFilter.SetMovingImage(MovingImage)
     TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
     TransformixImageFilter.SetOutputDirectory(ResultsDirectory)
 
@@ -116,7 +134,7 @@ def TransformixTransformations(MovingImage,TransformParameterMap,ResultsDirector
 
     ResultImage = TransformixImageFilter.GetResultImage()
 
-    return sitk.GetArrayFromImage(ResultImage)
+    return ResultImage
 
 # 01 Set variables
 HRpQCT_Data = Path.cwd() / '../../02_Data/01_HRpQCT'
@@ -126,6 +144,9 @@ SampleList = pd.read_csv(str(Path.cwd() / '../../02_Data/SampleList.csv'))
 
 #%%
 for iSample, Sample in enumerate(SampleList['Internal ID']):
+
+    iSample = 0
+    Sample = SampleList.loc[iSample, 'Internal ID']
 
     # 03 Load Masks
     uCT_Number = SampleList.loc[iSample, 'MicroCT pretest file number']
@@ -160,22 +181,23 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
 
     HRpQCT_Resampled = Resample.Execute(HRpQCT_Mask)
 
-#%%
-    # Extract slices for quick testing
-    Size = HRpQCT_Resampled.GetSize()
-    Start, Stop = Size[2] * 0.05, Size[2] * 0.25
-    HRpQCT_Slice = sitk.Slice(HRpQCT_Resampled, (0, 0, int(Start)), (Size[0], Size[1], int(Stop)))
-
-    Size = uCT_Mask.GetSize()
-    Start, Stop = Size[2] * 0.75, Size[2] * 0.95
-    uCT_Slice = sitk.Slice(uCT_Mask, (0, 0, int(Start)), (Size[0], Size[1], int(Stop)))
-
-    ## Rotate HR-pQCT image to 180°
+#%%   
+    # Rotate HR-pQCT image to 180°
     Rotation = sitk.VersorRigid3DTransform()
-    Rotation.SetMatrix([-1, 0, 0, 0, 1, 0, 0, 0, -1])
-    Center = np.array(HRpQCT_Slice.GetSize()) / 2 * np.array(HRpQCT_Slice.GetSpacing())
-    Rotation.SetCenter(Center + np.array(HRpQCT_Slice.GetOrigin()))
-    HRpQCT_Rotated = sitk.Resample(HRpQCT_Slice, Rotation)
+    M = RotationMatrix(Alpha=0, Beta=sp.pi, Gamma=0)
+    M = [v for v in M.flatten()]
+
+    # Symetry
+    M[4] *= -1
+    Rotation.SetMatrix(M)
+    Center = np.array(HRpQCT_Resampled.GetSize()) / 2 * np.array(HRpQCT_Resampled.GetSpacing())
+    CO = Center + np.array(HRpQCT_Resampled.GetOrigin())
+    Rotation.SetCenter(CO)
+    HRpQCT_Rotated = sitk.Resample(HRpQCT_Resampled, Rotation)
+
+    # Extract slices for quick testing
+    HRpQCT_Slice = GetSlice(HRpQCT_Rotated, int(HRpQCT_Rotated.GetSize()[2]*0.9))
+    uCT_Slice = GetSlice(uCT_Mask, int(uCT_Mask.GetSize()[2]*0.9))
 
     # Binarize masks
     Otsu = sitk.OtsuThresholdImageFilter()
@@ -184,28 +206,36 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
     uCT_Bin = Otsu.Execute(uCT_Slice)
 
     # 07 Find best HR-pQCT image initial rotation with successive 90° rotations
-    Matrices = np.array([[[1, 0, -1, 0], [0, -1, 0, 1]], [[0, 1, 0, -1], [1, 0, -1, 0]]])
     Measure = sitk.LabelOverlapMeasuresImageFilter()
     DSCs = pd.DataFrame()
-    for i in range(4):
+    NRotations = 8
+    Angle = 2*sp.pi/NRotations
+    Rotation2D = sitk.Euler2DTransform()
+    Rotation2D.SetCenter(CO[:2])
+    for i in range(NRotations):
 
-        print('\nRotate slice of %i degrees and register it' % (i*90))
+        print('\nRotate slice of %i degrees and register it' % (i*Angle/sp.pi*180))
         Tic = time.time()
 
-        M = Matrices[:,:,i]
-        Rotation.SetMatrix(np.array([M[0,0], M[0,1], 0, M[1,0], M[1,1], 0, 0, 0, 1], dtype='double'))
-        Rotated_Slice = sitk.Resample(HRpQCT_Rotated, Rotation)
-        ShowSlice(Rotated_Slice)
+        M = RotationMatrix(Alpha=0, Beta=0, Gamma=i*Angle)
+        Rotation2D.SetMatrix([v for v in M[:2,:2].flatten()])
+        Rotated_Slice = sitk.Resample(HRpQCT_Slice, Rotation2D)
 
         ## Register images
-        ParameterMap = sitk.GetDefaultParameterMap('translation')
+        ParameterMap = sitk.GetDefaultParameterMap('rigid')
+        # ParameterMap['MaximumNumberOfIterations'] = '2000'
+        ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+        ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+        ParameterMap['SP_alpha'] = ['0.6']
+        ParameterMap['SP_A'] = ['1000']
 
         ## Set Elastix and perform registration
         ElastixImageFilter = sitk.ElastixImageFilter()
         ElastixImageFilter.SetParameterMap(ParameterMap)
         ElastixImageFilter.SetFixedImage(uCT_Slice)
         ElastixImageFilter.SetMovingImage(Rotated_Slice)
-        # ElastixImageFilter.SetOutputDirectory(ResultsDirectory)
+        ElastixImageFilter.SetOutputDirectory(str(ResultsPath / Sample))
+        ElastixImageFilter.LogToConsoleOff()
         ElastixImageFilter.LogToFileOn()
         ElastixImageFilter.Execute()
 
@@ -216,70 +246,84 @@ for iSample, Sample in enumerate(SampleList['Internal ID']):
         Toc = time.time()
         PrintTime(Tic, Toc)
 
-        ShowSlice(Result_Bin)
+        # ShowBinaryRegistration(uCT_Bin, Result_Bin)
 
         ## Compute dice coefficient
         Measure.Execute(uCT_Bin, Result_Bin)
         DSC = Measure.GetDiceCoefficient()
-        NewData = pd.DataFrame({'Angle':(i*90), 'DSC':DSC}, index=[SuccessiveRotation])
+        NewData = pd.DataFrame({'Angle':float(i*Angle/sp.pi*180), 'DSC':DSC}, index=[i])
         DSCs = pd.concat([DSCs, NewData])
 
+        if DSC == DSCs['DSC'].max():
+            BestAngle = float(i*Angle)
+            TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
+
+    #%% Build 3D initial transform
+    # Build initial transform
+    TransformParameters = TransformParameterMap[0]['TransformParameters']
+    TransformParameters = ('0',
+                           '0',
+                           str(float(TransformParameters[0]) + BestAngle),
+                           str(TransformParameters[1]),
+                           str(TransformParameters[2]),
+                           '0')
+    CR = TransformParameterMap[0]['CenterOfRotationPoint']
+
+    InitialTransform = TransformParameterMap[0]
+    InitialTransform['CenterOfRotationPoint'] = (CR[0], CR[1], '0.0')
+    InitialTransform['Direction'] = [str(d) for d in uCT_Mask.GetDirection()]
+    InitialTransform['FixedImageDimension'] = str(uCT_Mask.GetDimension())
+    InitialTransform['Index'] = ('0', '0', '0')
+    InitialTransform['MovingImageDimension'] = str(HRpQCT_Mask.GetDimension())
+    InitialTransform['NumberOfParameters'] = '6'
+    InitialTransform['Origin'] = [str(o) for o in uCT_Mask.GetOrigin()]
+    InitialTransform['Size'] = [str(s) for s in uCT_Mask.GetSize()]
+    InitialTransform['Spacing'] = [str(s) for s in uCT_Mask.GetSpacing()]
+    InitialTransform['TransformParameters'] = TransformParameters
+
+    TransformFile = open(str(ResultsPath / Sample) + '/TransformParameters.0.txt')
+    Text = TransformFile.read()
+    TransformFile.close()
+    for K in InitialTransform.keys():
+        Start = Text.find(K)
+        Stop = Text[Start:].find(')')
+        OldText = Text[Start:Start+Stop]
+        NewText = Text[Start:Start+len(K)]
+        for i in InitialTransform[K]:
+            NewText += ' ' + str(i)
+        Text = Text.replace(OldText,NewText)
+    TFileName = str(ResultsPath / Sample) + '/InitialTransform.txt'
+    TransformFile = open(TFileName, 'w')
+    TransformFile.write(Text)
+    TransformFile.close()
+
+
 #%%
-    # 08 Load HR-pQCT scan, rotate it and write it
-    HRpQCT_Scan = sitk.ReadImage(SamplePath + '/' + Scan + '_UNCOMP.mhd')
-    ResampledImage = Resample.Execute(HRpQCT_Scan)
-    HRpQCT_Scan = sitk.GetArrayFromImage(ResampledImage)
-    HRpQCT_Scan = np.rot90(HRpQCT_Scan, 2, (0, 1))
+    # Full registration using estimated parameters
+    ParameterMap = sitk.GetDefaultParameterMap('rigid')
+    ParameterMap['MaximumNumberOfIterations'] = ['2000']
+    ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+    ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+    ParameterMap['SP_alpha'] = ['0.6']
+    ParameterMap['SP_A'] = ['1000']
 
-    # ## Add Layers to HR-pQCT Scan
-    # ZerosArray = np.zeros(uCT_Mask.shape)
-    # Diff_Z, Diff_Y, Diff_X = np.array(uCT_Mask.shape) - np.array(HRpQCT_Scan.shape)
-    # for Z in range(min(HRpQCT_Scan.shape[0],uCT_Mask.shape[0])):
-    #     for Y in range(min(HRpQCT_Scan.shape[1],uCT_Mask.shape[1])):
-    #         for X in range(min(HRpQCT_Scan.shape[2],uCT_Mask.shape[2])):
-    #             ZerosArray[Z + int(Diff_Z/2), Y + int(Diff_Y/2), X + int(Diff_X/2)] = HRpQCT_Scan[Z,Y,X]
-    # HRpQCT_Scan = ZerosArray
-
-    # Verify best angle
-    BestAngle = DSCs.loc[DSCs['DSC'].idxmax(), 'Angle']
-    Rotated_Slice = ndimage.rotate(HRpQCT_Slice, BestAngle, (1,2), reshape=True)
-    ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(Rotated_Slice))
+    ## Set Elastix and perform registration
+    ElastixImageFilter = sitk.ElastixImageFilter()
+    ElastixImageFilter.SetParameterMap(ParameterMap)
+    ElastixImageFilter.SetFixedImage(uCT_Mask)
+    ElastixImageFilter.SetMovingImage(HRpQCT_Rotated)
+    ElastixImageFilter.SetInitialTransformParameterFileName(TFileName)
+    ElastixImageFilter.SetOutputDirectory(str(ResultsPath / Sample))
+    ElastixImageFilter.LogToConsoleOff()
+    ElastixImageFilter.LogToFileOn()
     ElastixImageFilter.Execute()
-    ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
-    ResultImage = sitk.GetArrayFromImage(ResultImage)
 
-    # Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    # Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0]/2),:,:], cmap='bone', alpha=0.5)
-    # Axes.imshow(ResultImage[int(ResultImage.shape[0]/2),:,:], cmap='bone', alpha=0.5)
-    # Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(BestAngle)))
-    # Figure.suptitle(Sample)
-    # plt.show()
-    # plt.close(Figure)
+    Result_Image = ElastixImageFilter.GetResultImage()
 
-    ## Write best angle into text file
-    File = open(ResultsDirectory + '/HR-pQCT_RigidRotationAngle.txt','+w')
-    File.write(str(int(BestAngle)))
-    File.close()
+    ShowBinaryRegistration(uCT_Mask, Result_Image)
 
-    ## Rotate and translate HR-pQCT scan
-    Rotated_Scan = ndimage.rotate(HRpQCT_Scan, int(BestAngle), (1,2), reshape=True)
-
-    TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
-    TransformParameterMap[0]['Size'] = tuple([str(i) for i in uCT_Mask.shape[::-1]])
-    Result_Scan = TransformixTransformations(Rotated_Scan, TransformParameterMap, ResultsDirectory)
-
-    Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=100)
-    Axes.imshow(uCT_Slice[int(uCT_Slice.shape[0] / 2), :, :], cmap='bone', alpha=0.5)
-    Axes.imshow(Result_Scan[int(Result_Scan.shape[0] / 2), :, :], cmap='bone', alpha=0.5)
-    Axes.set_title('DSC: ' + str(DSC.round(2)) + ' Angle: ' + str(int(BestAngle)))
-    Figure.suptitle(Sample)
-    plt.show()
-    plt.close(Figure)
-
-
-    Origin = np.array([0, 0, 0])
-    WriteMHD(Result_Scan, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT', PixelType='float')
-    Rotated_Mask = ndimage.rotate(HRpQCT_Mask, int(BestAngle), (1,2), reshape=True)
+#%%
+    
     Result_Mask = TransformixTransformations(Rotated_Mask, TransformParameterMap, ResultsDirectory)
     WriteMHD(Result_Mask, New_Spacing, Origin, ResultsDirectory, 'HR-pQCT_Mask', PixelType='float')
 

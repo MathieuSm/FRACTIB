@@ -48,28 +48,173 @@ def PrintTime(Tic, Toc):
 
     return
 
+def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
+
+    # Get image attributes
+    Size = Image.GetSize()
+    Spacing = np.array(Image.GetSpacing())
+    Origin = np.array(Image.GetOrigin())
+    Direction = np.array(Image.GetDirection()).reshape((3,3))
+
+    if type(Slice) == list:
+        Start, Stop = Slice
+
+        if Axis == 'Z':
+            Sliced = sitk.Slice(Image, (0, 0, Start), (Size[0], Size[1], Stop))
+        elif Axis == 'Y':
+            Sliced = sitk.Slice(Image, (0, Start, 0), (Size[0], Stop, Size[2]))
+        elif Axis == 'X':
+            Sliced = sitk.Slice(Image, (Start, 0, 0), (Stop, Size[1], Size[2]))
+
+    elif type(Slice) == int:
+
+        if Axis == 'Z':
+            Sliced = sitk.Slice(Image, (0, 0, Slice), (Size[0], Size[1], Slice+1))
+
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[0]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[:2])
+                Sliced2D.SetSpacing(Spacing[:2])
+                Sliced2D.SetDirection(Direction[:2,:2].flatten())
+
+        elif Axis == 'Y':
+            Sliced = sitk.Slice(Image, (0, Slice, 0), (Size[0], Slice+1, Size[2]))
+
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[1]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[::2])
+                Sliced2D.SetSpacing(Spacing[::2])
+                Sliced2D.SetDirection(Direction[::2,::2].flatten())
+
+        elif Axis == 'X':
+            Sliced = sitk.Slice(Image, (Slice, 0, 0), (Slice+1, Size[1], Size[2]))
+
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[2]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[1:])
+                Sliced2D.SetSpacing(Spacing[1:])
+                Sliced2D.SetDirection(Direction[1:,1:].flatten())
+
+    else:
+
+        if Axis == 'Z':
+            Sliced = sitk.Slice(Image, (0, 0, int(Size[2]/2)), (Size[0], Size[1], int(Size[2]/2)+1))
+        
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[2]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[:2])
+                Sliced2D.SetSpacing(Spacing[:2])
+                Sliced2D.SetDirection(Direction[:2,:2].flatten())
+
+
+        elif Axis == 'Y':
+            Sliced = sitk.Slice(Image, (0, int(Size[1]/2), 0), (Size[0], int(Size[1]/2)+1, Size[2]))
+        
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[1]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[::2])
+                Sliced2D.SetSpacing(Spacing[::2])
+                Sliced2D.SetDirection(Direction[::2,::2].flatten())
+
+
+        elif Axis == 'X':
+            Sliced = sitk.Slice(Image, (int(Size[0]/2), 0, 0), (int(Size[0]/2)+1, Size[1], Size[2]))
+
+            if Slice2D:
+                Array = sitk.GetArrayFromImage(Sliced)[2]
+                Sliced2D = sitk.GetImageFromArray(Array)
+                Sliced2D.SetOrigin(Origin[1:])
+                Sliced2D.SetSpacing(Spacing[1:])
+                Sliced2D.SetDirection(Direction[1:,1:].flatten())
+
+
+    if Sliced2D:
+        Sliced = Sliced2D
+        
+    return Sliced
+
 def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
 
     Array = sitk.GetArrayFromImage(Image)
-    
-    if Axis == 'Z':
-        if Slice:
-            Array = Array[Slice,:,:]
-        else:
-            Array = Array[Array.shape[0]//2,:,:]
-    if Axis == 'Y':
-        if Slice:
-            Array = Array[:,Slice,:]
-        else:
-            Array = Array[:,Array.shape[1]//2,:]
-    if Axis == 'X':
-        if Slice:
-            Array = Array[:,:,Slice]
-        else:
-            Array = Array[:,:,Array.shape[2]//2]
+
+    if Image.GetDimension() == 3:
+        
+        if Axis == 'Z':
+            if Slice:
+                Array = Array[Slice,:,:]
+            else:
+                Array = Array[Array.shape[0]//2,:,:]
+        if Axis == 'Y':
+            if Slice:
+                Array = Array[:,Slice,:]
+            else:
+                Array = Array[:,Array.shape[1]//2,:]
+        if Axis == 'X':
+            if Slice:
+                Array = Array[:,:,Slice]
+            else:
+                Array = Array[:,:,Array.shape[2]//2]
 
     Figure, Axis = plt.subplots()
     Axis.imshow(Array,interpolation=None, cmap='binary_r')
+    Axis.axis('Off')
+    
+    if(Title):
+        Axis.set_title(Title)
+
+    plt.show(Figure)
+
+    return
+
+def ShowBinaryRegistration(Fixed, Moving, Slice=None, Title=None, Axis='Z'):
+
+    FixedArray = sitk.GetArrayFromImage(Fixed)
+    MovingArray = sitk.GetArrayFromImage(Moving)
+
+    if len(np.unique(FixedArray)) > 2 or len(np.unique(MovingArray)) > 2:
+        Otsu = sitk.OtsuThresholdImageFilter()
+        Otsu.SetInsideValue(0)
+        Otsu.SetOutsideValue(1)
+        Fixed_Bin = Otsu.Execute(Fixed)
+        Moving_Bin = Otsu.Execute(Moving)
+        FixedArray = sitk.GetArrayFromImage(Fixed_Bin)
+        MovingArray = sitk.GetArrayFromImage(Moving_Bin)
+
+    if Fixed.GetDimension() == 3:
+        Array = np.zeros((Fixed.GetSize()[2], Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
+        Array[:,:,:,0] = FixedArray
+        Array[:,:,:,1] = MovingArray
+        Array[:,:,:,2] = MovingArray
+        
+        if Axis == 'Z':
+            if Slice:
+                Array = Array[Slice,:,:]
+            else:
+                Array = Array[Array.shape[0]//2,:,:]
+        if Axis == 'Y':
+            if Slice:
+                Array = Array[:,Slice,:]
+            else:
+                Array = Array[:,Array.shape[1]//2,:]
+        if Axis == 'X':
+            if Slice:
+                Array = Array[:,:,Slice]
+            else:
+                Array = Array[:,:,Array.shape[2]//2]
+
+    else:
+        Array = np.zeros((Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
+        Array[:,:,0] = FixedArray
+        Array[:,:,1] = MovingArray
+        Array[:,:,2] = MovingArray
+
+    Figure, Axis = plt.subplots()
+    Axis.imshow(Array,interpolation=None)
     Axis.axis('Off')
     
     if(Title):
