@@ -9,6 +9,7 @@ import argparse
 import numpy as np
 import sympy as sp
 import SimpleITK as sitk
+from pathlib import Path
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 
@@ -30,6 +31,18 @@ Description = """
     """
 
 #%%
+
+def SetDirectories(Name):
+
+    CWD = str(Path.cwd())
+    Start = CWD.find(Name)
+    WD = Path(CWD[:Start], Name)
+    Data = WD / '02_Data'
+    Scripts = WD / '03_Scripts'
+    Results = WD / '04_Results'
+
+    return WD, Data, Scripts, Results
+
 def PrintTime(Tic, Toc):
 
     """
@@ -247,24 +260,24 @@ class Show:
 
         return
 
+def Get_AIM_Ints(File):
+
+    """
+    Function by Glen L. Niebur, University of Notre Dame (2010)
+    reads the integer data of an AIM file to find its header length
+    """
+
+    nheaderints = 32
+    File.seek(0)
+    binints = File.read(nheaderints * 4)
+    header_int = struct.unpack("=32i", binints)
+
+    return header_int
+
 class Read:
 
     def __init__(self):
         pass
-
-    def Get_AIM_Ints(File):
-
-        """
-        Function by Glen L. Niebur, University of Notre Dame (2010)
-        reads the integer data of an AIM file to find its header length
-        """
-
-        nheaderints = 32
-        File.seek(0)
-        binints = File.read(nheaderints * 4)
-        header_int = struct.unpack("=32i", binints)
-
-        return header_int
 
     def AIM(File):
 
@@ -400,7 +413,7 @@ class Read:
 
         return Image, AdditionalData
 
-    def ISQ(File, BMD=False, Echo=False, Info=False):
+    def ISQ(File, BMD=False, Info=False):
 
         """
         This function read an ISQ file from Scanco and return an ITK image and additional data.
@@ -462,9 +475,7 @@ class Read:
         * lower right.
         """
 
-        if Echo:
-            print('\nRead ISQ file')
-
+        print('\nRead ISQ file')
         Tic = time.time()
 
         try:
@@ -650,7 +661,7 @@ class Write:
     def __init__(self):
         pass
 
-    def WriteRaw(Image, OutputFileName, PixelType):
+    def Raw(Image, OutputFileName, PixelType):
 
         ImageArray = sitk.GetArrayFromImage(Image)
 
@@ -689,7 +700,7 @@ class Write:
 
         return
 
-    def WriteMHD(Image, Path, FileName, PixelType='uint'):
+    def MHD(Image, FileName, PixelType='uint'):
 
         print('\nWrite MHD')
         Tic = time.time()
@@ -714,7 +725,7 @@ class Write:
         CenterOfRotation = '0 0 0'
         AnatomicalOrientation = 'LPS'
 
-        outs = open(os.path.join(Path, FileName) + '.mhd', 'w')
+        outs = open(FileName + '.mhd', 'w')
         outs.write('ObjectType = Image\n')
         outs.write('NDims = 3\n')
         outs.write('BinaryData = True\n')
@@ -737,14 +748,14 @@ class Write:
         outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
         outs.close()
 
-        WriteRaw(Image, os.path.join(Path, FileName) + '.raw', PixelType)
+        Raw(Image, FileName + '.raw', PixelType)
 
         Toc = time.time()
         PrintTime(Tic, Toc)
 
         return
 
-    def WriteVTK(VectorField,FilePath,FileName,SubSampling=1):
+    def VTK(VectorField,FilePath,FileName,SubSampling=1):
 
         print('\nWrite VTK')
         Tic = time.time()
@@ -851,6 +862,87 @@ class Write:
         PrintTime(Tic, Toc)
 
         return
+
+class Register:
+
+    def __init__(self):
+        pass
+
+    def Rigid(FixedImage, MovingImage, ITFile=None, ResultsPath=None, Dictionary={}):
+
+        print('\nPerform rigid registration')
+        Tic = time.time()
+        ParameterMap = sitk.GetDefaultParameterMap('rigid')
+
+        # Set standard parameters if not specified otherwise
+        if 'MaximumNumberOfIterations' not in Dictionary.keys():
+            ParameterMap['MaximumNumberOfIterations'] = ['2000']
+
+        if 'FixedImagePyramidSchedule' not in Dictionary.keys():
+            ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+
+        if 'MovingImagePyramidSchedule' not in Dictionary.keys():
+            ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+
+        if 'SP_alpha' not in Dictionary.keys():
+            ParameterMap['SP_alpha'] = ['0.6']
+
+        if 'SP_A' not in Dictionary.keys():
+            ParameterMap['SP_A'] = ['1000']
+
+        # Set other defined parameters
+        for Key in Dictionary.keys():
+            ParameterMap[Key] = [str(Item) for Item in Dictionary[Key]]
+
+
+        # Set Elastix and perform registration
+        ElastixImageFilter = sitk.ElastixImageFilter()
+        ElastixImageFilter.SetParameterMap(ParameterMap)
+        ElastixImageFilter.SetFixedImage(FixedImage)
+        ElastixImageFilter.SetMovingImage(MovingImage)
+
+        if ITFile:
+            ElastixImageFilter.SetInitialTransformParameterFileName(ITFile)
+
+
+        if ResultsPath:
+            ElastixImageFilter.SetOutputDirectory(ResultsPath)
+            ElastixImageFilter.LogToConsoleOff()
+            ElastixImageFilter.LogToFileOn()
+
+        ElastixImageFilter.Execute()
+
+        # Get results
+        Result_Image = ElastixImageFilter.GetResultImage()
+        TransformParameters = ElastixImageFilter.GetTransformParameterMap()
+
+        # Print elapsed time
+        Toc = time.time()
+        PrintTime(Tic, Toc)
+
+        return Result_Image, TransformParameters
+        
+    def Apply(Image,TransformParameterMap,Path=None,Jacobian=None):
+
+        TransformixImageFilter = sitk.TransformixImageFilter()
+        TransformixImageFilter.SetMovingImage(Image)
+        TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
+        TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
+
+        if Jacobian:
+            TransformixImageFilter.ComputeDeformationFieldOff()
+            TransformixImageFilter.ComputeSpatialJacobianOff()
+
+        if Path:
+            TransformixImageFilter.SetOutputDirectory(Path)
+
+        TransformixImageFilter.Execute()
+
+        ResultImage = TransformixImageFilter.GetResultImage()
+
+        return ResultImage
+
+
 
 #%%
 if __name__ == '__main__':

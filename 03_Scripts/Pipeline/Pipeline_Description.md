@@ -19,13 +19,13 @@
 - Scan tested sample with uCT (19.5um resolution) -> try to align position with first uct scan
 
 ## hFE analysis
-- Register uCT on HRp-QCT scan using masks and store transformation parameters
+- Register HRp-QCT on uCT scan using masks and store transformation parameters
 - Crop masks uCT and HRp-QCT to have maximum common region with parallel surfaces
 - Perform hFE using cropped masks. Set displacement to max experimental displacement
 - Extract deformation gradient from simulation and decompose it to J and F_tilde
+- Transform J and F_Tilde into uCT space
 
 ## Registration
-- Transform pre/post-test uct scans into HRp-QCT space using parameters obtained in 11.
 - Register pre/post-test uct scans (rigid + bspline registrations) using cropped mask (common region with HRp-QCT)
 - Extract deformation gradient, and decompose it to J and F_tilde
 
