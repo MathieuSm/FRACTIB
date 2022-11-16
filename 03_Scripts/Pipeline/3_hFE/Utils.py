@@ -10,6 +10,7 @@ import numpy as np
 import sympy as sp
 import SimpleITK as sitk
 from pathlib import Path
+import scipy.signal as sig
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 
@@ -30,7 +31,7 @@ Description = """
     Date: November 2022
     """
 
-#%%
+#%% General functions
 
 def SetDirectories(Name):
 
@@ -169,6 +170,7 @@ def RotationMatrix(Alpha=0, Beta=0, Gamma=0):
 
     return np.array(R, dtype='float')
 
+#%% Ploting functions
 class Show:
 
     def __init__(self):
@@ -260,6 +262,7 @@ class Show:
 
         return
 
+#%% Reading functions
 def Get_AIM_Ints(File):
 
     """
@@ -656,6 +659,7 @@ class Read:
 
         return Image, AdditionalData
 
+#%% Writing functions
 class Write:
 
     def __init__(self):
@@ -863,6 +867,7 @@ class Write:
 
         return
 
+#%% Registration funtions
 class Register:
 
     def __init__(self):
@@ -929,7 +934,7 @@ class Register:
         TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
         TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
 
-        if Jacobian:
+        if not Jacobian:
             TransformixImageFilter.ComputeDeformationFieldOff()
             TransformixImageFilter.ComputeSpatialJacobianOff()
 
@@ -942,7 +947,83 @@ class Register:
 
         return ResultImage
 
+#%% Signal treatment functions
+class Signal:
 
+    def __init__(self):
+        pass
+
+    def FFT(Signal, Sampling, Show=False):
+
+        """
+        Analyze signal spectrum in frequency domain
+        
+        :param Signal: the signal to analyze
+        :param Sampling: signal sampling interval (in /s or /m)
+        :param Show: Plot the frequency spectrum
+        """
+
+        SamplingFrequency = 1 / Sampling
+        NormalizedSpectrum = np.fft.fft(Signal) / len(Signal)
+        Frequencies = np.fft.fftfreq(Signal.shape[-1], SamplingFrequency)
+
+        RealHalfSpectrum = np.abs(NormalizedSpectrum.real[Frequencies >= 0])
+        HalfFrequencies = Frequencies[Frequencies >= 0]
+
+        if Show:
+            Figure, Axis = plt.subplots(1,1)
+            Axis.semilogx(HalfFrequencies, RealHalfSpectrum, color=(1,0,0))
+            Axis.set_xlabel('Frequencies [Hz]')
+            Axis.set_ylabel('Amplitude [-]')
+            plt.show()
+
+        return HalfFrequencies, RealHalfSpectrum
+
+    def DesignFilter(Frequency, Order=2):
+
+        """
+        Design Butterworth filter according to cut-off frequency and order
+
+        :param Frequency: cut-off frequency of the filter
+        :param Order: order of the filter
+        """
+        
+        b, a = sig.butter(Order, Frequency, 'low', analog=True)
+        w, h = sig.freqs(b, a)
+
+        Figure, Axis = plt.subplots(1,1)
+        Axis.semilogx(w, 20 * np.log10(abs(h)))
+        Axis.set_xlabel('Frequency [radians / second]')
+        Axis.set_ylabel('Amplitude [dB]')
+        Axis.grid(which='both', axis='both')
+        Axis.axvline(Frequency, color='green') # cutoff frequency
+        Axis.set_ylim([-50,5])
+        plt.show()
+
+        return
+
+    def Filter(Signal, Sampling, Frequency, Order=2, Show=False):
+        
+        """
+        Filter signal and look filtering effect
+
+        :param Signal: signal to filter
+        :param Sampling: signal sampling interval (in /s or /m)
+        :param Frequency: cut-off frequency
+        :param Order: filter order
+        :param Show: plot results
+        """
+
+        SOS = sig.butter(Order, Frequency / Sampling, output='sos')
+        FilteredSignal = sig.sosfiltfilt(SOS, Signal)
+
+        if Show:
+            Figure, Axis = plt.subplots(1,1)
+            Axis.plot(Signal, color=(0,0,0))
+            Axis.plot(FilteredSignal, color=(1,0,0))
+            plt.show()
+
+        return FilteredSignal
 
 #%%
 if __name__ == '__main__':
