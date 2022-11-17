@@ -1,7 +1,8 @@
+#%%
 # 00 Initialization
-import os
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 
@@ -12,7 +13,18 @@ pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width,suppress=True,formatter={'float_kind':'{:3}'.format})
 plt.rc('font', size=12)
 
+#%%
 ## Define functions
+def SetDirectories(Name):
+
+    CWD = str(Path.cwd())
+    Start = CWD.find(Name)
+    WD = Path(CWD[:Start], Name)
+    Data = WD / '02_Data'
+    Scripts = WD / '03_Scripts'
+    Results = WD / '04_Results'
+
+    return WD, Data, Scripts, Results
 def GenerateCube(Dimension, CubeSize, Scale=10, Border=1):
 
     HalvedCubeSize = CubeSize / 2
@@ -504,36 +516,39 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
     return SphericalCompression, IsovolumicDeformation
 
 
-
+#%%
 # 01 Set variables
-WorkingDirectory = os.getcwd()
-ResultsDirectory = os.path.join(WorkingDirectory,'06_Problems/01_Registration/3D_Tests/')
+WD, Data, Scripts, Results = SetDirectories('FRACTIB')
+ResultsDirectory = str(WD / '06_Problems/01_Registration/3D_Tests/')
 
 
 # 02 Build cube values with random values and border of fix values
 Dimension = 3
 CubeSize = 1
-CubeScale = 50*2
+CubeScale = 50
 Border = 5
 CubeVertices, CubeValues = GenerateCube(Dimension, CubeSize, CubeScale, Border)
 
+#%%
 ## Generate fixed image
 ImageSize = (CubeScale*2,CubeScale*2,CubeScale*2)
 FixedImage = GenerateImage(Dimension,ImageSize,CubeVertices,CubeScale,CubeValues)
 
 WriteMHD(FixedImage,np.array([1,1,1]),ResultsDirectory,'FixedImage', PixelType='float')
 
+#%%
 # 03 Define transformation
 b = Translation(Dimension)
-R = Rotation(Dimension)
+R = Rotation(Dimension, Gamma=np.pi/12)
 U = Stretch(Dimension)
-Gp = PureShearing(Dimension,GammaXY=0.5)
+Gp = PureShearing(Dimension)
 Gs = SimpleShearing(Dimension)
 
 ## Gradient of the transformation
 I = np.eye(Dimension)
 F = R * U * (Gp + Gs - I)
 
+#%%
 ## Compute deformed cube
 TransformedCubeVertices = np.zeros(CubeVertices.shape)
 for VertexNumber in range(CubeVertices.shape[0]):
@@ -541,21 +556,22 @@ for VertexNumber in range(CubeVertices.shape[0]):
     TransformedCubeVertices[VertexNumber] = np.array(F * Vertex + b).reshape((1,Dimension))
 
 
+#%%
 ## Generate moving image
 MovingImage = GenerateImage(Dimension,ImageSize,TransformedCubeVertices,CubeScale,CubeValues,b)
 WriteMHD(MovingImage,np.array([1,1,1]),ResultsDirectory,'MovingImage', PixelType='float')
 
 ## Plot images
 Figure, Axes = plt.subplots(1, 2, figsize=(5.5, 4.5),dpi=100)
-Axes[0].imshow(FixedImage[:,:,225],cmap='binary')
-Axes[1].imshow(MovingImage[:,:,225],cmap='binary')
+Axes[0].imshow(FixedImage[FixedImage.shape[2] // 2, :, :],cmap='binary')
+Axes[1].imshow(MovingImage[MovingImage.shape[2] // 2, :, :],cmap='binary')
 for i in range(2):
     Axes[i].set_xlim([0,FixedImage.shape[1]])
     Axes[i].set_ylim([0,FixedImage.shape[0]])
 plt.show()
 plt.close(Figure)
 
-
+#%%
 # 02 Set the parameter map vector
 ParameterMap1 = sitk.GetDefaultParameterMap('affine')
 ParameterMap1['ResultImageFormat'] = ['mhd']
@@ -579,21 +595,24 @@ ParameterMapVector = sitk.VectorOfParameterMap()
 ParameterMapVector.append(ParameterMap1)
 ParameterMapVector.append(ParameterMap2)
 
-
+#%%
 # 03 Set Elastix and register
 ElastixImageFilter = sitk.ElastixImageFilter()
 ElastixImageFilter.SetFixedImage(sitk.GetImageFromArray(FixedImage))
 ElastixImageFilter.SetMovingImage(sitk.GetImageFromArray(MovingImage))
 ElastixImageFilter.SetParameterMap(ParameterMapVector)
 ElastixImageFilter.SetOutputDirectory(ResultsDirectory)
-ElastixImageFilter.LogToConsoleOn()
+ElastixImageFilter.LogToConsoleOff()
+ElastixImageFilter.LogToFileOn()
 ElastixImageFilter.Execute()
 
+#%%
 ## Get results
 ResultImage = ElastixImageFilter.GetResultImage()  # How moving image is deformed
 WriteMHD(sitk.GetArrayFromImage(ResultImage),np.array([1,1,1]),ResultsDirectory,'ResultImage1', PixelType='float')
 TransformParameterMap = ElastixImageFilter.GetTransformParameterMap()
 
+#%%
 ## Compute deformation field using transformix
 TransformixImageFilter = sitk.TransformixImageFilter()
 TransformixImageFilter.ComputeDeformationFieldOn()
@@ -611,6 +630,7 @@ DeformationFieldNda = sitk.GetArrayFromImage(DeformationField)
 WriteVTK(DeformationFieldNda, ResultsDirectory, 'DeformationField',SubSampling=10)
 
 
+#%%
 ## Get transformation parameters
 a11, a12, a21, a22, tx, ty = np.array(TransformParameterMap[0]['TransformParameters']).astype('float')
 A = np.matrix([[a11,a12],[a21,a22]])
@@ -620,6 +640,7 @@ from scipy.linalg import polar
 R_A, U_A = polar(A)
 
 
+#%%
 ## Plot
 Figure, Axes = plt.subplots(1, 2, figsize=(11, 4.5),dpi=100)
 Axes[0].imshow(FixedImage + MovingImage, cmap='jet')

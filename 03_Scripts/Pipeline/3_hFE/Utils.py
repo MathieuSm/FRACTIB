@@ -169,6 +169,38 @@ def RotationMatrix(Alpha=0, Beta=0, Gamma=0):
     R = Rz * Ry * Rx
 
     return np.array(R, dtype='float')
+    
+def GetParameterMap(FileName):
+
+    """
+    Builds parameter map according to given file
+    """
+
+    File = open(FileName, 'r')
+    Text = File.read()
+    Start = Text.find('(')
+    Stop = Text.find(')')
+
+    ParameterMap = sitk.ParameterMap()
+    while Start-Stop+1:
+        Line = Text[Start+1:Stop]
+        Sep = Line.find(' ')
+        Name = Line[:Sep]
+        Parameter = Line[Sep+1:]
+
+        if Line[Sep+1:].find(' ')+1:
+            ParameterMap[Name] = [P for P in Parameter.split()]
+
+        else:
+            ParameterMap[Name] = [Parameter]
+
+        Start = Stop + Text[Stop:].find('(')
+        Stop = Start + Text[Start:].find(')')
+
+    File.close()
+
+    return ParameterMap
+
 
 #%% Ploting functions
 class Show:
@@ -870,10 +902,7 @@ class Write:
 #%% Registration funtions
 class Register:
 
-    def __init__(self):
-        pass
-
-    def Rigid(FixedImage, MovingImage, ITFile=None, ResultsPath=None, Dictionary={}):
+    def Rigid(FixedImage, MovingImage, ITFile=None, Path=None, Dictionary={}):
 
         print('\nPerform rigid registration')
         Tic = time.time()
@@ -910,8 +939,8 @@ class Register:
             ElastixImageFilter.SetInitialTransformParameterFileName(ITFile)
 
 
-        if ResultsPath:
-            ElastixImageFilter.SetOutputDirectory(ResultsPath)
+        if Path:
+            ElastixImageFilter.SetOutputDirectory(Path)
             ElastixImageFilter.LogToConsoleOff()
             ElastixImageFilter.LogToFileOn()
 
@@ -929,23 +958,86 @@ class Register:
         
     def Apply(Image,TransformParameterMap,Path=None,Jacobian=None):
 
-        TransformixImageFilter = sitk.TransformixImageFilter()
-        TransformixImageFilter.SetMovingImage(Image)
-        TransformixImageFilter.SetTransformParameterMap(TransformParameterMap)
-        TransformixImageFilter.ComputeDeterminantOfSpatialJacobianOff()
+        """
+        Apply transform parametermap from elastix to an image
+        """
 
-        if not Jacobian:
-            TransformixImageFilter.ComputeDeformationFieldOff()
-            TransformixImageFilter.ComputeSpatialJacobianOff()
+        TIF = sitk.TransformixImageFilter()
+        TIF.ComputeDeterminantOfSpatialJacobianOff()
+        TIF.SetTransformParameterMap(TransformParameterMap)
+
+        if Jacobian:
+            TIF.ComputeDeformationFieldOn()
+            TIF.ComputeSpatialJacobianOn()
+
+        else:
+            TIF.ComputeDeformationFieldOff()
+            TIF.ComputeSpatialJacobianOff()
+
 
         if Path:
-            TransformixImageFilter.SetOutputDirectory(Path)
+            TIF.SetOutputDirectory(Path)
 
-        TransformixImageFilter.Execute()
+        TIF.SetMovingImage(Image)
+        TIF.Execute()
 
-        ResultImage = TransformixImageFilter.GetResultImage()
+        ResultImage = TIF.GetResultImage()
 
         return ResultImage
+ 
+    def ApplyCustom(Image, TransformParameterMap):
+
+        """
+        Apply costum parameter map to an image
+        """
+
+        # Get transform parameters
+        D = np.array(TransformParameterMap['FixedImageDimension'], 'int')[0]
+        TP = np.array(TransformParameterMap['TransformParameters'],'float')
+        COR = np.array(TransformParameterMap['CenterOfRotationPoint'], 'float')
+
+        # Apply rotation
+        R = sitk.VersorRigid3DTransform()
+        RM = RotationMatrix(Alpha=TP[0], Beta=TP[1], Gamma=TP[2])
+        R.SetMatrix([Value for Value in RM.flatten()])
+        R.SetCenter(COR)
+        Image_R = sitk.Resample(Image, R)
+
+        # Apply translation
+        T = sitk.TranslationTransform(int(D), -TP[3:])
+        Image_T = sitk.Resample(Image_R, T)
+
+        return Image_T
+           
+    def ApplyInverse(Image, TransformParameterMap):
+
+        """
+        Apply inverse rigid transform from transform parameter map
+        """
+
+        # Get transform parameters
+        D = np.array(TransformParameterMap['FixedImageDimension'], 'int')[0]
+        TP = np.array(TransformParameterMap['TransformParameters'],'float')
+        COR = np.array(TransformParameterMap['CenterOfRotationPoint'], 'float')
+
+        # Apply inverse translation
+        T = sitk.TranslationTransform(int(D), -COR - TP[3:])
+        Image_T = sitk.Resample(Image, T)
+
+        # Apply inverse rotation
+        RM = RotationMatrix(Alpha=TP[0], Beta=TP[1], Gamma=TP[2])
+        RM_Inv = np.linalg.inv(RM)
+        R = sitk.VersorRigid3DTransform()
+        R.SetMatrix([Value for Value in RM_Inv.flatten()])
+        R.SetCenter([0, 0, 0])
+
+        Image_R = sitk.Resample(Image_T, R)
+
+        # Translate again for center of rotation
+        T = sitk.TranslationTransform(int(D), COR)
+        Image_T = sitk.Resample(Image_R, T)
+
+        return Image_T
 
 #%% Signal treatment functions
 class Signal:

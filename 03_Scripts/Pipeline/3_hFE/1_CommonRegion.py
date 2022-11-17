@@ -102,7 +102,7 @@ def GetTopAndBot(Image):
 WD, Data, Scripts, Results = SetDirectories('FRACTIB')
 hFE_Data = Data / '01_HRpQCT'
 uCT_Data = Data / '02_uCT'
-ResultsPath = Results / '05_FractureLinePrediction'
+ResultsPath = Results / '05_Localizations'
 SampleList = pd.read_csv(str(Data / 'SampleList.csv'))
 
 #%% File Loading
@@ -154,6 +154,11 @@ CommonSize = np.max([uCT_PhysicalSize, HRpQCT_PhysicalSize], axis=0)
 Pad = (CommonSize // uCT_Spacing - uCT_Size + 1) // 2
 uCT_Pad = sitk.ConstantPad(uCT_Mask, (int(Pad[0]), int(Pad[1]), int(Pad[2])), (int(Pad[0]), int(Pad[1]), int(Pad[2])) )
 
+Dim = uCT_Pad.GetDimension()
+T = sitk.TranslationTransform(int(Dim), -np.array(uCT_Pad.GetOrigin()))
+uCT_Pad = sitk.Resample(uCT_Pad, T)
+uCT_Pad.SetOrigin([0, 0, 0])
+
 #%% Resampling
 # Perform resampling for similar resolution
 Direction = HRpQCT_Rotated.GetDirection()
@@ -168,9 +173,13 @@ Offset = (Orig_Size * Orig_Spacing - New_Size * New_Spacing) / 2
 Resample = sitk.ResampleImageFilter()
 Resample.SetInterpolator = sitk.sitkNearestNeighbor
 Resample.SetOutputDirection(Direction)
-Resample.SetOutputOrigin(Offset)
+Resample.SetOutputOrigin(HRpQCT_Rotated.GetOrigin())
 Resample.SetOutputSpacing(New_Spacing)
 Resample.SetSize(uCT_Pad.GetSize())
+
+Dim = HRpQCT_Rotated.GetDimension()
+T = sitk.TranslationTransform(int(Dim), Offset)
+Resample.SetTransform(T)
 
 HRpQCT_Resampled = Resample.Execute(HRpQCT_Rotated)
 
@@ -181,8 +190,8 @@ Measure = sitk.LabelOverlapMeasuresImageFilter()
 Dices = pd.DataFrame()
 
 # Extract slices for rapid estimation
-uCT_Slice = GetSlice(uCT_Mask, int(uCT_Mask.GetSize()[2]*0.9))
-HRpQCT_Slice = GetSlice(HRpQCT_Resampled, int(HRpQCT_Resampled.GetSize()[2]*0.9))
+uCT_Slice = GetSlice(uCT_Pad, int(uCT_Pad.GetSize()[2]*0.7))
+HRpQCT_Slice = GetSlice(HRpQCT_Resampled, int(HRpQCT_Resampled.GetSize()[2]*0.8))
 
 # Binarize masks
 Otsu = sitk.OtsuThresholdImageFilter()
@@ -194,6 +203,8 @@ uCT_Bin = Otsu.Execute(uCT_Slice)
 NRotations = 8
 Angle = 2*sp.pi/NRotations
 Rotation2D = sitk.Euler2DTransform()
+PhysicalSize = np.array(HRpQCT_Resampled.GetSize()) * np.array(HRpQCT_Resampled.GetSpacing())
+CO = (PhysicalSize - np.array(HRpQCT_Resampled.GetOrigin())) / 2
 Rotation2D.SetCenter(CO[:2])
 
 for i in range(NRotations):
@@ -219,44 +230,65 @@ for i in range(NRotations):
     if Dice == Dices['DSC'].max():
         BestAngle = float(i*Angle)
         TransformParameterMap = TPM
+        Show.Registration(uCT_Slice, HRpQCT_Rotated)
+        Show.Registration(uCT_Slice, RI)
 
+#%% Save initial transformation
+# Save initial transformation
 
-# %% Full registration
-# Perform full 3D registration with initial transform
-
-ITFile = Build3DTransform(uCT_Mask,
+ITFile = Build3DTransform(uCT_Pad,
                           HRpQCT_Resampled,
                           TransformParameterMap,
                           ResultsPath / Sample,
                           Alpha = BestAngle)
-RI, TPM = Register.Rigid(uCT_Mask, HRpQCT_Resampled, ITFile, str(ResultsPath / Sample))
+
+InitialTransform = GetParameterMap(ITFile)
+Test = Register.Apply(HRpQCT_Resampled,InitialTransform)
+Show.Registration(uCT_Pad, Test, Slice=291)
+
+# %% Full registration
+# Perform full 3D registration with initial transform
+
+RI, TPM = Register.Rigid(uCT_Pad, HRpQCT_Resampled, ITFile, str(ResultsPath / Sample))
 HRpQCT_Bin = Otsu.Execute(RI)
-uCT_Bin = Otsu.Execute(uCT_Mask)
+uCT_Bin = Otsu.Execute(uCT_Pad)
 
 Show.Registration(HRpQCT_Bin, uCT_Bin, Axis='X')
 
 # %% Common region
 # Determine common region with parallel surfaces
 Common_Raw = HRpQCT_Bin * uCT_Bin
-Common_Array = sitk.GetArrayFromImage(Common_Raw) == 1
+Common_Array = sitk.GetArrayFromImage(Common_Raw)
 
 # Get uCT top and bottom surface
 uCT_Top, uCT_Bot = GetTopAndBot(uCT_Bin)
 
 # Get HRpQCT top and bottom surface
 S = HRpQCT_Resampled.GetSize()
-HRpQCT_Top = sitk.Slice(HRpQCT_Resampled, (0, 0, S[2]-2), (S[0], S[1], S[2]-1))
-HRpQCT_Bot = sitk.Slice(HRpQCT_Resampled, (0, 0, 1), (S[0], S[1], 2))
+HRpQCT_Top = sitk.Slice(HRpQCT_Resampled, (0, 0, 1), (S[0], S[1], 2))
+HRpQCT_Bot = sitk.Slice(HRpQCT_Resampled, (0, 0, S[2]-2), (S[0], S[1], S[2]-1))
 
 # Transform them into uCT space
-HRpQCT_TopR = Register.Apply(HRpQCT_Top, TPM)
-HRpQCT_BotR = sitk.Resample(HRpQCT_Bot, TPM, sitk.sitkNearestNeighbor)
+TPM_Initial = GetParameterMap(ITFile)
+HRpQCT_TopR = Register.ApplyCustom(HRpQCT_Top, TPM_Initial)
+HRpQCT_BotR = Register.ApplyCustom(HRpQCT_Bot, TPM_Initial)
+del TPM[0]['InitialTransformParametersFileName']
+HRpQCT_TopR = Register.Apply(HRpQCT_TopR, TPM)
+HRpQCT_BotR = Register.Apply(HRpQCT_BotR, TPM)
 
 # Get lower top surface point and higher bottom surface point
 HRpQCT_TopA = sitk.GetArrayFromImage(HRpQCT_TopR)
 HRpQCT_BotA = sitk.GetArrayFromImage(HRpQCT_BotR)
-HRpQCT_TopL = np.max(np.argwhere(HRpQCT_TopA)[:,0])
-HRpQCT_BotH = np.min(np.argwhere(HRpQCT_BotA)[:,0])
+
+if HRpQCT_TopA.sum() == 0: # If top surface is outside the image
+    HRpQCT_TopL = 0
+else:
+    HRpQCT_TopL = np.max(np.argwhere(HRpQCT_TopA)[:,0])
+
+if HRpQCT_BotA.sum() == 0: # If bottom surface is ouside the image
+    HRpQCT_BotH = S[2]
+else:
+    HRpQCT_BotH = np.min(np.argwhere(HRpQCT_BotA)[:,0])
 
 # Keep the most restrictive height
 Common_Top = max([uCT_Top, HRpQCT_TopL])
@@ -270,24 +302,17 @@ Common.SetOrigin(Common_Raw.GetOrigin())
 Common.SetSpacing(Common_Raw.GetSpacing())
 
 Show.Registration(Common_Raw, Common, Axis='X')
-Show.Registration(HRpQCT_Bin, Common, Axis='X')
-Show.Registration(uCT_Bin, Common, Axis='X')
 
-#%% Write images and masks
-# Write images and masks
 
-Cort_Mask = Register.Apply(HRpQCT_Cort_Mask, TPM)
-Trab_Mask = Register.Apply(HRpQCT_Trab_Mask, TPM)
+#%% Write Common images
+# Write common images in uCT and HRpQCT space
 
-Cort_Bin = Otsu.Execute(Cort_Mask)
-Trab_Bin = Otsu.Execute(Trab_Mask)
+Common_Resampled = Register.ApplyInverse(Common, TPM[0])
 
-Final_Cort = Cort_Bin * Common
-Final_Trab = Trab_Bin * Common
+Show.Registration(HRpQCT_Resampled, Common_Resampled, Axis='X')
 
-Final_HRpQCT = 9
-
-Write.MHD(Final_Cort, str(ResultsPath / Sample / 'Cort_Mask'))
+#%%
+Write.MHD(Common, str(ResultsPath / Sample / 'uCT_Common'))
 Write.MHD(Final_Trab, str(ResultsPath / Sample / 'Trab_Mask'))
 
 ### Transform original mask, multiply with common region and write
