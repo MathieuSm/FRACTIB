@@ -119,8 +119,9 @@ HRpQCT_Number = SampleList.loc[iSample, 'HRpQCT File 2 number']
 HRpQCT_File = 'C000' + str(HRpQCT_Number)
 Cort_File = str(hFE_Data / Sample / (HRpQCT_File + '_CORT_MASK_UNCOMP.AIM'))
 Trab_File = str(hFE_Data / Sample / (HRpQCT_File + '_TRAB_MASK_UNCOMP.AIM'))
-HRpQCT_Cort_Mask, AdditionalData = Read.AIM(Cort_File)
-HRpQCT_Trab_Mask, AdditionalData = Read.AIM(Trab_File)
+Reader = Read()
+HRpQCT_Cort_Mask, AdditionalData = Reader.AIM(Cort_File)
+HRpQCT_Trab_Mask, AdditionalData = Reader.AIM(Trab_File)
 HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 
 
@@ -249,5 +250,8 @@ Common.SetOrigin(Common_Raw.GetOrigin())
 Common.SetSpacing(Common_Raw.GetSpacing())
 
 Show.Registration(Common_Raw, Common, Axis='X')
-Write.MHD(Common, str(ResultsPath / Sample / 'CommonMask'))
+Writer = Write()
+Writer.MHD(Common, str(ResultsPath / Sample / 'CommonMask'))
 
+
+# %%

@@ -295,26 +295,26 @@ class Show:
         return
 
 #%% Reading functions
-def Get_AIM_Ints(File):
-
-    """
-    Function by Glen L. Niebur, University of Notre Dame (2010)
-    reads the integer data of an AIM file to find its header length
-    """
-
-    nheaderints = 32
-    File.seek(0)
-    binints = File.read(nheaderints * 4)
-    header_int = struct.unpack("=32i", binints)
-
-    return header_int
-
 class Read:
 
     def __init__(self):
         pass
+    
+    def Get_AIM_Ints(self, File):
 
-    def AIM(File):
+        """
+        Function by Glen L. Niebur, University of Notre Dame (2010)
+        reads the integer data of an AIM file to find its header length
+        """
+
+        nheaderints = 32
+        File.seek(0)
+        binints = File.read(nheaderints * 4)
+        header_int = struct.unpack("=32i", binints)
+
+        return header_int
+
+    def AIM(self, File):
 
         """
         Reads an AIM file and provides
@@ -330,7 +330,7 @@ class Read:
 
         # read header
         with open(File, 'rb') as f:
-            AIM_Ints = Get_AIM_Ints(f)
+            AIM_Ints = self.Get_AIM_Ints(f)
             # check AIM version
             if int(AIM_Ints[5]) == 16:
                 if int(AIM_Ints[10]) == 131074:
@@ -448,7 +448,7 @@ class Read:
 
         return Image, AdditionalData
 
-    def ISQ(File, BMD=False, Info=False):
+    def ISQ(self, File, BMD=False, Info=False):
 
         """
         This function read an ISQ file from Scanco and return an ITK image and additional data.
@@ -697,7 +697,7 @@ class Write:
     def __init__(self):
         pass
 
-    def Raw(Image, OutputFileName, PixelType):
+    def Raw(self, Image, OutputFileName, PixelType):
 
         ImageArray = sitk.GetArrayFromImage(Image)
 
@@ -736,7 +736,7 @@ class Write:
 
         return
 
-    def MHD(Image, FileName, PixelType='uint'):
+    def MHD(self, Image, FileName, PixelType='uint'):
 
         print('\nWrite MHD')
         Tic = time.time()
@@ -757,7 +757,7 @@ class Write:
         lx, ly, lz = Image.GetSpacing()
 
         TransformMatrix = '1 0 0 0 1 0 0 0 1'
-        Offset = '0 0 0'
+        Offset = str(np.array(Image.GetOrigin(),'int'))[1:-1]
         CenterOfRotation = '0 0 0'
         AnatomicalOrientation = 'LPS'
 
@@ -784,14 +784,14 @@ class Write:
         outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
         outs.close()
 
-        Raw(Image, FileName + '.raw', PixelType)
+        self.Raw(Image, FileName + '.raw', PixelType)
 
         Toc = time.time()
         PrintTime(Tic, Toc)
 
         return
 
-    def VTK(VectorField,FilePath,FileName,SubSampling=1):
+    def VTK(self, VectorField,FilePath,FileName,SubSampling=1):
 
         print('\nWrite VTK')
         Tic = time.time()
