@@ -902,7 +902,7 @@ class Write:
 #%% Registration funtions
 class Register:
 
-    def Rigid(FixedImage, MovingImage, ITFile=None, Path=None, Dictionary={}):
+    def Rigid(FixedImage, MovingImage, Path=None, Dictionary={}):
 
         print('\nPerform rigid registration')
         Tic = time.time()
@@ -934,10 +934,6 @@ class Register:
         ElastixImageFilter.SetParameterMap(ParameterMap)
         ElastixImageFilter.SetFixedImage(FixedImage)
         ElastixImageFilter.SetMovingImage(MovingImage)
-
-        if ITFile:
-            ElastixImageFilter.SetInitialTransformParameterFileName(ITFile)
-
 
         if Path:
             ElastixImageFilter.SetOutputDirectory(Path)
