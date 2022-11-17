@@ -70,6 +70,31 @@ def Build3DTransform(FI, MI, TPM, Path=None, Alpha=0, Tx=0, Ty=0):
 
     return TFileName
 
+def GetTopAndBot(Image):
+
+    """
+    Return mean height of top and bottom surface
+    """
+
+    Array = sitk.GetArrayFromImage(Image).astype('bool')
+    MidXSlice = Array[:,:,Array.shape[2] // 2]
+    Sum = np.sum(MidXSlice, axis=0)
+    Counts = np.bincount(Sum[Sum > 0])
+    MeanSampleHeigth = np.argmax(Counts)
+    MeanHeightPositions = np.where(Sum == MeanSampleHeigth)[0]
+
+    TopNodes = []
+    BotNodes = []
+    for Position in MeanHeightPositions:
+        Nodes = np.argwhere(MidXSlice[:,Position])
+        TopNodes.append(Nodes.min())
+        BotNodes.append(Nodes.max())
+
+    MeanTop = int(np.mean(TopNodes).round(0))
+    MeanBot = int(np.mean(BotNodes).round(0))
+    
+    return MeanTop, MeanBot
+
 
 #%% Paths
 # Set path variables
@@ -114,25 +139,38 @@ Rotation.SetCenter(CO)
 HRpQCT_Rotated = sitk.Resample(HRpQCT_Mask, Rotation)
 
 
+#%% Padding
+# Pad uCT to have similar physical spaces
+uCT_Size = np.array(uCT_Mask.GetSize(), 'int')
+uCT_Spacing = np.array(uCT_Mask.GetSpacing())
+uCT_PhysicalSize = uCT_Size * uCT_Spacing
+
+HRpQCT_Size = np.array(HRpQCT_Mask.GetSize(), 'int')
+HRpQCT_Spacing = np.array(HRpQCT_Mask.GetSpacing())
+HRpQCT_PhysicalSize = HRpQCT_Size * HRpQCT_Spacing
+
+CommonSize = np.max([uCT_PhysicalSize, HRpQCT_PhysicalSize], axis=0)
+
+Pad = (CommonSize // uCT_Spacing - uCT_Size + 1) // 2
+uCT_Pad = sitk.ConstantPad(uCT_Mask, (int(Pad[0]), int(Pad[1]), int(Pad[2])), (int(Pad[0]), int(Pad[1]), int(Pad[2])) )
+
 #%% Resampling
 # Perform resampling for similar resolution
 Direction = HRpQCT_Rotated.GetDirection()
 Orig_Size = np.array(HRpQCT_Rotated.GetSize())
 Orig_Spacing = np.array(HRpQCT_Rotated.GetSpacing())
 
-New_Spacing = np.array(uCT_Mask.GetSpacing())
-New_Size = np.array(uCT_Mask.GetSize())
-# New_Size = np.ceil(Orig_Size * Orig_Spacing / New_Spacing)
+New_Spacing = np.array(uCT_Pad.GetSpacing())
+New_Size = np.array(uCT_Pad.GetSize())
 
 Offset = (Orig_Size * Orig_Spacing - New_Size * New_Spacing) / 2
 
 Resample = sitk.ResampleImageFilter()
-Resample.SetInterpolator = sitk.sitkLinear
+Resample.SetInterpolator = sitk.sitkNearestNeighbor
 Resample.SetOutputDirection(Direction)
 Resample.SetOutputOrigin(Offset)
 Resample.SetOutputSpacing(New_Spacing)
-# Resample.SetSize([int(S) for S in New_Size])
-Resample.SetSize(uCT_Mask.GetSize())
+Resample.SetSize(uCT_Pad.GetSize())
 
 HRpQCT_Resampled = Resample.Execute(HRpQCT_Rotated)
 
@@ -195,33 +233,45 @@ RI, TPM = Register.Rigid(uCT_Mask, HRpQCT_Resampled, ITFile, str(ResultsPath / S
 HRpQCT_Bin = Otsu.Execute(RI)
 uCT_Bin = Otsu.Execute(uCT_Mask)
 
+Show.Registration(HRpQCT_Bin, uCT_Bin, Axis='X')
 
 # %% Common region
 # Determine common region with parallel surfaces
-Common = HRpQCT_Bin * uCT_Bin
-CommonArray = sitk.GetArrayFromImage(Common) == 1
-Sum = np.sum(CommonArray, axis=(1,2))
+Common_Raw = HRpQCT_Bin * uCT_Bin
+Common_Array = sitk.GetArrayFromImage(Common_Raw) == 1
 
-Start = np.argwhere(Sum)[0][0]
-Stop = np.argmax(Sum)
-Length = Stop - Start
-Shift = round((Length * 0.05) / 2, 0).astype('int')
-Start += Shift
-Stop -= Shift
+# Get uCT top and bottom surface
+uCT_Top, uCT_Bot = GetTopAndBot(uCT_Bin)
 
-Figure, Axis = plt.subplots(1,1)
-Axis.plot(Sum, color=(0,0,0))
-Axis.plot([Start, Stop], [Sum[Start], Sum[Stop]], linestyle='none', marker='o', color=(1,0,0), fillstyle='none')
-plt.show()
+# Get HRpQCT top and bottom surface
+S = HRpQCT_Resampled.GetSize()
+HRpQCT_Top = sitk.Slice(HRpQCT_Resampled, (0, 0, S[2]-2), (S[0], S[1], S[2]-1))
+HRpQCT_Bot = sitk.Slice(HRpQCT_Resampled, (0, 0, 1), (S[0], S[1], 2))
 
-Ones = np.zeros(CommonArray.shape)
-Ones[Start:Stop] = 1
-Final = CommonArray * Ones
-FinalImage = sitk.GetImageFromArray(Final)
+# Transform them into uCT space
+HRpQCT_TopR = Register.Apply(HRpQCT_Top, TPM)
+HRpQCT_BotR = sitk.Resample(HRpQCT_Bot, TPM, sitk.sitkNearestNeighbor)
 
-Show.Registration(HRpQCT_Bin, FinalImage, Axis='X')
-Show.Registration(uCT_Bin, FinalImage, Axis='X')
+# Get lower top surface point and higher bottom surface point
+HRpQCT_TopA = sitk.GetArrayFromImage(HRpQCT_TopR)
+HRpQCT_BotA = sitk.GetArrayFromImage(HRpQCT_BotR)
+HRpQCT_TopL = np.max(np.argwhere(HRpQCT_TopA)[:,0])
+HRpQCT_BotH = np.min(np.argwhere(HRpQCT_BotA)[:,0])
 
+# Keep the most restrictive height
+Common_Top = max([uCT_Top, HRpQCT_TopL])
+Common_Bot = min([uCT_Bot, HRpQCT_BotH])
+Common_Array[:Common_Top] = 0
+Common_Array[Common_Bot:] = 0
+
+Common = sitk.GetImageFromArray(Common_Array)
+Common.SetDirection(Common_Raw.GetDirection())
+Common.SetOrigin(Common_Raw.GetOrigin())
+Common.SetSpacing(Common_Raw.GetSpacing())
+
+Show.Registration(Common_Raw, Common, Axis='X')
+Show.Registration(HRpQCT_Bin, Common, Axis='X')
+Show.Registration(uCT_Bin, Common, Axis='X')
 
 #%% Write images and masks
 # Write images and masks
@@ -232,8 +282,8 @@ Trab_Mask = Register.Apply(HRpQCT_Trab_Mask, TPM)
 Cort_Bin = Otsu.Execute(Cort_Mask)
 Trab_Bin = Otsu.Execute(Trab_Mask)
 
-Final_Cort = Cort_Bin * FinalImage
-Final_Trab = Trab_Bin * FinalImage
+Final_Cort = Cort_Bin * Common
+Final_Trab = Trab_Bin * Common
 
 Final_HRpQCT = 9
 

@@ -20,6 +20,7 @@ Command line options from TransformBase:
 
 Reading images...
 Reading images took 0 ms.
+Reading images took 0 ms.
 
 WARNING: the fixed pyramid schedule is not fully specified!
   A default pyramid schedule is used.
