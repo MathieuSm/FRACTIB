@@ -1486,10 +1486,6 @@ def CommonRegion(Bone, CommonFile, CommonFile_uCT):
         Name = L + '_Array'
         Bone[Name] *= Array_Adjusted
 
-        # Crop for testing
-        if os.name == 'nt':
-            Bone[Name] = Bone[Name][200:300]
-
     Bone['Common'] = Array_Adjusted
 
     Mask_uCT = sitk.ReadImage(CommonFile_uCT)
@@ -1833,22 +1829,22 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
     C1 = Center + np.array(I.GetOrigin())
     R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
-    T1 = [0, 0, 0]
+    T1 = np.array([0, 0, 0])
 
     IT = sitk.ReadTransform(FileNames['InitialTransform'])
     C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
     P2 = IT.GetParameters()
     R2 = RotationMatrix(P2[0], P2[1], P2[2])
-    T2 = P2[3:]
+    T2 = np.array(P2[3:])
 
     FT = GetParameterMap(FileNames['Transform'])
     C3 = np.array(FT['CenterOfRotationPoint'], 'float')
     P3 = np.array(FT['TransformParameters'],'float')
     R3 = RotationMatrix(P3[0], P3[1], P3[2])
-    T3 = P3[3:]
+    T3 = np.array(P3[3:])
 
-    COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
-    COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
+    COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), C1, R1, T1, C2, R2, T2, C3, R3, T3)
+    COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), C1, R1, T1, C2, R2, T2, C3, R3, T3)
 
     print('Step 4/7: Computation COG finished')
 
@@ -2876,40 +2872,42 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
                            axis=0)  # center of gravity of each element
 
-        # Transform Center of gravity from uCT to HRpQCT space
-        I = sitk.ReadImage(FileNames['Common'])
-        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
-        C1 = Center + np.array(I.GetOrigin())
-        R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
-        T1 = [0, 0, 0]
-
-        IT = sitk.ReadTransform(FileNames['InitialTransform'])
-        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-        P2 = IT.GetParameters()
-        R2 = RotationMatrix(P2[0], P2[1], P2[2])
-        T2 = P2[3:]
-
-        FT = GetParameterMap(FileNames['Transform'])
-        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-        P3 = np.array(FT['TransformParameters'],'float')
-        R3 = RotationMatrix(P3[0], P3[1], P3[2])
-        T3 = P3[3:]
-
-        COG = InverseTransformPoints(np.array(COG), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
-
         # 2.2 compute PHI from masks
-        Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG, Spacing, FEelSize[0], CORTMASK_Array)
-        Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG, Spacing, FEelSize[0], TRABMASK_Array)
-
         if COG[0] < 0 or COG[1] < 0 or COG[2] < 0:
             Phi_Cort = 0.0
             Phi_Trab = 0.0
+
+        else:
+            # Transform Center of gravity from uCT to HRpQCT space
+            I = sitk.ReadImage(FileNames['Common'])
+            Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+            C1 = Center + np.array(I.GetOrigin())
+            R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+            T1 = np.array([0, 0, 0])
+
+            IT = sitk.ReadTransform(FileNames['InitialTransform'])
+            C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+            P2 = IT.GetParameters()
+            R2 = RotationMatrix(P2[0], P2[1], P2[2])
+            T2 = np.array(P2[3:])
+
+            FT = GetParameterMap(FileNames['Transform'])
+            C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+            P3 = np.array(FT['TransformParameters'],'float')
+            R3 = RotationMatrix(P3[0], P3[1], P3[2])
+            T3 = np.array(P3[3:])
+
+            COG_Inv = InverseTransformPoints(COG, C1, R1, T1, C2, R2, T2, C3, R3, T3)
+
+            Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
+            Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG_Inv, Spacing, FEelSize[0], TRABMASK_Array)
+
 
         # If an element holds a part of a mask
         if Phi_Cort > 0.0 or Phi_Trab > 0.0:
 
             # 2.3 Compute BVTV
-            Rho_Cort, Rho_Trab = Compute_BVTV_TwoPhases(COG, Spacing, ROI_BVTV_Size_Cort, ROI_BVTV_Size_Trab, SEG_Array, CORTMASK_Array, TRABMASK_Array, Phi_Cort, Phi_Trab)
+            Rho_Cort, Rho_Trab = Compute_BVTV_TwoPhases(COG_Inv, Spacing, ROI_BVTV_Size_Cort, ROI_BVTV_Size_Trab, SEG_Array, CORTMASK_Array, TRABMASK_Array, Phi_Cort, Phi_Trab)
 
             # Apply segmentation correction
             if Phi_Cort > 0.0:
@@ -2924,8 +2922,8 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                 if Phi_Trab > 0.0:
                     Rho_Trab = Rho_Trab*0.745745 - 0.0209902
 
-            Rho_Cort_FE = Compute_BVTV_FEel(COG, Spacing, FEelSize, SEG_Array, CORTMASK_Array)
-            Rho_Trab_FE = Compute_BVTV_FEel(COG, Spacing, FEelSize, SEG_Array, TRABMASK_Array)
+            Rho_Cort_FE = Compute_BVTV_FEel(COG_Inv, Spacing, FEelSize, SEG_Array, CORTMASK_Array)
+            Rho_Trab_FE = Compute_BVTV_FEel(COG_Inv, Spacing, FEelSize, SEG_Array, TRABMASK_Array)
 
             # if option is true in config, correct FE mesh to not have any holes. Minimum BVTV is 1% for both phases
             if Config['All_Mask']:
@@ -2951,8 +2949,8 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
                 # Compute elemental BVTV from segmentation
                 # Method computePHI can be used on segmentation instead of mask
-                BVTVcortseg_elem[Element], Xcs, Ycs, Zcs = Compute_Phi(COG, Spacing, ROI_BVTV_Size_Cort, SEGc_Masked)
-                BVTVtrabseg_elem[Element], Xcs, Ycs, Zcs = Compute_Phi(COG, Spacing, ROI_BVTV_Size_Trab, SEGt_Masked)
+                BVTVcortseg_elem[Element], Xcs, Ycs, Zcs = Compute_Phi(COG_Inv, Spacing, ROI_BVTV_Size_Cort, SEGc_Masked)
+                BVTVtrabseg_elem[Element], Xcs, Ycs, Zcs = Compute_Phi(COG_Inv, Spacing, ROI_BVTV_Size_Trab, SEGt_Masked)
                 try:
                     BVTVcortseg[Element] = BVTVcortseg_elem[Element] / Phis_Cort[Element]
                 except:

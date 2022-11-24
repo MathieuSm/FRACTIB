@@ -133,7 +133,7 @@ def WriteRaw(ImageArray, OutputFileName, PixelType):
     del File
 
     return
-def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
+def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
 
     if PixelType == 'short' or PixelType == 'float':
         if len(ImageArray.shape) == 2:
@@ -149,9 +149,9 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
     nz, ny, nx = ImageArray.shape
 
     lx, ly, lz = Spacing
+    ox, oy, oz = Offset
 
     TransformMatrix = '1 0 0 0 1 0 0 0 1'
-    Offset = '0 0 0'
     CenterOfRotation = '0 0 0'
     AnatomicalOrientation = 'LPS'
 
@@ -162,7 +162,7 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
     outs.write('BinaryDataByteOrderMSB = False\n')
     outs.write('CompressedData = False\n')
     outs.write('TransformMatrix = %s \n' % TransformMatrix)
-    outs.write('Offset = %s \n' % Offset)
+    outs.write('Offset = ' + str(ox) + ' ' + str(oy) + ' ' + str(oz) + ' \n')
     outs.write('CenterOfRotation = %s \n' % CenterOfRotation)
     outs.write('AnatomicalOrientation = %s \n' % AnatomicalOrientation)
     outs.write('ElementSpacing = %g %g %g\n' % (lx, ly, lz))
@@ -185,7 +185,7 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
 
 #%% Load files
 # 01 Set variables
-FilePath = str(Path.cwd() / '../../04_Results/04_hFE/432_L_77_F')
+FilePath = str(Path.cwd() / '../../../04_Results/03_hFE/432_L_77_F')
 
 # 02 Load files
 ElementsPositions = pd.read_csv(FilePath + '/ElementsPositions.csv',names=['X','Y','Z'])
@@ -214,14 +214,15 @@ SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
 #%% Write MHD
 # Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
+Origin = [X.min(), Y.min(), Z.min()]
 
-WriteMHD(SphericalCompression, Spacing,  FilePath, 'J', PixelType='float')
-WriteMHD(IsovolumicDeformation, Spacing, FilePath, 'F_Tilde', PixelType='float')
+WriteMHD(SphericalCompression, Spacing, Origin,  FilePath, 'J', PixelType='float')
+WriteMHD(IsovolumicDeformation, Spacing, Origin, FilePath, 'F_Tilde', PixelType='float')
 
 # %%
 
 Figure, Axis = plt.subplots(1,1)
-Axis.imshow(SphericalCompression[20,:,:])
+Axis.imshow(SphericalCompression[:,:,10])
 plt.show()
 
 # %%
