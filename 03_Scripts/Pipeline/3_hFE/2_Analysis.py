@@ -38,6 +38,8 @@ from matplotlib import image as im
 from vtk.numpy_interface import dataset_adapter as dsa
 from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 
+from Utils import *
+
 if os.name == 'posix':
     import resource
 elif os.name == 'nt':
@@ -54,7 +56,7 @@ def ReadConfigFile(Filename):
         Configuration = yaml.load(File, Loader=yaml.FullLoader)
 
     return Configuration
-def Set_FileNames(Config, Sample):
+def Set_FileNames(Config, Sample, Directories):
 
     """
     Adapted from Denis's io_utils_SA.py
@@ -75,10 +77,8 @@ def Set_FileNames(Config, Sample):
     Version = Config['Version']
     Folder_IDs = Config['Folder_IDs']
     Folder = Folder_IDs[Sample]
-    AIMDir = os.path.join(Config['AIMDir'], Folder)
 
     FileName = {}
-    FileName['BCs'] = Config['BCs']
 
     # Additional for accurate pipeline
     Postfix_CortMask = Config['Postfix_CortMask']
@@ -93,20 +93,30 @@ def Set_FileNames(Config, Sample):
 
     # Always, not depending on phase (accurate or fast)
     FileName['FILEGRAY'] = FileName['FILEBMD']
-    FileName['RAWname'] = os.path.join(AIMDir, FileName['FILEGRAY'])
-    FileName['BMDname'] = os.path.join(AIMDir, FileName['FILEBMD'])
+    FileName['RAWname'] = str(Directories['AIM'] / Folder / FileName['FILEGRAY'])
+    FileName['BMDname'] = str(Directories['AIM'] / Folder / FileName['FILEBMD'])
 
-    FileName['CORTMASKname'] = os.path.join(AIMDir, FileName['FILEMASKCORT'])
-    FileName['TRABMASKname'] = os.path.join(AIMDir, FileName['FILEMASKTRAB'])
-    FileName['SEGname'] = os.path.join(AIMDir, FileName['FILESEG'])
+    FileName['CORTMASKname'] = str(Directories['AIM'] / Folder / FileName['FILEMASKCORT'])
+    FileName['TRABMASKname'] = str(Directories['AIM'] /Folder / FileName['FILEMASKTRAB'])
+    FileName['SEGname'] = str(Directories['AIM'] / Folder / FileName['FILESEG'])
 
-    # General filenames
+    # FEA filenames
     print(FileName['BMDname'])
     New_FileName = "{}_{}.inp".format(Sample, Version)
-    FileName["INPname"] = os.path.join(AIMDir, New_FileName)
+    FileName["INPname"] = str(Directories['FEA'] / Folder / New_FileName)
 
     New_FileName = "{}_{}_summary.txt".format(Sample, Version)
-    FileName['SummaryName'] = os.path.join(AIMDir, New_FileName)
+    FileName['SummaryName'] = str(Directories['FEA'] / Folder / New_FileName)
+
+    FileName['BCs'] = str(Directories['BCs'] / 'boundary_conditions_basic.inp')
+
+    # Common area
+    FileName['Common'] = str(Directories['FEA'] / Folder / 'CommonMask.mhd')
+    FileName['Common_uCT'] = str(Directories['Localization'] / Folder / 'CommonMask.mhd')
+
+    # Transform parameters
+    FileName['InitialTransform'] = str(Directories['Localization'] / Folder / 'InitialTransform.txt')
+    FileName['Transform'] = str(Directories['Localization'] / Folder / 'TransformParameters.0.txt')
 
     return FileName
 def Print_Memory_Usage():
@@ -387,83 +397,6 @@ def Adjust_Image(Name, Bone, Config, CropType='Crop'):
     Bone[Name + '_Array'] = IMG_Array_Adjusted
     Bone['FEelSize'] = FEelSize
     Bone['CoarseFactor'] = CoarseFactor
-
-    return Bone
-def Write_TestImages(Bone, Config, Sample):
-
-    """
-    Write images to test quality of pipeline / FE mesh
-    """
-
-    Image_Path = Config['AIMDir'] + '/' + Config['Folder_IDs'][Sample] + '/'
-
-    im.imsave(Image_Path + 'bmd_image.png',
-                            Bone['BMD_Array'][int(Bone['BMD_Array'].shape[0] / 2), :, :])
-    im.imsave(Image_Path + 'seg_image.png',
-                            Bone['SEG_Array'][int(Bone['SEG_Array'].shape[0] / 2), :, :])
-    im.imsave(Image_Path + 'trabmask_image.png',
-                            Bone['TRABMASK_Array'][int(Bone['TRABMASK_Array'].shape[0] / 2), :, :])
-    im.imsave(Image_Path + 'cortmask_image.png',
-                            Bone['CORTMASK_Array'][int(Bone['CORTMASK_Array'].shape[0] / 2), :, :])
-
-    return
-def Calculate_BVTV(Bone, Config, ImageType):
-
-    """
-    Adapted from Denis's preprocessing_SA.py
-    Calculate BVTV and mask images
-    ------------------------------
-    Scaling, slope and intercept are printed out for review
-    If image is already in BMD units, Scaling, Slope and
-    Intercept are not applied. BVTVraw is scaled according to
-    Hosseini et al. 2017
-    (This scaling function could as well be defined externally).
-
-    Parameters
-    ----------
-    bone    bone results dictionary
-    config  configuration parameters dictionary
-    IMTYPE  string defining the type of image (BMD/NATIVE)
-
-    Returns
-    -------
-    bone    bone results dictionary
-    """
-
-    # get bone values
-    Scaling = Bone["Scaling"]
-    Slope = Bone["Slope"]
-    Intercept = Bone["Intercept"]
-    BMD_Array = Bone["BMD_Array"]
-
-    print("\n ... prepare mask and BVTV images")
-    print("     -> Scaling   = ", Scaling)
-    print("     -> Slope     = ", Slope)
-    print("     -> Intercept = ", Intercept)
-
-    if ImageType.find('BMD') > -1:
-        # if image is already in BMD units (e.g. Hosseinis data)
-        BVTV_Raw = BMD_Array / 1200.0
-    elif ImageType.find('NATIVE') > -1:
-        BMD_Array = (BMD_Array / Scaling) * Slope + Intercept
-        BVTV_Raw = BMD_Array / 1200.0  # if image is in native units
-
-    # Scaling of BVTV 61um to BVTV 11.4um [Hosseini2017]
-    Seg_Scaling_Slope = 0.963
-    Seg_Scaling_Intercept = 0.03814
-
-    # BV/TV scaling Hosseini
-    if Config['BVTV_Scaling'] == 1:
-        BVTV_Scaled = Seg_Scaling_Slope * BVTV_Raw + Seg_Scaling_Intercept
-    else:
-        BVTV_Scaled = Config['BVTV_Slope'] * BVTV_Raw + Config['BVTV_Intercept']
-
-    # Set bone values
-    Mask = Bone['CORTMASK_Array'] + Bone['TRABMASK_Array']
-    Mask[Mask > 0] = 1
-    Bone['BVTV_Scaled'] = BVTV_Scaled * Mask
-    Bone['BMD_Scaled'] = BVTV_Scaled * 1200 * Mask
-    Bone['BVTV_Raw'] = BVTV_Raw * Mask
 
     return Bone
 
@@ -996,9 +929,8 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
             OS.write('%s\n' % line)
 
     osTempFile.close()
-    if tempflag:
-        os.remove('temp.inp')
-        os.remove('prop.inp')
+    os.remove('temp.inp')
+    os.remove('prop.inp')
     OS.close
     return
 def GetAbaqusArgument(string, argName):
@@ -1542,6 +1474,88 @@ class Element_Class:
 
 #%%
 # Preprocessing functions
+def CommonRegion(Bone, CommonFile, CommonFile_uCT):
+
+    Mask = sitk.ReadImage(CommonFile)
+    Array = sitk.GetArrayFromImage(Mask).transpose((2,1,0))
+
+    Array_Adjusted = Adjust_Image_Size(Array, Bone['CoarseFactor'], CropZ='Crop')
+
+    List = ['SEG', 'BMD', 'CORTMASK', 'TRABMASK']
+    for iL, L in enumerate(List):
+        Name = L + '_Array'
+        Bone[Name] *= Array_Adjusted
+
+        # Crop for testing
+        if os.name == 'nt':
+            Bone[Name] = Bone[Name][200:300]
+
+    Bone['Common'] = Array_Adjusted
+
+    Mask_uCT = sitk.ReadImage(CommonFile_uCT)
+    Array_uCT = sitk.GetArrayFromImage(Mask_uCT).transpose((2,1,0))
+    Bone['Common_uCT'] = Adjust_Image_Size(Array_uCT, Bone['CoarseFactor'], CropZ='Crop')
+
+    return Bone
+def Calculate_BVTV(Bone, Config, ImageType):
+
+    """
+    Adapted from Denis's preprocessing_SA.py
+    Calculate BVTV and mask images
+    ------------------------------
+    Scaling, slope and intercept are printed out for review
+    If image is already in BMD units, Scaling, Slope and
+    Intercept are not applied. BVTVraw is scaled according to
+    Hosseini et al. 2017
+    (This scaling function could as well be defined externally).
+
+    Parameters
+    ----------
+    bone    bone results dictionary
+    config  configuration parameters dictionary
+    IMTYPE  string defining the type of image (BMD/NATIVE)
+
+    Returns
+    -------
+    bone    bone results dictionary
+    """
+
+    # get bone values
+    Scaling = Bone["Scaling"]
+    Slope = Bone["Slope"]
+    Intercept = Bone["Intercept"]
+    BMD_Array = Bone["BMD_Array"]
+
+    print("\n ... prepare mask and BVTV images")
+    print("     -> Scaling   = ", Scaling)
+    print("     -> Slope     = ", Slope)
+    print("     -> Intercept = ", Intercept)
+
+    if ImageType.find('BMD') > -1:
+        # if image is already in BMD units (e.g. Hosseinis data)
+        BVTV_Raw = BMD_Array / 1200.0
+    elif ImageType.find('NATIVE') > -1:
+        BMD_Array = (BMD_Array / Scaling) * Slope + Intercept
+        BVTV_Raw = BMD_Array / 1200.0  # if image is in native units
+
+    # Scaling of BVTV 61um to BVTV 11.4um [Hosseini2017]
+    Seg_Scaling_Slope = 0.963
+    Seg_Scaling_Intercept = 0.03814
+
+    # BV/TV scaling Hosseini
+    if Config['BVTV_Scaling'] == 1:
+        BVTV_Scaled = Seg_Scaling_Slope * BVTV_Raw + Seg_Scaling_Intercept
+    else:
+        BVTV_Scaled = Config['BVTV_Slope'] * BVTV_Raw + Config['BVTV_Intercept']
+
+    # Set bone values
+    Mask = Bone['CORTMASK_Array'] + Bone['TRABMASK_Array']
+    Mask[Mask > 0] = 1
+    Bone['BVTV_Scaled'] = BVTV_Scaled * Mask
+    Bone['BMD_Scaled'] = BVTV_Scaled * 1200 * Mask
+    Bone['BVTV_Raw'] = BVTV_Raw * Mask
+
+    return Bone
 def Generate_Mesh(Bone, FileNames):
 
     """
@@ -1564,6 +1578,7 @@ def Generate_Mesh(Bone, FileNames):
     """
 
     # Get bone values
+    CommonMask = Bone['Common_uCT']
     BVTV_Scaled = Bone['BVTV_Scaled']
     CORTMASK_Array = Bone['CORTMASK_Array']
     TRABMASK_Array = Bone['TRABMASK_Array']
@@ -1576,7 +1591,7 @@ def Generate_Mesh(Bone, FileNames):
     BVTV_Masked[MASK_Array == 0] = 0
 
     # Create array for MESH (no padding)
-    MESH = np.ones(([int(dim) for dim in np.floor(np.array(BVTV_Scaled.shape) / CoarseFactor)]))
+    MESH = np.ones(([int(dim) for dim in np.floor(np.array(CommonMask.shape) / CoarseFactor)]))
     MESH = MESH.transpose(2, 1, 0)  # weird numpy array convention (z,y,x)
 
     Print_Memory_Usage()
@@ -1651,6 +1666,29 @@ def Numpy2VTK(NumpyArray, Spacing):
     Points.SetScalars(VTK_Image)
     return Image
 
+#@njit
+def TransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
+    
+    TransformedPoints = []
+    
+    if len(Points.shape) == 1:
+        TP = np.dot(R1, Points - C1) + C1 + T1
+        TP = np.dot(R2, TP - C2) + C2 + T2
+        TP = np.dot(R3, TP - C3) + C3 + T3
+
+        TransformedPoints = TP
+
+    else:
+        for Point in Points:
+
+            TP = np.dot(R1, Point - C1) + C1 + T1
+            TP = np.dot(R2, TP - C2) + C2 + T2
+            TP = np.dot(R3, TP - C3) + C3 + T3
+
+            TransformedPoints.append(TP)
+
+    return np.array(TransformedPoints)
+
 @njit
 def AssignVTKCells2Masks(NFacet, COG_Temp, TRAB_Mask, Spacing, Tolerance, DimZ):
 
@@ -1687,7 +1725,7 @@ def AssignVTKCells2Masks(NFacet, COG_Temp, TRAB_Mask, Spacing, Tolerance, DimZ):
             Indices_Cort.append(i)
 
     return COGPoints_Trab , Indices_Trab , COGPoints_Cort , Indices_Cort
-def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, Spacing):
+def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, Spacing, FileNames):
 
     """
     Adapted from Denis's preprocessing_SA.py
@@ -1764,6 +1802,29 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     COG_Temp = dsa.WrapDataObject(Filt.GetOutput()).Points
 
     COGPoints_Trab, Indices_Trab, COGPoints_Cort, Indices_Cort = AssignVTKCells2Masks(np.array(NFacet), np.array(COG_Temp), np.array(TRAB_Mask), np.array(Spacing), np.array(Tolerance), np.array(DimZ))
+    
+    # Transform COG points
+    I = sitk.ReadImage(FileNames['Common'])
+    Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+    C1 = Center + np.array(I.GetOrigin())
+    R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+    T1 = [0, 0, 0]
+
+    IT = sitk.ReadTransform(FileNames['InitialTransform'])
+    C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+    P2 = IT.GetParameters()
+    R2 = RotationMatrix(P2[0], P2[1], P2[2])
+    T2 = P2[3:]
+
+    FT = GetParameterMap(FileNames['Transform'])
+    C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+    P3 = np.array(FT['TransformParameters'],'float')
+    R3 = RotationMatrix(P3[0], P3[1], P3[2])
+    T3 = P3[3:]
+
+    COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
+    COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
+
     print('Step 4/7: Computation COG finished')
 
     # Compute cell normals and dyadic product
@@ -1860,7 +1921,7 @@ def Mapping_Isosurface(Indices, CogPoints, FEelSize, FEDimX, FEDimY, FEDimZ, Are
             pass
     
     return MSL_Values
-def Compute_Local_MSL(Bone, Config):
+def Compute_Local_MSL(Bone, Config, FileNames):
 
     """
     Adapted from Denis's preprocessing_SA.py
@@ -1883,7 +1944,7 @@ def Compute_Local_MSL(Bone, Config):
     Image_Dim = np.shape(SEG_array) * Spacing
 
     # Compute STL elements, their normal and area (AreaDyadic)
-    Bone = Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, STL_Tolerance, TRAB_Mask, Spacing)
+    Bone = Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, STL_Tolerance, TRAB_Mask, Spacing, FileNames)
 
     # General variables for both compartments
     # Find dimensions of mesh
@@ -2778,7 +2839,7 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     COGs = {}
 
     # Read boundary condition variables
-    BCs_FileName = Config['BCs']
+    BCs_FileName = FileNames['BCs']
 
     only_cort_element = 0
     only_trab_element = 0
@@ -2790,9 +2851,36 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
                            axis=0)  # center of gravity of each element
 
+        # Transform Center of gravity from uCT to HRpQCT space
+        I = sitk.ReadImage(FileNames['Common'])
+        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+        C1 = Center + np.array(I.GetOrigin())
+        R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+        T1 = [0, 0, 0]
+
+        IT = sitk.ReadTransform(FileNames['InitialTransform'])
+        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+        P2 = IT.GetParameters()
+        R2 = np.linalg.inv(RotationMatrix(P2[0], P2[1], P2[2]))
+        T2 = P2[3:]
+
+        FT = GetParameterMap(FileNames['Transform'])
+        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+        P3 = np.array(FT['TransformParameters'],'float')
+        R3 = np.linalg.inv(RotationMatrix(P3[0], P3[1], P3[2]))
+        T3 = P3[3:]
+
+        print(COG)
+        COG = TransformPoints(np.array(COG), np.array(C3), np.array(R3), np.array(T3), np.array(C2), np.array(R2), np.array(T2), np.array(C1), np.array(R1), np.array(T1))
+        print(COG)
+
         # 2.2 compute PHI from masks
         Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG, Spacing, FEelSize[0], CORTMASK_Array)
         Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG, Spacing, FEelSize[0], TRABMASK_Array)
+
+        if COG[0] < 0 or COG[1] < 0 or COG[2] < 0:
+            Phi_Cort = 0.0
+            Phi_Trab = 0.0
 
         # If an element holds a part of a mask
         if Phi_Cort > 0.0 or Phi_Trab > 0.0:
@@ -3278,17 +3366,10 @@ def Log_Summary(Config, Bone, FileNames, Summary_Variables):
             "File                 : {}".format(FileNames['BMDname']),
             "System computed on   : {}".format(socket.gethostname()),
             "Simulation Type      : Fast model (one phase / isotropic)",
-            "Fitting Variables    : {:.2f} | {:.2f} | {:.3f} |".format(
-                Config['sca1'], Config['sca2'], Config['kmax']
-            ),
             "*****************************************************************",
             "Patient specific loading",
             "-------------------------------------------------------------------",
-            "Ghost layer mode     : {}".format(Config['Ghost_Layer_Mode']),
-            "Ghost layers prox.   : {}".format(0),
-            "Ghost layers dist.   : {}".format(0),
-            "*****************************************************************",
-            "Image Dimension      : {}".format(np.shape(Bone['BMD_array'])),
+            "Image Dimension      : {}".format(np.shape(Bone['BMD_Array'])),
             "Scaling              : {}".format(Bone['Scaling']),
             "Slope                : {:.3f}".format(Bone['Slope']),
             "Intercept            : {:.3f}".format(Bone['Intercept']),
@@ -3441,7 +3522,7 @@ def Compute_BVTVd_Seg(Bone):
     Bone['Mean_BVTVd_Raw'] = MeanBVTVd__Raw
 
     return Bone
-def AIM2FE_SA_PSL(Config, Sample):
+def AIM2FE_SA_PSL(Config, Sample, Directories):
 
     """
     Convert an AIM file to a HDF5 file
@@ -3449,7 +3530,7 @@ def AIM2FE_SA_PSL(Config, Sample):
     """
 
     print('\n\nPerform material mapping for sample: ', Sample)
-    FileNames = Set_FileNames(Config, Sample)
+    FileNames = Set_FileNames(Config, Sample, Directories)
 
     print(yaml.dump(FileNames, default_flow_style=False))
     Print_Memory_Usage()
@@ -3461,15 +3542,15 @@ def AIM2FE_SA_PSL(Config, Sample):
     Bone = Read_Image_Parameters(FileNames, Bone)
     Image_List = ['BMD', 'SEG', 'CORTMASK', 'TRABMASK']
 
-    for Index, Item in enumerate(Image_List):
+    for Item in Image_List:
         Bone = Read_AIM(Item, FileNames, Bone)
         Bone = Adjust_Image(Item, Bone, Config, 'Crop')
 
     Print_Memory_Usage()
 
-    # Write out test images to check quality
-    Write_TestImages(Bone, Config, Sample)
-
+    # Read common image and mask arrays
+    Bone = CommonRegion(Bone, FileNames['Common'], FileNames['Common_uCT'])
+    Print_Memory_Usage()
 
     # Prepare material mapping
     ImageType = Config['ImageType']
@@ -3479,32 +3560,24 @@ def AIM2FE_SA_PSL(Config, Sample):
 
     # 4 Material mapping
     # Compute MSL kernel list
-    Bone = Compute_Local_MSL(Bone, Config)
+    Bone = Compute_Local_MSL(Bone, Config, FileNames)
     Print_Memory_Usage()
 
     # ---------------------------------------------------------------------------------
     # Ghost layer mode
-    if Config['Ghost_Layer_Mode'] == 1:
-        if Config['Isotropic_Cortex']:
-            Bone = PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames)
-        else:
-            Bone = PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames)
-
+    if Config['Isotropic_Cortex']:
+        Bone = PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames)
     else:
-        raise TypeError("Ghost layer mode was not set correctly")
-
+        Bone = PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames)
     Print_Memory_Usage()
 
     # 5 Compute and store summary and performance variables
     Summary_Variables = Set_Summary_Variables(Bone)
-    # Log_Summary(Config, Bone, FileNames, Summary_Variables)
-    Bone = dict(list(Bone.items()) + list(Summary_Variables.items()))
-
-    # Plot_MSL_Fabric_Fast(Config, Bone, Sample)
+    Log_Summary(Config, Bone, FileNames, Summary_Variables)
     Print_Memory_Usage()
 
-    return Bone
-def UpDate_BCs_Files(Config):
+    return
+def UpDate_BCs_Files(Config, Directories):
 
     """
     Function same as in  PSL_Fast, DO NOT CHANGE!
@@ -3520,7 +3593,7 @@ def UpDate_BCs_Files(Config):
                 Line = Line
             sys.stdout.write(Line)
 
-    bc_folder = Config['PSL_LoadCases_BCs_Folder']
+    bc_folder = str(Directories['BCs']) + '/'
 
     if Config['Control'] == 'Displacement':
         load_fx = bc_folder + "boundary_conditions_disp_x.inp"
@@ -3556,7 +3629,7 @@ def UpDate_BCs_Files(Config):
         raise ValueError('experiment control variable CONTROL is not set properly!')
 
     return
-def Create_Canonical_LoadCases(Config, Input_FileName):
+def Create_Canonical_LoadCases(Config, Input_FileName, Directories):
 
     """
     Function same as in  PSL_Fast, DO NOT CHANGE!
@@ -3567,7 +3640,7 @@ def Create_Canonical_LoadCases(Config, Input_FileName):
     boundary conditions.
     """
 
-    bc_folder = Config['PSL_LoadCases_BCs_Folder']
+    bc_folder = str(Directories['BCs']) + '/'
 
     if Config['Control'] == 'Displacement':
         load_fx = bc_folder + "boundary_conditions_disp_x.inp\n"
@@ -3623,7 +3696,7 @@ def Create_Canonical_LoadCases(Config, Input_FileName):
     print("... created abaqus .inp for 6 canonical load cases")
 
     return
-def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
+def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase, Directories):
 
     """
     create BC file for force MAX loadcase
@@ -3634,8 +3707,8 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
     """
 
     # read BC file to BC optim
-    bc_file = open(Config['PSL_LoadCases_BCs_Folder'] + 'boundary_conditions_disp_x.inp', "r")
-    bc_fmax_file_pwd = Config['AIMDir'] + '/' + Config['Folder_IDs'][Sample] + '/' + 'boundary_conditions_' + LoadCase + '.inp'
+    bc_file = open(str(Directories['BCs'] / 'boundary_conditions_disp_x.inp'), "r")
+    bc_fmax_file_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / ('boundary_conditions_' + LoadCase + '.inp'))
     bc_fmax_file = open(bc_fmax_file_pwd, "w")
 
     # BC_mode NUMBERS:  0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
@@ -3694,11 +3767,9 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase):
     bc_fmax_file.close()
 
     # Create optim input file
-    inp_file_fx_pwd = Config['AIMDir'] + "/" + Config['Folder_IDs'][Sample] + "/" + Sample + '_' + Config[
-        'Version'] + "_FX.inp"
+    inp_file_fx_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / (Sample + '_' + Config['Version'] + '_FX.inp'))
     inp_file_fx = open(inp_file_fx_pwd, "r")
-    inp_fzmax_file_pwd = Config['AIMDir'] + "/" + Config['Folder_IDs'][Sample] + "/" + Sample + '_' + Config[
-        'Version'] + "_" + LoadCase + ".inp"
+    inp_fzmax_file_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / (Sample + '_' + Config['Version'] + '_' + LoadCase + '.inp'))
     inp_fzmax_file = open(inp_fzmax_file_pwd, "w")
 
     # Include the OPT_MAX boundary condition file into input file and change NLGEOM flag to YES for nonlinear geometry
@@ -3727,8 +3798,13 @@ def Main(ConfigFile):
     Version = Config['Version']
 
     # Directories
-    AIMDir = Config['AIMDir']
-    FEADir = Config['FEADir']
+    WD, Data, Scripts, Results = SetDirectories('FRACTIB')
+    Directories = {}
+    Directories['AIM'] = Data / '01_HRpQCT/'
+    Directories['FEA'] = Results / '03_hFE/'
+    Directories['Localization'] = Results / '05_Localizations/'
+    Directories['Scripts'] = Scripts / '3_hFE/'
+    Directories['BCs'] = Scripts / '3_hFE' / 'BCs/'
 
     # File names and folders
     GrayScale_FileNames = Config['GrayScale_FileNames']
@@ -3741,18 +3817,15 @@ def Main(ConfigFile):
     # Set paths
     Folder = Folder_IDs[Sample]
     InputFileName = "{}_{}.inp".format(Sample, Version)
-    InputFile = str(Path(AIMDir, Folder, InputFileName))
-    SampleDir = str(Path(FEADir, Folder))
+    InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
     # Perform material mapping
-    Bone = AIM2FE_SA_PSL(Config, Sample)
-    # Bone = Compute_BVTVd_Seg(Config, Bone, Sample)
+    AIM2FE_SA_PSL(Config, Sample, Directories)
 
-    UpDate_BCs_Files(Config)
-    Create_Canonical_LoadCases(Config, InputFile)
-
-    # Write load case FZ_MAX
-    Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX')
+    # Write load cases
+    UpDate_BCs_Files(Config, Directories)
+    Create_Canonical_LoadCases(Config, InputFile, Directories)
+    Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
 
 
 #%%

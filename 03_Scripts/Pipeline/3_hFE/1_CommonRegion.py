@@ -139,6 +139,10 @@ CO = Center + np.array(HRpQCT_Mask.GetOrigin())
 Rotation.SetCenter(CO)
 HRpQCT_Resampled = sitk.Resample(HRpQCT_Mask, Rotation)
 
+# Pad for rotations
+Pad = 100
+HRpQCT_Pad = sitk.ConstantPad(HRpQCT_Resampled, (Pad, Pad, 0), (Pad, Pad, 0))
+
 
 #%% Starting position estimation
 # Find best image initial position with successive rotations
@@ -147,7 +151,7 @@ Dices = pd.DataFrame()
 
 # Extract slices for rapid estimation
 uCT_Slice = GetSlice(uCT_Mask, int(uCT_Mask.GetSize()[2]*0.8))
-HRpQCT_Slice = GetSlice(HRpQCT_Resampled, int(HRpQCT_Resampled.GetSize()[2]*0.8))
+HRpQCT_Slice = GetSlice(HRpQCT_Pad, int(HRpQCT_Pad.GetSize()[2]*0.8))
 
 # Binarize masks
 Otsu = sitk.OtsuThresholdImageFilter()
@@ -159,8 +163,8 @@ uCT_Bin = Otsu.Execute(uCT_Slice)
 NRotations = 8
 Angle = 2*sp.pi/NRotations
 Rotation2D = sitk.Euler2DTransform()
-PhysicalSize = np.array(HRpQCT_Resampled.GetSize()) * np.array(HRpQCT_Resampled.GetSpacing())
-Center = (PhysicalSize - np.array(HRpQCT_Resampled.GetOrigin())) / 2
+PhysicalSize = np.array(HRpQCT_Pad.GetSize()) * np.array(HRpQCT_Pad.GetSpacing())
+Center = (PhysicalSize + np.array(HRpQCT_Pad.GetOrigin())) / 2
 Rotation2D.SetCenter(Center[:2])
 
 for i in range(NRotations):
@@ -188,7 +192,7 @@ for i in range(NRotations):
         Parameters = np.array(TPM[0]['TransformParameters'], 'float')
 
 
-# %% Full registration
+#%% Full registration
 # Perform full 3D registration with initial transform
 
 T = sitk.Euler3DTransform()
@@ -198,8 +202,8 @@ T.SetTranslation((Parameters[0], Parameters[1], 0))
 T.SetCenter(Center)
 sitk.WriteTransform(T, str(ResultsPath / Sample / 'InitialTransform.txt'))
 
-HRpQCT_I = sitk.Resample(HRpQCT_Resampled, T)
-
+HRpQCT_I = sitk.Resample(HRpQCT_Pad, T)
+HRpQCT_I = Otsu.Execute(HRpQCT_I)
 RI, TPM = Register.Rigid(uCT_Mask, HRpQCT_I, str(ResultsPath / Sample))
 HRpQCT_Bin = Otsu.Execute(RI)
 uCT_Bin = Otsu.Execute(uCT_Mask)
@@ -207,7 +211,7 @@ uCT_Bin = Otsu.Execute(uCT_Mask)
 Show.Registration(HRpQCT_Bin, uCT_Bin, Axis='X')
 Show.Registration(HRpQCT_Bin, uCT_Bin)
 
-# %% Common region
+#%% Common region
 # Determine common region with parallel surfaces
 Common_Raw = HRpQCT_Bin * uCT_Bin
 Common_Array = sitk.GetArrayFromImage(Common_Raw)
@@ -252,6 +256,41 @@ Common.SetSpacing(Common_Raw.GetSpacing())
 Show.Registration(Common_Raw, Common, Axis='X')
 Writer = Write()
 Writer.MHD(Common, str(ResultsPath / Sample / 'CommonMask'))
+
+
+#%% Test for inverse transform
+
+Show.Registration(HRpQCT_Bin, Common, Axis='X')
+# HRpQCT_A = sitk.GetArrayFromImage(HRpQCT_Bin)
+# Fill = np.sum(Common_Array * HRpQCT_A) / Common_Array.sum()
+
+# Test = Register.Apply(HRpQCT_I, TPM)
+# Test = Otsu.Execute(Test)
+
+RI, TPM_Inv = Register.Rigid(HRpQCT_I, uCT_Mask)
+uCT_Inv = Otsu.Execute(RI)
+Show.Registration(HRpQCT_I, uCT_Inv, Axis='X')
+
+Common_Inv = Register.Apply(Common, TPM_Inv)
+Common_Inv = Otsu.Execute(Common_Inv)
+Show.Registration(HRpQCT_I, Common_Inv, Axis='X')
+
+Common_T = sitk.Resample(Common_Inv, T.GetInverse())
+HRpQCT_R = Otsu.Execute(HRpQCT_Pad)
+Show.Registration(HRpQCT_R, Common_T, Axis='X')
+
+S = Common_T.GetSize()
+Common_S = sitk.Slice(Common_T, (Pad, Pad, 0), (S[0]-Pad, S[1]-Pad, S[2]))
+Common_S.SetOrigin((0, 0, 0))
+
+Common_F = sitk.Resample(Common_S, Rotation)
+Writer.MHD(Common_F, str(Results / '03_hFE' / Sample / 'CommonMask'))
+
+# Tot test
+# uCT_R = Resample(uCT_Mask, HRpQCT_I)
+# T_Inv = Register.ComputeInverse(uCT_R, str(ResultsPath / Sample / 'TransformParameters.0.txt'))
+# uCT_Inv = Otsu.Execute(RI)
+# Show.Registration(HRpQCT_I, uCT_Inv, Axis='X')
 
 
 # %%

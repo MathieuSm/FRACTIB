@@ -185,7 +185,7 @@ def WriteMHD(ImageArray, Spacing, Path, FileName, PixelType='uint'):
 
 #%% Load files
 # 01 Set variables
-FilePath = str(Path.cwd() / '../../../04_Results/03_hFE/432_L_77_F')
+FilePath = str(Path.cwd() / '../../04_Results/04_hFE/432_L_77_F')
 
 # 02 Load files
 ElementsPositions = pd.read_csv(FilePath + '/ElementsPositions.csv',names=['X','Y','Z'])
@@ -221,7 +221,7 @@ WriteMHD(IsovolumicDeformation, Spacing, FilePath, 'F_Tilde', PixelType='float')
 # %%
 
 Figure, Axis = plt.subplots(1,1)
-Axis.imshow(SphericalCompression[:,:,10])
+Axis.imshow(SphericalCompression[20,:,:])
 plt.show()
 
 # %%

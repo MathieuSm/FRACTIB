@@ -29,9 +29,8 @@ ROI_Kernel_Size_Trab: 5
 ROI_BVTV_Size_Cort: 1.3453
 ROI_BVTV_Size_Trab: 4
 
-# Parameters for ghost layers
+# Parameters for cortex
 Isotropic_Cortex: False  # Cortex fabric isotropic, or projected on surface
-Ghost_Layer_Mode: 1      # 1: copy material properties; 2: predefined material properties
 
 # Elements containing part of a mask are converted to FE mesh, even if they don't hold BVTV. In this case, BVTV is set to 1%.
 All_Mask: True
@@ -40,8 +39,8 @@ All_Mask: True
 nlgeom: on # affects NLGEOM parameter in abaqus simulation (on/off)
 Max_Increments: 1000  # int number [1-1000]
 Control: Displacement # [Force/Displacement] discribes the loading boundary conditions
-BCs_Mode: 0           # 0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
-Fz_Max_Factor: 0.5    # Displacement in FZ direction for no psl FZ_MAX
+BCs_Mode: 5           # 0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
+Fz_Max_Factor: 1.0    # Displacement in FZ direction for no psl FZ_MAX
 BCs_Load: [[1.0, 0, 0, 0, 0, 0],
            [0, 1.0, 0, 0, 0, 0],
            [0, 0, 1.0, 0, 0, 0],
@@ -50,10 +49,8 @@ BCs_Load: [[1.0, 0, 0, 0, 0, 0],
            [0, 0, 0, 0, 0, 1.0]]
 
 # Relative directories
-AIMDir:  '01_Uncompressed_images/'
-FEADir:  '01_Uncompressed_images/'
-BCs:     'BC_PSL/boundary_conditions_basic.inp'
-PSL_LoadCases_BCs_Folder: 'BC_PSL/'
+BCs: 'BCs/boundary_conditions_basic.inp'
+PSL_LoadCases_BCs_Folder: 'BCs/'
 
 
 # File name post fixes
