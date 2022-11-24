@@ -5,9 +5,8 @@ ELASTIX version: 5.000
 Command line options from ElastixBase:
 -fMask    unspecified, so no fixed mask used
 -mMask    unspecified, so no moving mask used
--out      c:\Users\mathi\OneDrive\Documents\FRACTIB\04_Results\05_Localizations\432_L_77_F/
--priority unspecified, so NORMAL process priority
--threads  unspecified, so all available threads are used
+-out      /home/mathieu/Documents/FRACTIB/04_Results/05_Localizations/432_L_77_F/
+-threads  8
 WARNING: The parameter "UseDirectionCosines", requested at entry number 0, does not exist at all.
   The default value "true" is used instead.
 
@@ -1041,12 +1040,12 @@ Automatic parameter estimation took 0.08s
 Time spent in resolution 2 (ITK initialization and iterating): 0.850 s.
 Stopping condition: Maximum number of iterations has been reached.
 Settings of AdaptiveStochasticGradientDescent in resolution 2:
-( SP_a 117.737786 )
+( SP_a 125.019332 )
 ( SP_A 1000.000000 )
 ( SP_alpha 1.000000 )
 ( SigmoidMax 1.000000 )
-( SigmoidMin -0.573628 )
-( SigmoidScale 0.001159 )
+( SigmoidMin -0.596822 )
+( SigmoidScale 0.001010 )
 
 
 Resolution: 3
@@ -1108,8 +1107,8 @@ WARNING: The parameter "SigmoidScaleFactor", requested at entry number 3, does n
   The default value "0.1" is used instead.
 Elastix initialization of all components (for this resolution) took: 0 ms.
   Computing the fixed image extrema took 0 ms.
-  Computing the moving image extrema took 1 ms.
-Initialization of AdvancedMattesMutualInformation metric took: 2 ms.
+  Computing the moving image extrema took 0 ms.
+Initialization of AdvancedMattesMutualInformation metric took: 1 ms.
 Starting automatic parameter estimation for AdaptiveStochasticGradientDescent ...
 WARNING: The parameter "ASGDParameterEstimationMethod", requested at entry number 0, does not exist at all.
   The default value "Original" is used instead.
@@ -1379,19 +1378,19 @@ Automatic parameter estimation took 0.07s
 Time spent in resolution 3 (ITK initialization and iterating): 0.798 s.
 Stopping condition: Maximum number of iterations has been reached.
 Settings of AdaptiveStochasticGradientDescent in resolution 3:
-( SP_a 42.873874 )
+( SP_a 77.860645 )
 ( SP_A 1000.000000 )
 ( SP_alpha 1.000000 )
 ( SigmoidMax 1.000000 )
-( SigmoidMin -0.762020 )
-( SigmoidScale 0.006383 )
+( SigmoidMin -0.695056 )
+( SigmoidScale 0.002281 )
 
 
 
 =============== start of TransformParameterFile ===============
 (Transform "EulerTransform")
 (NumberOfParameters 3)
-(TransformParameters -0.001522 -0.896797 -4.033766)
+(TransformParameters -0.009218 -0.744950 -3.834234)
 (InitialTransformParametersFileName "NoInitialTransform")
 (UseBinaryFormatForTransformationParameters "false")
 (HowToCombineTransforms "Compose")
@@ -1426,15 +1425,15 @@ Settings of AdaptiveStochasticGradientDescent in resolution 3:
 
 Creating the TransformParameterFile took 0.00s
 
-Registration result checksum: 1504923514
+Registration result checksum: 1747391197
 
-Final metric value  = -0.290355
+Final metric value  = -0.282307
 Settings of AdaptiveStochasticGradientDescent for all resolutions:
-( SP_a 161.646346 93.226216 117.737786 42.873874 )
+( SP_a 161.646346 93.226216 125.019332 77.860645 )
 ( SP_A 1000.000000 1000.000000 1000.000000 1000.000000 )
 ( SP_alpha 1.000000 1.000000 1.000000 1.000000 )
 ( SigmoidMax 1.000000 1.000000 1.000000 1.000000 )
-( SigmoidMin -0.822029 -0.852241 -0.573628 -0.762020 )
-( SigmoidScale 0.000357 0.000914 0.001159 0.006383 )
+( SigmoidMin -0.822029 -0.852241 -0.596822 -0.695056 )
+( SigmoidScale 0.000357 0.000914 0.001010 0.002281 )
 
 Time spent on saving the results, applying the final transform etc.: 181 ms.

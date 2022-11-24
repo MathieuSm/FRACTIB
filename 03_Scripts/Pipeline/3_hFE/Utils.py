@@ -958,6 +958,9 @@ class Register:
             ElastixImageFilter.LogToConsoleOff()
             ElastixImageFilter.LogToFileOn()
 
+        if os.name == 'posix':
+            ElastixImageFilter.SetNumberOfThreads(8)
+
         ElastixImageFilter.Execute()
 
         # Get results
