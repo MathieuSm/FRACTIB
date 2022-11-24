@@ -97,7 +97,7 @@ T2 = P2[3:]
 FT = GetParameterMap(FileNames['Transform'])
 C3 = np.array(FT['CenterOfRotationPoint'], 'float')
 P3 = np.array(FT['TransformParameters'],'float')
-R3 = np.linalg.inv(RotationMatrix(P3[0], P3[1], P3[2]))
+R3 = RotationMatrix(P3[0], P3[1], P3[2])
 T3 = P3[3:]
 
 # First transform
@@ -114,6 +114,9 @@ print(R_TP2)
 
 # Third transform
 TP3 = np.dot(R3, TP2 - C3) + C3 + T3
+print(TP3)
 
-TP
-
+# Reverse transform
+R3_Inv = np.linalg.inv(R3)
+TP3_Inv = np.dot(R3_Inv, TP3 - T3 - C3) + C3
+print(TP3_Inv)
