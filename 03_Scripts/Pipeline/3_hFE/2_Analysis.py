@@ -1689,6 +1689,31 @@ def TransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
 
     return np.array(TransformedPoints)
 
+def InverseTransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
+    
+    R1 = np.linalg.inv(R1)
+    R2 = np.linalg.inv(R2)
+    R3 = np.linalg.inv(R3)
+    
+    TransformedPoints = []
+    
+    if len(Points.shape) == 1:
+        TP = np.dot(R3, Points - T3 - C3) + C3
+        TP = np.dot(R2, TP - T2 - C2) + C2
+        TP = np.dot(R1, TP - T1 - C1) + C1
+
+        TransformedPoints = TP
+
+    else:
+        for Point in Points:
+            TP = np.dot(R3, Point - T3 - C3) + C3
+            TP = np.dot(R2, TP - T2 - C2) + C2
+            TP = np.dot(R1, TP - T1 - C1) + C1
+
+            TransformedPoints.append(TP)
+
+    return np.array(TransformedPoints)
+
 @njit
 def AssignVTKCells2Masks(NFacet, COG_Temp, TRAB_Mask, Spacing, Tolerance, DimZ):
 
@@ -2861,18 +2886,16 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         IT = sitk.ReadTransform(FileNames['InitialTransform'])
         C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
         P2 = IT.GetParameters()
-        R2 = np.linalg.inv(RotationMatrix(P2[0], P2[1], P2[2]))
+        R2 = RotationMatrix(P2[0], P2[1], P2[2])
         T2 = P2[3:]
 
         FT = GetParameterMap(FileNames['Transform'])
         C3 = np.array(FT['CenterOfRotationPoint'], 'float')
         P3 = np.array(FT['TransformParameters'],'float')
-        R3 = np.linalg.inv(RotationMatrix(P3[0], P3[1], P3[2]))
+        R3 = RotationMatrix(P3[0], P3[1], P3[2])
         T3 = P3[3:]
 
-        print(COG)
-        COG = TransformPoints(np.array(COG), np.array(C3), np.array(R3), np.array(T3), np.array(C2), np.array(R2), np.array(T2), np.array(C1), np.array(R1), np.array(T1))
-        print(COG)
+        COG = InverseTransformPoints(np.array(COG), np.array(C1), np.array(R1), np.array(T1), np.array(C2), np.array(R2), np.array(T2), np.array(C3), np.array(R3), np.array(T3))
 
         # 2.2 compute PHI from masks
         Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG, Spacing, FEelSize[0], CORTMASK_Array)
