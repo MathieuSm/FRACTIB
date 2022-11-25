@@ -2872,36 +2872,34 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
                            axis=0)  # center of gravity of each element
 
+        # Transform Center of gravity from uCT to HRpQCT space
+        I = sitk.ReadImage(FileNames['Common'])
+        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+        C1 = Center + np.array(I.GetOrigin())
+        R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+        T1 = np.array([0, 0, 0])
+
+        IT = sitk.ReadTransform(FileNames['InitialTransform'])
+        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+        P2 = IT.GetParameters()
+        R2 = RotationMatrix(P2[0], P2[1], P2[2])
+        T2 = np.array(P2[3:])
+
+        FT = GetParameterMap(FileNames['Transform'])
+        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+        P3 = np.array(FT['TransformParameters'],'float')
+        R3 = RotationMatrix(P3[0], P3[1], P3[2])
+        T3 = np.array(P3[3:])
+
+        COG_Inv = InverseTransformPoints(COG, C1, R1, T1, C2, R2, T2, C3, R3, T3)
+
         # 2.2 compute PHI from masks
+        Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
+        Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG_Inv, Spacing, FEelSize[0], TRABMASK_Array)
+
         if COG[0] < 0 or COG[1] < 0 or COG[2] < 0:
             Phi_Cort = 0.0
             Phi_Trab = 0.0
-
-        else:
-            # Transform Center of gravity from uCT to HRpQCT space
-            I = sitk.ReadImage(FileNames['Common'])
-            Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
-            C1 = Center + np.array(I.GetOrigin())
-            R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
-            T1 = np.array([0, 0, 0])
-
-            IT = sitk.ReadTransform(FileNames['InitialTransform'])
-            C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-            P2 = IT.GetParameters()
-            R2 = RotationMatrix(P2[0], P2[1], P2[2])
-            T2 = np.array(P2[3:])
-
-            FT = GetParameterMap(FileNames['Transform'])
-            C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-            P3 = np.array(FT['TransformParameters'],'float')
-            R3 = RotationMatrix(P3[0], P3[1], P3[2])
-            T3 = np.array(P3[3:])
-
-            COG_Inv = InverseTransformPoints(COG, C1, R1, T1, C2, R2, T2, C3, R3, T3)
-
-            Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
-            Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG_Inv, Spacing, FEelSize[0], TRABMASK_Array)
-
 
         # If an element holds a part of a mask
         if Phi_Cort > 0.0 or Phi_Trab > 0.0:

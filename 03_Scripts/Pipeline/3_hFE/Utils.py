@@ -3,6 +3,7 @@
 
 import os
 import vtk
+import sys
 import time
 import struct
 import argparse
@@ -223,6 +224,23 @@ def Resample(OriginalImage, TargetImage):
 
     return Resampled
 
+def ProgressStart(Text):
+    global CurrentProgress
+    sys.stdout.write(Text + '|')
+    CurrentProgress = 0
+    sys.stdout.flush()
+    return
+def ProgressNext(Progress):
+    global CurrentProgress
+    if Progress > CurrentProgress:
+        CurrentProgress += 1
+        sys.stdout.write('=')
+        sys.stdout.flush()
+    return
+def ProgressEnd():
+    sys.stdout.write('|\n')
+    sys.stdout.flush()
+    return
 
 #%% Ploting functions
 class Show:
