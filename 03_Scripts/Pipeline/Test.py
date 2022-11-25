@@ -690,10 +690,12 @@ for iP, Index in enumerate(IPoints):
 
     # Third transform
     TP3 = np.dot(R3, TP2 - C3) + C3 + T3
+print(TP3)
 
-    TP.append(TP3)
-
-    Progress = iP / NPoints * 20
+    TP.append(# Reverse transform
+R3_Inv = np.linalg.inv(R3)
+TP3_Inv = np.dot(R3_Inv, TP3)3 - T3 - C3) + C3
+print(TP3_Inv)    Progress = iP / NPoints * 20
     ProgressNext(Progress)
 ProcessTiming(0)
 TP = np.array(TP)

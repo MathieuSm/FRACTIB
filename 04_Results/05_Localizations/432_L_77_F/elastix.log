@@ -431,8 +431,8 @@ WARNING: The parameter "SigmoidScaleFactor", requested at entry number 1, does n
   The default value "0.1" is used instead.
 Elastix initialization of all components (for this resolution) took: 0 ms.
   Computing the fixed image extrema took 0 ms.
-  Computing the moving image extrema took 0 ms.
-Initialization of AdvancedMattesMutualInformation metric took: 1 ms.
+  Computing the moving image extrema took 1 ms.
+Initialization of AdvancedMattesMutualInformation metric took: 2 ms.
 Starting automatic parameter estimation for AdaptiveStochasticGradientDescent ...
 WARNING: The parameter "ASGDParameterEstimationMethod", requested at entry number 0, does not exist at all.
   The default value "Original" is used instead.
@@ -769,8 +769,8 @@ WARNING: The parameter "SigmoidScaleFactor", requested at entry number 2, does n
   The default value "0.1" is used instead.
 Elastix initialization of all components (for this resolution) took: 0 ms.
   Computing the fixed image extrema took 0 ms.
-  Computing the moving image extrema took 0 ms.
-Initialization of AdvancedMattesMutualInformation metric took: 1 ms.
+  Computing the moving image extrema took 2 ms.
+Initialization of AdvancedMattesMutualInformation metric took: 3 ms.
 Starting automatic parameter estimation for AdaptiveStochasticGradientDescent ...
 WARNING: The parameter "ASGDParameterEstimationMethod", requested at entry number 0, does not exist at all.
   The default value "Original" is used instead.
