@@ -131,8 +131,6 @@ Rotation = sitk.VersorRigid3DTransform()
 M = RotationMatrix(Alpha=0, Beta=sp.pi, Gamma=0)
 M = [v for v in M.flatten()]
 
-# Symetry (have to find out why)
-M[4] *= -1
 Rotation.SetMatrix(M)
 Center = np.array(HRpQCT_Mask.GetSize()) / 2 * np.array(HRpQCT_Mask.GetSpacing())
 CO = Center + np.array(HRpQCT_Mask.GetOrigin())
@@ -142,8 +140,6 @@ HRpQCT_Resampled = sitk.Resample(HRpQCT_Mask, Rotation)
 # Pad for rotations
 Pad = 100
 HRpQCT_Pad = sitk.ConstantPad(HRpQCT_Resampled, (Pad, Pad, 0), (Pad, Pad, 0))
-
-
 #%% Starting position estimation
 # Find best image initial position with successive rotations
 Measure = sitk.LabelOverlapMeasuresImageFilter()

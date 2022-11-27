@@ -241,6 +241,17 @@ def ProgressEnd():
     sys.stdout.write('|\n')
     sys.stdout.flush()
     return
+def ProcessTiming(StartStop:bool, Process='Progress'):
+
+    if StartStop*1 == 1:
+        global Tic
+        Tic = time.time()
+        ProgressStart(Process)
+    elif StartStop*1 == 0:
+        ProgressEnd()
+        Toc = time.time()
+        PrintTime(Tic, Toc)
+
 
 #%% Ploting functions
 class Show:
@@ -473,6 +484,9 @@ class Read:
         Numpy_Image = vtk_to_numpy(Data)
         Numpy_Image = Numpy_Image.reshape(Dimension[2], Dimension[1], Dimension[0])
 
+        # Y symmetry (thanks Michi for notifying this!)
+        Numpy_Image = Numpy_Image[:,::-1,:]
+        
         # Converty numpy to ITK image
         Image = sitk.GetImageFromArray(Numpy_Image)
         Image.SetSpacing(Spacing)

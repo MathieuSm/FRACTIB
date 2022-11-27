@@ -1,3 +1,5 @@
+#%% #!/usr/bin/env python3
+# Imports
 import sys
 import vtk
 import time
@@ -6,8 +8,11 @@ import numpy as np
 import sympy as sp
 import SimpleITK as sitk
 from pathlib import Path
+import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
 
+#%% Functions
+# Function definitions
 def SetDirectories(Name):
 
     CWD = str(Path.cwd())
@@ -109,7 +114,52 @@ def ProcessTiming(StartStop:bool, Process='Progress'):
         ProgressEnd()
         Toc = time.time()
         PrintTime(Tic, Toc)
+def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
 
+    """
+    Adapted from Denis's utils_SA.py
+    Images are adjusted according to CropType:
+    0 = CropType.expand     (Expand image by copying layers)
+    1 = CropType.crop       (Crop image)
+    2 = CropType.variable   (Either crop or expand, depending on what includes less layers)
+    """
+
+    # Measure image shape
+    IMDimX = np.shape(Image)[0]
+    IMDimY = np.shape(Image)[1]
+    IMDimZ = np.shape(Image)[2]
+
+    AddDimX = CoarseFactor - (IMDimX % CoarseFactor)
+    AddDimY = CoarseFactor - (IMDimY % CoarseFactor)
+
+    # adjust in x and y direction
+    Shape_Diff = [AddDimX, AddDimY]
+    IMG_XY_Adjusted = np.lib.pad(Image,
+                                 ((0, Shape_Diff[0]), (0, Shape_Diff[1]), (0, 0)),
+                                 'constant', constant_values=(0),)
+
+    if CropZ == 'Crop':
+        Image_Adjusted = IMG_XY_Adjusted
+
+    if CropZ == 'Expand':
+        AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+        Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+        Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                    ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                    'edge')
+
+    if CropZ == 'Variable':
+        Limit = CoarseFactor / 2.0
+        if IMDimZ % CoarseFactor > Limit:
+            AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+            Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+            Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                        ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                        'edge')
+        if IMDimZ % CoarseFactor < Limit:
+            Image_Adjusted = IMG_XY_Adjusted
+
+    return Image_Adjusted
 def ShowRegistration(Fixed, Moving, Slice=None, Title=None, Axis='Z'):
 
     FixedArray = sitk.GetArrayFromImage(Fixed)
@@ -162,6 +212,158 @@ def ShowRegistration(Fixed, Moving, Slice=None, Title=None, Axis='Z'):
     plt.show(Figure)
 
     return
+def Resample(Image, Factor=None, Size=None, Spacing=None):
+
+    Dimension = Image.GetDimension()
+    OriginalSpacing = np.array(Image.GetSpacing())
+    OriginalSize = np.array(Image.GetSize())
+    PhysicalSize = OriginalSize * OriginalSpacing
+
+    Origin = Image.GetOrigin()
+    Direction = Image.GetDirection()
+    Center = OriginalSize * OriginalSpacing / 2
+
+    if Factor:
+        NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Size:
+        NewSize = Size
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Spacing:
+        NewSpacing = Spacing
+        NewSize = [Size/Spacing + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+    
+    NewImage = sitk.Image(NewSize, Image.GetPixelIDValue())
+    NewImage.SetOrigin(Origin)
+    NewImage.SetDirection(Direction)
+    NewImage.SetSpacing(NewSpacing)
+  
+    Transform = sitk.TranslationTransform(Dimension)
+    
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
+def ShowSlice(Image, Slice=None, Title=None, Axis='Z'):
+
+    Array = sitk.GetArrayFromImage(Image)
+
+    if Image.GetDimension() == 3:
+        
+        if Axis == 'Z':
+            if Slice:
+                Array = Array[Slice,:,:]
+            else:
+                Array = Array[Array.shape[0]//2,:,:]
+        if Axis == 'Y':
+            if Slice:
+                Array = Array[:,Slice,:]
+            else:
+                Array = Array[:,Array.shape[1]//2,:]
+        if Axis == 'X':
+            if Slice:
+                Array = Array[:,:,Slice]
+            else:
+                Array = Array[:,:,Array.shape[2]//2]
+
+    Figure, Axis = plt.subplots()
+    Axis.imshow(Array,interpolation=None, cmap='binary_r')
+    Axis.axis('Off')
+    
+    if(Title):
+        Axis.set_title(Title)
+
+    plt.show(Figure)
+
+    return
+def Raw(Image, OutputFileName, PixelType):
+
+    ImageArray = sitk.GetArrayFromImage(Image)
+
+    if PixelType == 'uint' or 'norm':
+
+        MinValue = ImageArray.min()
+
+        if MinValue < 0:
+            ShiftedImageArray = ImageArray + abs(MinValue)
+            MaxValue = ShiftedImageArray.max()
+        elif MinValue > 0:
+            ShiftedImageArray = ImageArray - MinValue
+            MaxValue = ShiftedImageArray.max()
+        else :
+            ShiftedImageArray = ImageArray
+            MaxValue = ShiftedImageArray.max()
+
+        ScaledImageArray = ShiftedImageArray / MaxValue
+
+    if PixelType == 'uint':
+        CastedImageArray = ScaledImageArray.astype('uint8')
+    elif PixelType == 'norm':
+        CastedImageArray = ScaledImageArray.astype('float32')
+    elif PixelType == 'short':
+        CastedImageArray = ImageArray.astype(np.short)
+    elif PixelType == 'float':
+        CastedImageArray = ImageArray.astype('float32')
+
+    File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='C')
+    File[:] = CastedImageArray[:]
+    del File
+
+    return
+def MHD(Image, FileName, PixelType='uint'):
+
+    print('\nWrite MHD')
+    Tic = time.time()
+
+    if PixelType == 'short' or PixelType == 'float':
+        if Image.GetDimension() == 2:
+
+            Array_3D = np.zeros((1,ImageArray.shape[0],ImageArray.shape[1]))
+
+            for j in range(ImageArray.shape[0]):
+                for i in range(ImageArray.shape[1]):
+                    Array_3D[0,j,i] = ImageArray[j,i]
+
+            ImageArray = Array_3D
+
+    nx, ny, nz = Image.GetSize()
+
+    lx, ly, lz = Image.GetSpacing()
+
+    TransformMatrix = '1 0 0 0 1 0 0 0 1'
+    Offset = str(np.array(Image.GetOrigin(),'int'))[1:-1]
+    CenterOfRotation = '0 0 0'
+    AnatomicalOrientation = 'LPS'
+
+    outs = open(FileName + '.mhd', 'w')
+    outs.write('ObjectType = Image\n')
+    outs.write('NDims = 3\n')
+    outs.write('BinaryData = True\n')
+    outs.write('BinaryDataByteOrderMSB = False\n')
+    outs.write('CompressedData = False\n')
+    outs.write('TransformMatrix = %s \n' % TransformMatrix)
+    outs.write('Offset = %s \n' % Offset)
+    outs.write('CenterOfRotation = %s \n' % CenterOfRotation)
+    outs.write('AnatomicalOrientation = %s \n' % AnatomicalOrientation)
+    outs.write('ElementSpacing = %g %g %g\n' % (lx, ly, lz))
+    outs.write('DimSize = %i %i %i\n' % (nx, ny, nz))
+
+    if PixelType == 'uint':
+        outs.write('ElementType = %s\n' % 'MET_UCHAR')
+    elif PixelType == 'short':
+        outs.write('ElementType = %s\n' % 'MET_SHORT')
+    elif PixelType == 'float' or PixelType == 'norm':
+        outs.write('ElementType = %s\n' % 'MET_FLOAT')
+
+    outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
+    outs.close()
+
+    Raw(Image, FileName + '.raw', PixelType)
+
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+
+    return
+
 
 class Read:
 
@@ -300,6 +502,9 @@ class Read:
         Dimension = VTK_Image.GetDimensions()
         Numpy_Image = vtk_to_numpy(Data)
         Numpy_Image = Numpy_Image.reshape(Dimension[2], Dimension[1], Dimension[0])
+
+        # Y symmetry (thanks Michi for notified this!)
+        Numpy_Image = Numpy_Image[:,::-1,:]
 
         # Converty numpy to ITK image
         Image = sitk.GetImageFromArray(Numpy_Image)
@@ -559,59 +764,8 @@ class Read:
 
         return Image, AdditionalData
 
-def Registration(Fixed, Moving, Slice=None, Title=None, Axis='Z'):
-
-    FixedArray = sitk.GetArrayFromImage(Fixed)
-    MovingArray = sitk.GetArrayFromImage(Moving)
-
-    if len(np.unique(FixedArray)) > 2 or len(np.unique(MovingArray)) > 2:
-        Otsu = sitk.OtsuThresholdImageFilter()
-        Otsu.SetInsideValue(0)
-        Otsu.SetOutsideValue(1)
-        Fixed_Bin = Otsu.Execute(Fixed)
-        Moving_Bin = Otsu.Execute(Moving)
-        FixedArray = sitk.GetArrayFromImage(Fixed_Bin)
-        MovingArray = sitk.GetArrayFromImage(Moving_Bin)
-
-    if Fixed.GetDimension() == 3:
-        Array = np.zeros((Fixed.GetSize()[2], Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
-        Array[:,:,:,0] = FixedArray
-        Array[:,:,:,1] = MovingArray
-        Array[:,:,:,2] = MovingArray
-        
-        if Axis == 'Z':
-            if Slice:
-                Array = Array[Slice,:,:]
-            else:
-                Array = Array[Array.shape[0]//2,:,:]
-        if Axis == 'Y':
-            if Slice:
-                Array = Array[:,Slice,:]
-            else:
-                Array = Array[:,Array.shape[1]//2,:]
-        if Axis == 'X':
-            if Slice:
-                Array = Array[:,:,Slice]
-            else:
-                Array = Array[:,:,Array.shape[2]//2]
-
-    else:
-        Array = np.zeros((Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
-        Array[:,:,0] = FixedArray
-        Array[:,:,1] = MovingArray
-        Array[:,:,2] = MovingArray
-
-    Figure, Axis = plt.subplots()
-    Axis.imshow(Array,interpolation=None)
-    Axis.axis('Off')
-    
-    if(Title):
-        Axis.set_title(Title)
-
-    plt.show(Figure)
-
-    return
-
+#%% Loading
+# Load data
 
 CW, Data, Scripts, Results = SetDirectories('FRACTIB')
 
@@ -639,17 +793,31 @@ HRpQCT_Cort_Mask, AdditionalData = Reader.AIM(Cort_File)
 HRpQCT_Trab_Mask, AdditionalData = Reader.AIM(Trab_File)
 HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 
+#%% Meshing
+# Mesh and resample
 
-Array = sitk.GetArrayFromImage(HRpQCT_Mask)
-Coords = np.array(np.where(Array))
-Points = Coords.T * np.array(HRpQCT_Mask.GetSpacing()[::-1])
+Spacing = np.array(Common_uCT.GetSpacing())
+CoarseFactor = int(round(1.2747 / Spacing[0]))
+FEelSize = np.copy(Spacing) * CoarseFactor
+
+ShowSlice(Common_uCT)
+Resampled_uCT = Resample(Common_uCT, Factor=CoarseFactor)
+ShowSlice(Resampled_uCT)
+MHD(Resampled_uCT, 'Resampled')
+
+Array_uCT = sitk.GetArrayFromImage(Resampled_uCT)
+# Adjusted_uCT = Adjust_Image_Size(Array_uCT, CoarseFactor, CropZ='Crop')
+
+Coords = np.array(np.where(Array_uCT.transpose((2,1,0))))
+Points = Coords.T * np.array(Resampled_uCT.GetSpacing())
 
 
+#%% Transform
 # Transform Center of gravity from uCT to HRpQCT space
 I = sitk.ReadImage(FileNames['Common'])
 Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
 C1 = Center + np.array(I.GetOrigin())
-R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
 T1 = [0, 0, 0]
 
 IT = sitk.ReadTransform(FileNames['InitialTransform'])
@@ -665,40 +833,46 @@ R3 = RotationMatrix(P3[0], P3[1], P3[2])
 T3 = P3[3:]
 
 
-TP = []
+ProcessTiming(1,'Transform points ')
 
-NPoints = 1000
+# R1 = np.linalg.inv(R1)
+# R2 = np.linalg.inv(R2)
+# R3 = np.linalg.inv(R3)
+    
+TransformedPoints = []
 
-IPoints = np.random.choice(len(Points),NPoints, replace=False)
-
-ProcessTiming(1,'Transform ' + str(NPoints) + ' points ')
-for iP, Index in enumerate(IPoints):
-
-    Point = Points[Index]
+for iP, Point in enumerate(Points):
 
     # First transform
-    TP1 = np.dot(R1, Point - C1) + C1 + T1
-    # R_TP1 = Rotation.TransformPoint(Point)
-    # print(TP1)
-    # print(R_TP1)
+    TP = np.dot(R3, Point - T3 - C3) + C3
 
     # Second transform
-    TP2 = np.dot(R2, TP1 - C2) + C2 + T2
-    # R_TP2 = T.TransformPoint(R_TP1)
-    # print(TP2)
-    # print(R_TP2)
+    TP = np.dot(R2, TP - T2 - C2) + C2
 
     # Third transform
-    TP3 = np.dot(R3, TP2 - C3) + C3 + T3
-print(TP3)
+    TP = np.dot(R1, TP - T1 - C1) + C1
 
-    TP.append(# Reverse transform
-R3_Inv = np.linalg.inv(R3)
-TP3_Inv = np.dot(R3_Inv, TP3)3 - T3 - C3) + C3
-print(TP3_Inv)    Progress = iP / NPoints * 20
+    TransformedPoints.append(TP)
+
+    Progress = iP / len(Points) * 20
     ProgressNext(Progress)
 ProcessTiming(0)
-TP = np.array(TP)
+TP = np.array(TransformedPoints)
 
-uCT_Coord = TP // np.array(HRpQCT_Mask.GetSpacing()[::-1])
-uCT_Array = sitk.GetArrayFromImage(uCT_Mask)
+#%% Rebuild image and write MHD
+
+T_Coords = np.round(TP / np.array(Resampled_uCT.GetSpacing())).astype('int')
+T_Array = np.zeros(Array_uCT.shape)
+
+Pad = 20
+P_Array = np.pad(T_Array,((Pad, Pad),(Pad, Pad), (Pad, Pad)))
+P_Array[T_Coords[:,2]+Pad,T_Coords[:,1]+Pad, T_Coords[:,0]+Pad] = 1
+
+T_Image = sitk.GetImageFromArray(P_Array[Pad:-Pad,Pad:-Pad,Pad:-Pad])
+T_Image.SetSpacing(Resampled_uCT.GetSpacing())
+
+
+MHD(T_Image, 'FileName')
+
+
+# %%

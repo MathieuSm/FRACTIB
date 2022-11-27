@@ -286,6 +286,9 @@ def VTK2Numpy(VTK_Image):
     # vtk and numpy have different array conventions
     Numpy_Image = Numpy_Image.reshape(Dimension[2], Dimension[1], Dimension[0])
     Numpy_Image = Numpy_Image.transpose(2, 1, 0)
+    # y symmetry
+    Numpy_Image = Numpy_Image[:,::-1,:]
+    
     return Numpy_Image
 def Read_AIM(Name, FileNames, Bone):
 
