@@ -137,6 +137,7 @@ CO = Center + np.array(HRpQCT_Mask.GetOrigin())
 Rotation.SetCenter(CO)
 HRpQCT_Resampled = sitk.Resample(HRpQCT_Mask, Rotation)
 
+
 # Pad for rotations
 Pad = 100
 HRpQCT_Pad = sitk.ConstantPad(HRpQCT_Resampled, (Pad, Pad, 0), (Pad, Pad, 0))
@@ -250,12 +251,12 @@ Common.SetOrigin(Common_Raw.GetOrigin())
 Common.SetSpacing(Common_Raw.GetSpacing())
 
 Show.Registration(Common_Raw, Common, Axis='X')
-Writer = Write()
 Writer.MHD(Common, str(ResultsPath / Sample / 'CommonMask'))
 
 
 #%% Test for inverse transform
 
+Writer = Write()
 Show.Registration(HRpQCT_Bin, Common, Axis='X')
 # HRpQCT_A = sitk.GetArrayFromImage(HRpQCT_Bin)
 # Fill = np.sum(Common_Array * HRpQCT_A) / Common_Array.sum()
@@ -270,6 +271,7 @@ Show.Registration(HRpQCT_I, uCT_Inv, Axis='X')
 Common_Inv = Register.Apply(Common, TPM_Inv)
 Common_Inv = Otsu.Execute(Common_Inv)
 Show.Registration(HRpQCT_I, Common_Inv, Axis='X')
+Writer.MHD(Common_Inv, 'Rotated')
 
 Common_T = sitk.Resample(Common_Inv, T.GetInverse())
 HRpQCT_R = Otsu.Execute(HRpQCT_Pad)

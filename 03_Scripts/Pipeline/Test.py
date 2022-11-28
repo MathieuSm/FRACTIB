@@ -796,20 +796,21 @@ HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 #%% Meshing
 # Mesh and resample
 
-Spacing = np.array(Common_uCT.GetSpacing())
+Image = Common_hFE
+Spacing = np.array(Image.GetSpacing())
 CoarseFactor = int(round(1.2747 / Spacing[0]))
 FEelSize = np.copy(Spacing) * CoarseFactor
 
-ShowSlice(Common_uCT)
-Resampled_uCT = Resample(Common_uCT, Factor=CoarseFactor)
-ShowSlice(Resampled_uCT)
-MHD(Resampled_uCT, 'Resampled')
+ShowSlice(Image)
+Resampled = Resample(Image, Factor=CoarseFactor)
+ShowSlice(Resampled)
+MHD(Resampled, 'Resampled')
 
-Array_uCT = sitk.GetArrayFromImage(Resampled_uCT)
+Array = sitk.GetArrayFromImage(Resampled)
 # Adjusted_uCT = Adjust_Image_Size(Array_uCT, CoarseFactor, CropZ='Crop')
 
-Coords = np.array(np.where(Array_uCT.transpose((2,1,0))))
-Points = Coords.T * np.array(Resampled_uCT.GetSpacing())
+Coords = np.array(np.where(Array.transpose((2,1,0))))
+Points = Coords.T * np.array(Resampled.GetSpacing())
 
 
 #%% Transform
@@ -844,13 +845,13 @@ TransformedPoints = []
 for iP, Point in enumerate(Points):
 
     # First transform
-    TP = np.dot(R3, Point - T3 - C3) + C3
+    TP = np.dot(R1, Point - C1) + C1 + T1
 
     # Second transform
-    TP = np.dot(R2, TP - T2 - C2) + C2
+    TP = np.dot(R2, TP - C2) + C2 + T2
 
     # Third transform
-    TP = np.dot(R1, TP - T1 - C1) + C1
+    TP = np.dot(R3, TP - C3) + C3 + T3
 
     TransformedPoints.append(TP)
 
