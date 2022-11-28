@@ -114,6 +114,7 @@ def ProcessTiming(StartStop:bool, Process='Progress'):
         ProgressEnd()
         Toc = time.time()
         PrintTime(Tic, Toc)
+    return
 def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
 
     """
@@ -793,6 +794,7 @@ HRpQCT_Cort_Mask, AdditionalData = Reader.AIM(Cort_File)
 HRpQCT_Trab_Mask, AdditionalData = Reader.AIM(Trab_File)
 HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 
+
 #%% Meshing
 # Mesh and resample
 
@@ -813,67 +815,103 @@ Coords = np.array(np.where(Array.transpose((2,1,0))))
 Points = Coords.T * np.array(Resampled.GetSpacing())
 
 
-#%% Transform
-# Transform Center of gravity from uCT to HRpQCT space
+#%% Transform 1
+# Transform Point
 I = sitk.ReadImage(FileNames['Common'])
 Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
 C1 = Center + np.array(I.GetOrigin())
 R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
 T1 = [0, 0, 0]
 
-IT = sitk.ReadTransform(FileNames['InitialTransform'])
-C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-P2 = IT.GetParameters()
-R2 = RotationMatrix(P2[0], P2[1], P2[2])
-T2 = P2[3:]
-
-FT = GetParameterMap(FileNames['Transform'])
-C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-P3 = np.array(FT['TransformParameters'],'float')
-R3 = RotationMatrix(P3[0], P3[1], P3[2])
-T3 = P3[3:]
-
-
 ProcessTiming(1,'Transform points ')
 
-# R1 = np.linalg.inv(R1)
-# R2 = np.linalg.inv(R2)
-# R3 = np.linalg.inv(R3)
-    
 TransformedPoints = []
 
 for iP, Point in enumerate(Points):
 
-    # First transform
     TP = np.dot(R1, Point - C1) + C1 + T1
-
-    # Second transform
-    TP = np.dot(R2, TP - C2) + C2 + T2
-
-    # Third transform
-    TP = np.dot(R3, TP - C3) + C3 + T3
-
     TransformedPoints.append(TP)
 
     Progress = iP / len(Points) * 20
     ProgressNext(Progress)
 ProcessTiming(0)
-TP = np.array(TransformedPoints)
+TP1 = np.array(TransformedPoints)
+
+# Transform Image
+Rotation = sitk.VersorRigid3DTransform()
+M = RotationMatrix(Alpha=0, Beta=sp.pi, Gamma=0)
+M = [v for v in M.flatten()]
+
+Rotation.SetMatrix(M)
+Center = np.array(Resampled.GetSize()) / 2 * np.array(Resampled.GetSpacing())
+CO = Center + np.array(Resampled.GetOrigin())
+Rotation.SetCenter(CO)
+Transformed1 = sitk.Resample(Resampled, Rotation)
+
+#%% Transform 2
+# Transform Point
+IT = sitk.ReadTransform(FileNames['InitialTransform'])
+C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+P2 = IT.GetParameters()
+R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+T2 = -np.array([P2[4], P2[5], P2[3]])
+
+ProcessTiming(1,'Transform points ')
+
+TransformedPoints = []
+
+for iP, Point in enumerate(TP1):
+
+    TP = np.dot(R2, Point - C2) + C2 + T2
+    TransformedPoints.append(TP)
+
+    Progress = iP / len(Points) * 20
+    ProgressNext(Progress)
+ProcessTiming(0)
+TP2 = np.array(TransformedPoints)
+
+# Transform Image
+Transformed2 = sitk.Resample(Transformed1, IT)
+
+
+#%% Transform 3
+# Transform point
+
+FT = GetParameterMap(FileNames['Transform'])
+C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+P3 = np.array(FT['TransformParameters'],'float')
+R3 = RotationMatrix(P3[0], P3[1], P3[2])
+T3 = -np.array(P3[3:])
+
+
+ProcessTiming(1,'Transform points ')    
+TransformedPoints = []
+
+for iP, Point in enumerate(TP2):
+
+    TP = np.dot(R3, Point - C3) + C3 + T3
+    TransformedPoints.append(TP)
+
+    Progress = iP / len(Points) * 20
+    ProgressNext(Progress)
+ProcessTiming(0)
+TP3 = np.array(TransformedPoints)
 
 #%% Rebuild image and write MHD
 
-T_Coords = np.round(TP / np.array(Resampled_uCT.GetSpacing())).astype('int')
-T_Array = np.zeros(Array_uCT.shape)
+T_Coords = np.round(TP3 / np.array(Transformed2.GetSpacing())).astype('int')
+T_Array = np.zeros(Array.shape)
 
 Pad = 20
 P_Array = np.pad(T_Array,((Pad, Pad),(Pad, Pad), (Pad, Pad)))
 P_Array[T_Coords[:,2]+Pad,T_Coords[:,1]+Pad, T_Coords[:,0]+Pad] = 1
 
 T_Image = sitk.GetImageFromArray(P_Array[Pad:-Pad,Pad:-Pad,Pad:-Pad])
-T_Image.SetSpacing(Resampled_uCT.GetSpacing())
+T_Image.SetSpacing(Transformed2.GetSpacing())
 
 
-MHD(T_Image, 'FileName')
+MHD(T_Image, 'Point3')
+MHD(Transformed2, 'Transformed2')
 
 
 # %%
