@@ -798,7 +798,7 @@ HRpQCT_Mask = HRpQCT_Cort_Mask + HRpQCT_Trab_Mask
 #%% Meshing
 # Mesh and resample
 
-Image = Common_hFE
+Image = Common_uCT
 Spacing = np.array(Image.GetSpacing())
 CoarseFactor = int(round(1.2747 / Spacing[0]))
 FEelSize = np.copy(Spacing) * CoarseFactor
@@ -812,7 +812,61 @@ Array = sitk.GetArrayFromImage(Resampled)
 # Adjusted_uCT = Adjust_Image_Size(Array_uCT, CoarseFactor, CropZ='Crop')
 
 Coords = np.array(np.where(Array.transpose((2,1,0))))
-Points = Coords.T * np.array(Resampled.GetSpacing())
+Points = Coords * np.array([Resampled.GetSpacing()]).T
+Points = Points.T
+
+#%% Inverse transform 1
+# Transform point
+
+FT = GetParameterMap(FileNames['Transform'])
+C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+P3 = np.array(FT['TransformParameters'],'float')
+R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
+T3 = -np.array(P3[3:])
+
+R3 = np.linalg.inv(R3)
+
+ProcessTiming(1,'Transform points ')    
+TransformedPoints = []
+
+for iP, Point in enumerate(Points):
+
+    TP = np.dot(R3, Point - C3) + C3 - T3
+    TransformedPoints.append(TP)
+
+    Progress = iP / len(Points) * 20
+    ProgressNext(Progress)
+ProcessTiming(0)
+TP3 = np.array(TransformedPoints)
+
+
+
+#%% Inverse transform 2
+# Transform Point
+IT = sitk.ReadTransform(FileNames['InitialTransform'])
+C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+P2 = IT.GetParameters()
+R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+T2 = -np.array(P2[3:])
+
+R2 = np.linalg.inv(R2)
+
+ProcessTiming(1,'Transform points ')
+
+TransformedPoints = []
+
+for iP, Point in enumerate(TP3):
+
+    TP = np.dot(R2, Point - C2) + C2 - T2
+    TransformedPoints.append(TP)
+
+    Progress = iP / len(Points) * 20
+    ProgressNext(Progress)
+ProcessTiming(0)
+TP2 = np.array(TransformedPoints)
+
+# Transform Image
+# Transformed2 = sitk.Resample(Transformed1, IT)
 
 
 #%% Transform 1
@@ -823,13 +877,15 @@ C1 = Center + np.array(I.GetOrigin())
 R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
 T1 = [0, 0, 0]
 
+R1 = np.linalg.inv(R1)
+
 ProcessTiming(1,'Transform points ')
 
 TransformedPoints = []
 
-for iP, Point in enumerate(Points):
-
-    TP = np.dot(R1, Point - C1) + C1 + T1
+for iP, Point in enumerate(TP2):
+    
+    TP = np.dot(R1, Point - C1) + C1 - T1
     TransformedPoints.append(TP)
 
     Progress = iP / len(Points) * 20
@@ -838,80 +894,42 @@ ProcessTiming(0)
 TP1 = np.array(TransformedPoints)
 
 # Transform Image
-Rotation = sitk.VersorRigid3DTransform()
-M = RotationMatrix(Alpha=0, Beta=sp.pi, Gamma=0)
-M = [v for v in M.flatten()]
+# Rotation = sitk.VersorRigid3DTransform()
+# M = RotationMatrix(0, sp.pi, 0)
+# M = [v for v in M.flatten()]
 
-Rotation.SetMatrix(M)
-Center = np.array(Resampled.GetSize()) / 2 * np.array(Resampled.GetSpacing())
-CO = Center + np.array(Resampled.GetOrigin())
-Rotation.SetCenter(CO)
-Transformed1 = sitk.Resample(Resampled, Rotation)
+# Rotation.SetMatrix(M)
+# Center = np.array(Resampled.GetSize()) / 2 * np.array(Resampled.GetSpacing())
+# CO = Center + np.array(Resampled.GetOrigin())
+# Rotation.SetCenter(CO)
+# Transformed1 = sitk.Resample(Resampled, Rotation)
 
-#%% Transform 2
-# Transform Point
-IT = sitk.ReadTransform(FileNames['InitialTransform'])
-C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-P2 = IT.GetParameters()
-R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
-T2 = -np.array([P2[4], P2[5], P2[3]])
-
-ProcessTiming(1,'Transform points ')
-
-TransformedPoints = []
-
-for iP, Point in enumerate(TP1):
-
-    TP = np.dot(R2, Point - C2) + C2 + T2
-    TransformedPoints.append(TP)
-
-    Progress = iP / len(Points) * 20
-    ProgressNext(Progress)
-ProcessTiming(0)
-TP2 = np.array(TransformedPoints)
-
-# Transform Image
-Transformed2 = sitk.Resample(Transformed1, IT)
-
-
-#%% Transform 3
-# Transform point
-
-FT = GetParameterMap(FileNames['Transform'])
-C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-P3 = np.array(FT['TransformParameters'],'float')
-R3 = RotationMatrix(P3[0], P3[1], P3[2])
-T3 = -np.array(P3[3:])
-
-
-ProcessTiming(1,'Transform points ')    
-TransformedPoints = []
-
-for iP, Point in enumerate(TP2):
-
-    TP = np.dot(R3, Point - C3) + C3 + T3
-    TransformedPoints.append(TP)
-
-    Progress = iP / len(Points) * 20
-    ProgressNext(Progress)
-ProcessTiming(0)
-TP3 = np.array(TransformedPoints)
 
 #%% Rebuild image and write MHD
 
-T_Coords = np.round(TP3 / np.array(Transformed2.GetSpacing())).astype('int')
-T_Array = np.zeros(Array.shape)
+T_Coords = np.round(TP1 / np.array(Transformed2.GetSpacing())).astype('int')
 
-Pad = 20
-P_Array = np.pad(T_Array,((Pad, Pad),(Pad, Pad), (Pad, Pad)))
-P_Array[T_Coords[:,2]+Pad,T_Coords[:,1]+Pad, T_Coords[:,0]+Pad] = 1
+# Compute padding
+MinP = np.abs([min(v,0) for v in np.min(T_Coords,axis=0)])
+MaxP = [1 + max(v, 0) for v in (np.max(T_Coords, axis=0) - Array.shape[::-1])]
 
-T_Image = sitk.GetImageFromArray(P_Array[Pad:-Pad,Pad:-Pad,Pad:-Pad])
+P_Array = np.zeros(Array.shape)
+P_Array = np.pad(P_Array,((MinP[2], MaxP[2]), (MinP[1], MaxP[1]), (MinP[0], MaxP[0])))
+P_Array[T_Coords[:,2] + MinP[2], T_Coords[:,1] + MinP[1], T_Coords[:,0] + MinP[0]] = 1
+
+# P_Array = P_Array[MinP[2]:-MaxP[2],
+#                   MinP[1]:-MaxP[1],
+#                   MinP[0]:-MaxP[0]]
+
+T_Image = sitk.GetImageFromArray(P_Array)
 T_Image.SetSpacing(Transformed2.GetSpacing())
 
+NewOrigin = np.array(Image.GetOrigin()) + MinP
+T_Image.SetOrigin(NewOrigin)
 
-MHD(T_Image, 'Point3')
-MHD(Transformed2, 'Transformed2')
+
+MHD(T_Image, 'Point1')
+# MHD(Transformed3, 'Transformed3')
 
 
 # %%

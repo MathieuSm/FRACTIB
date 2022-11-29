@@ -251,12 +251,12 @@ Common.SetOrigin(Common_Raw.GetOrigin())
 Common.SetSpacing(Common_Raw.GetSpacing())
 
 Show.Registration(Common_Raw, Common, Axis='X')
+Writer = Write()
 Writer.MHD(Common, str(ResultsPath / Sample / 'CommonMask'))
 
 
 #%% Test for inverse transform
 
-Writer = Write()
 Show.Registration(HRpQCT_Bin, Common, Axis='X')
 # HRpQCT_A = sitk.GetArrayFromImage(HRpQCT_Bin)
 # Fill = np.sum(Common_Array * HRpQCT_A) / Common_Array.sum()

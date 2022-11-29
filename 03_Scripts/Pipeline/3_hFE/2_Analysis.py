@@ -1670,21 +1670,13 @@ def TransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
     
     TransformedPoints = []
     
-    if len(Points.shape) == 1:
-        TP = np.dot(R1, Points - C1) + C1 + T1
-        TP = np.dot(R2, TP - C2) + C2 + T2
-        TP = np.dot(R3, TP - C3) + C3 + T3
+    for Point in Points:
 
-        TransformedPoints = TP
+        TP = np.dot(R1, Point + T1 - C1) + C1
+        TP = np.dot(R2, TP + T2 - C2) + C2
+        TP = np.dot(R3, TP + T3 - C3) + C3
 
-    else:
-        for Point in Points:
-
-            TP = np.dot(R1, Point - C1) + C1 + T1
-            TP = np.dot(R2, TP - C2) + C2 + T2
-            TP = np.dot(R3, TP - C3) + C3 + T3
-
-            TransformedPoints.append(TP)
+        TransformedPoints.append(TP)
 
     return np.array(TransformedPoints)
 
@@ -1696,20 +1688,13 @@ def InverseTransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
     
     TransformedPoints = []
     
-    if len(Points.shape) == 1:
-        TP = np.dot(R3, Points - T3 - C3) + C3
-        TP = np.dot(R2, TP - T2 - C2) + C2
-        TP = np.dot(R1, TP - T1 - C1) + C1
+    for Point in Points:
 
-        TransformedPoints = TP
+        TP = np.dot(R3, Point - C3) + C3 - T3
+        TP = np.dot(R2, TP - C2) + C2 - T2
+        TP = np.dot(R1, TP - C1) + C1 - T1
 
-    else:
-        for Point in Points:
-            TP = np.dot(R3, Point - T3 - C3) + C3
-            TP = np.dot(R2, TP - T2 - C2) + C2
-            TP = np.dot(R1, TP - T1 - C1) + C1
-
-            TransformedPoints.append(TP)
+        TransformedPoints.append(TP)
 
     return np.array(TransformedPoints)
 
@@ -1778,6 +1763,9 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
 
     """
 
+    print('\n\nAssign MSL triangulation')
+    Tic = time.time()
+
     # Compute image dimensions
     DimX = Image_Dim[0]
     DimY = Image_Dim[1]
@@ -1795,8 +1783,9 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     del SEG_VTK_Image
     STL.GenerateValues(1, 1, 1)
     STL.Update()
-    print('\n\nStep 1/7: STL file creation finished')
+    print('Step 1/7: STL file creation finished')
     Print_Memory_Usage()
+    PrintTime(Tic, time.time())
 
     # Decimate STL
     STLdeci = vtk.vtkDecimatePro()
@@ -1808,11 +1797,13 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     Print_Memory_Usage()
     del STL
     Print_Memory_Usage()
+    PrintTime(Tic, time.time())
 
     # Calculate number of cells in triangulated mesh
     vtkSTL = STLdeci.GetOutput()
     NFacet = np.arange(vtkSTL.GetNumberOfCells())
     print('Step 3/7: Number of cells calculated')
+    PrintTime(Tic, time.time())
 
     # Calculate center of gravity for each triangle (xc = (x1+x2+x3)/3...)
     # Only keep cogs which are not at the border (z-direction)
@@ -1831,25 +1822,26 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     I = sitk.ReadImage(FileNames['Common'])
     Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
     C1 = Center + np.array(I.GetOrigin())
-    R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
+    R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
     T1 = np.array([0, 0, 0])
 
     IT = sitk.ReadTransform(FileNames['InitialTransform'])
     C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
     P2 = IT.GetParameters()
-    R2 = RotationMatrix(P2[0], P2[1], P2[2])
-    T2 = np.array(P2[3:])
+    R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+    T2 = -np.array(P2[3:])
 
     FT = GetParameterMap(FileNames['Transform'])
     C3 = np.array(FT['CenterOfRotationPoint'], 'float')
     P3 = np.array(FT['TransformParameters'],'float')
-    R3 = RotationMatrix(P3[0], P3[1], P3[2])
-    T3 = np.array(P3[3:])
+    R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
+    T3 = -np.array(P3[3:])
 
     COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), C1, R1, T1, C2, R2, T2, C3, R3, T3)
     COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), C1, R1, T1, C2, R2, T2, C3, R3, T3)
 
     print('Step 4/7: Computation COG finished')
+    PrintTime(Tic, time.time())
 
     # Compute cell normals and dyadic product
     vtkNormals = vtk.vtkPolyDataNormals()
@@ -1877,6 +1869,7 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
         Dyadic_Trab.append(Dyad_Trab.tolist())
 
     print('Step 5/7: Computation dyadic products finished')
+    PrintTime(Tic, time.time())
 
     # Get Cell Area https://www.vtk.org/Wiki/VTK/Examples/Python/MeshLabelImage
     TriangleCellAN = vtk.vtkMeshQuality()
@@ -1896,6 +1889,7 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
         Area_Trab.append(QualityArray.GetValue(i))
 
     print('Step 6/7: Computation areas finished')
+    PrintTime(Tic, time.time())
 
     # area dyadic represents the multiplication of the area with the cross-product of the normals of each triangle
     # these values can now be assigned to the elements according to the center of gravity of the triangle
@@ -1905,6 +1899,8 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
 
     print('Step 7/7: Computation areas finished')
     Print_Memory_Usage()
+    PrintTime(Tic, time.time())
+
     Bone['CogPoints_Cort'] = COGPoints_Cort
     Bone['CogPoints_Trab'] = COGPoints_Trab
     Bone['AreaDyadic_Cort'] = AreaDyadic_Cort
@@ -2869,38 +2865,40 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     only_trab_element = 0
     mixed_phase_element = 0
 
+    # Extract transforms parameters
+    I = sitk.ReadImage(FileNames['Common'])
+    Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+    C1 = Center + np.array(I.GetOrigin())
+    R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
+    T1 = np.array([0, 0, 0])
+
+    IT = sitk.ReadTransform(FileNames['InitialTransform'])
+    C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+    P2 = IT.GetParameters()
+    R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+    T2 = -np.array(P2[3:])
+
+    FT = GetParameterMap(FileNames['Transform'])
+    C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+    P3 = np.array(FT['TransformParameters'],'float')
+    R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
+    T3 = -np.array(P3[3:])
+
     # ---------------------------------------------------------------------------
+    print('\n\nPerform material mapping')
+    Tic = time.time()
     for i, Element in enumerate(Elements):
         # 2.1 Compute center of gravity
-        COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
-                           axis=0)  # center of gravity of each element
+        COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()], axis=0)  # center of gravity of each element
 
         # Transform Center of gravity from uCT to HRpQCT space
-        I = sitk.ReadImage(FileNames['Common'])
-        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
-        C1 = Center + np.array(I.GetOrigin())
-        R1 = np.array([[-1, 0, 0],[0, -1, 0],[0, 0, -1]])
-        T1 = np.array([0, 0, 0])
-
-        IT = sitk.ReadTransform(FileNames['InitialTransform'])
-        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-        P2 = IT.GetParameters()
-        R2 = RotationMatrix(P2[0], P2[1], P2[2])
-        T2 = np.array(P2[3:])
-
-        FT = GetParameterMap(FileNames['Transform'])
-        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-        P3 = np.array(FT['TransformParameters'],'float')
-        R3 = RotationMatrix(P3[0], P3[1], P3[2])
-        T3 = np.array(P3[3:])
-
-        COG_Inv = InverseTransformPoints(COG, C1, R1, T1, C2, R2, T2, C3, R3, T3)
+        COG_Inv = InverseTransformPoints(np.array([COG]), C1, R1, T1, C2, R2, T2, C3, R3, T3)[0]
 
         # 2.2 compute PHI from masks
         Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
         Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG_Inv, Spacing, FEelSize[0], TRABMASK_Array)
 
-        if COG[0] < 0 or COG[1] < 0 or COG[2] < 0:
+        if COG_Inv[0] < 0 or COG_Inv[1] < 0 or COG_Inv[2] < 0:
             Phi_Cort = 0.0
             Phi_Trab = 0.0
 
@@ -2909,6 +2907,7 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
             # 2.3 Compute BVTV
             Rho_Cort, Rho_Trab = Compute_BVTV_TwoPhases(COG_Inv, Spacing, ROI_BVTV_Size_Cort, ROI_BVTV_Size_Trab, SEG_Array, CORTMASK_Array, TRABMASK_Array, Phi_Cort, Phi_Trab)
+
 
             # Apply segmentation correction
             if Phi_Cort > 0.0:
@@ -2935,6 +2934,7 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
             # Check if element holds bone or if mask is empty
             if Phi_Cort * Rho_Cort or Rho_Trab * Phi_Trab > 0.0:
+                # Only 1/4 of the elements get there... why?
                 Elements_Sets['BONE'].append(Element)
 
                 Phis_Cort[Element] = Phi_Cort
@@ -3008,6 +3008,7 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
     print("\nThe following number of elements were mapped for each phase\n  - cortical:   %5d \n"
           "  - trabecular: %5d \n  - mixed:      %5d" % (only_cort_element, only_trab_element, mixed_phase_element))
+    PrintTime(Tic, time.time())
 
     # conversion to np array for calculation of BVTV and selection of only elements contained in ELSET BONE
     # -----------------------------------------------------------------------------------------------------

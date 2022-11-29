@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
+from Utils import *
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -99,97 +100,15 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
                     # VonMises_Strain[k,j,i] = VM_Strain
 
     return SphericalCompression, IsovolumicDeformation
-def WriteRaw(ImageArray, OutputFileName, PixelType):
-
-    if PixelType == 'uint':
-
-        MinValue = ImageArray.min()
-
-        if MinValue < 0:
-            ShiftedImageArray = ImageArray + abs(MinValue)
-            MaxValue = ShiftedImageArray.max()
-        elif MinValue > 0:
-            ShiftedImageArray = ImageArray - MinValue
-            MaxValue = ShiftedImageArray.max()
-        else :
-            ShiftedImageArray = ImageArray
-            MaxValue = ShiftedImageArray.max()
-
-        ScaledImageArray = ShiftedImageArray / MaxValue * 255
-
-        CastedImageArray = ScaledImageArray.astype(np.uint8)
-
-    elif PixelType == 'short':
-        CastedImageArray = ImageArray.astype(np.short)
-    elif PixelType == 'float':
-        CastedImageArray = ImageArray.astype('float32')
-
-    if os.name == 'posix':
-        File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='C')
-    else:
-        File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='F')
-    
-    File[:] = CastedImageArray[:]
-    del File
-
-    return
-def WriteMHD(ImageArray, Spacing, Offset, Path, FileName, PixelType='uint'):
-
-    if PixelType == 'short' or PixelType == 'float':
-        if len(ImageArray.shape) == 2:
-
-            Array_3D = np.zeros((1,ImageArray.shape[0],ImageArray.shape[1]))
-
-            for j in range(ImageArray.shape[0]):
-                for i in range(ImageArray.shape[1]):
-                    Array_3D[0,j,i] = ImageArray[j,i]
-
-            ImageArray = Array_3D
-
-    nz, ny, nx = ImageArray.shape
-
-    lx, ly, lz = Spacing
-    ox, oy, oz = Offset
-
-    TransformMatrix = '1 0 0 0 1 0 0 0 1'
-    CenterOfRotation = '0 0 0'
-    AnatomicalOrientation = 'LPS'
-
-    outs = open(os.path.join(Path, FileName) + '.mhd', 'w')
-    outs.write('ObjectType = Image\n')
-    outs.write('NDims = 3\n')
-    outs.write('BinaryData = True\n')
-    outs.write('BinaryDataByteOrderMSB = False\n')
-    outs.write('CompressedData = False\n')
-    outs.write('TransformMatrix = %s \n' % TransformMatrix)
-    outs.write('Offset = ' + str(ox) + ' ' + str(oy) + ' ' + str(oz) + ' \n')
-    outs.write('CenterOfRotation = %s \n' % CenterOfRotation)
-    outs.write('AnatomicalOrientation = %s \n' % AnatomicalOrientation)
-    outs.write('ElementSpacing = %g %g %g\n' % (lx, ly, lz))
-    outs.write('DimSize = %i %i %i\n' % (nx, ny, nz))
-
-    if PixelType == 'uint':
-        outs.write('ElementType = %s\n' % 'MET_UCHAR')
-    elif PixelType == 'short':
-        outs.write('ElementType = %s\n' % 'MET_SHORT')
-    elif PixelType == 'float':
-        outs.write('ElementType = %s\n' % 'MET_FLOAT')
-
-    outs.write('ElementDataFile = %s\n' % (FileName + '.raw'))
-    outs.close()
-
-    WriteRaw(ImageArray, os.path.join(Path, FileName) + '.raw', PixelType)
-
-    return
 
 
 #%% Load files
 # 01 Set variables
-FilePath = str(Path.cwd() / '../../../04_Results/03_hFE/432_L_77_F')
+FilePath = Path.cwd() / '..' / '..' / '..' / '04_Results' / '03_hFE' / '432_L_77_F'
 
 # 02 Load files
-ElementsPositions = pd.read_csv(FilePath + '/ElementsPositions.csv',names=['X','Y','Z'])
-DeformationGradients = pd.read_csv(FilePath + '/DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
+ElementsPositions = pd.read_csv(str(FilePath / 'ElementsPositions.csv'),names=['X','Y','Z'])
+DeformationGradients = pd.read_csv(str(FilePath / 'DeformationGradients.csv'),names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
 
 #%% Build arrays
 # Build arrays
@@ -215,9 +134,18 @@ SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
 # Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
 Origin = [X.min(), Y.min(), Z.min()]
+Origin = [0, 0, 0]
 
-WriteMHD(SphericalCompression, Spacing, Origin,  FilePath, 'J', PixelType='float')
-WriteMHD(IsovolumicDeformation, Spacing, Origin, FilePath, 'F_Tilde', PixelType='float')
+SC = sitk.GetImageFromArray(SphericalCompression)
+SC.SetSpacing(Spacing)
+SC.SetOrigin(Origin)
+ID = sitk.GetImageFromArray(IsovolumicDeformation)
+ID.SetSpacing(Spacing)
+ID.SetOrigin(Origin)
+
+Writer = Write()
+Writer.MHD(SC, str(FilePath / 'J'), PixelType='float')
+Writer.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
 
 # %%
 
