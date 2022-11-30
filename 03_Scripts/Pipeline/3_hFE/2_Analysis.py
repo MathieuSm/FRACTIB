@@ -2998,8 +2998,12 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                         EigenValues = [e.real for e in EigenValues]
                         EigenVectors = [EigenVectors[:, p] for p in [0, 1, 2]]
 
-                # Add eigen vector transformation
-                R3 * R2 * R1 * EigenVectors ?
+                # Transform eigen vectors from HRpQCT to uCT space
+                for iVector, Vector in enumerate(EigenVectors):
+                    RV = np.dot(R1, Vector)
+                    RV = np.dot(R2, RV)
+                    RV = np.dot(R3, RV)
+                    EigenVectors[iVector] = RV
 
                 m[Element] = EigenValues
                 mm[Element] = EigenVectors

@@ -932,4 +932,65 @@ MHD(T_Image, 'Point1')
 # MHD(Transformed3, 'Transformed3')
 
 
+#%% Eigen vector rotation
+# Eigenvector
+
+e1 = np.array([1,0,0])
+e2 = np.array([0,1,0])
+e3 = np.array([0,0,1])
+
+R1 = RotationMatrix(Gamma=sp.pi/4)
+R2 = RotationMatrix(Beta=-sp.pi/4)
+
+Re1 = np.dot(R2, np.dot(R1, e1))
+Re2 = np.dot(R2, np.dot(R1, e2))
+Re3 = np.dot(R2, np.dot(R1, e3))
+
+R1_inv = np.linalg.inv(R1)
+R2_inv = np.linalg.inv(R2)
+
+Re1_inv = np.dot(R1_inv, np.dot(R2_inv, Re1))
+Re2_inv = np.dot(R1_inv, np.dot(R2_inv, Re2))
+Re3_inv = np.dot(R1_inv, np.dot(R2_inv, Re3))
+
+Figure = plt.figure(figsize=(5.5, 4))
+Axis = Figure.add_subplot(111, projection='3d')
+Axis.quiver(0, 0, 0, e1[0], e1[1], e1[2], color=(1,0,0,0.5))
+Axis.quiver(0, 0, 0, e2[0], e2[1], e2[2], color=(0,1,0,0.5))
+Axis.quiver(0, 0, 0, e3[0], e3[1], e3[2], color=(0,0,1,0.5))
+Axis.quiver(0, 0, 0, Re1[0], Re1[1], Re1[2], color=(1,0,0))
+Axis.quiver(0, 0, 0, Re2[0], Re2[1], Re2[2], color=(0,1,0))
+Axis.quiver(0, 0, 0, Re3[0], Re3[1], Re3[2], color=(0,0,1))
+Axis.quiver(0, 0, 0, Re1_inv[0], Re1_inv[1], Re1_inv[2], color=(1,0,1))
+Axis.quiver(0, 0, 0, Re2_inv[0], Re2_inv[1], Re2_inv[2], color=(1,1,0))
+Axis.quiver(0, 0, 0, Re3_inv[0], Re3_inv[1], Re3_inv[2], color=(0,1,1))
+
+# scaling hack
+Bbox_min = np.min([e1, e2, e3])
+Bbox_max = np.max([e1, e2, e3])
+Axis.auto_scale_xyz([Bbox_min, Bbox_max], [Bbox_min, Bbox_max], [Bbox_min, Bbox_max])
+# make the panes transparent
+Axis.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+Axis.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+Axis.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+# make the grid lines transparent
+Axis.xaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+Axis.yaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+Axis.zaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+# modify ticks
+MinX, MaxX = -1, 1
+MinY, MaxY = -1, 1
+MinZ, MaxZ = -1, 1
+Axis.set_xticks([MinX, 0, MaxX])
+Axis.set_yticks([MinY, 0, MaxY])
+Axis.set_zticks([MinZ, 0, MaxZ])
+Axis.xaxis.set_ticklabels([MinX, 0, MaxX])
+Axis.yaxis.set_ticklabels([MinY, 0, MaxY])
+Axis.zaxis.set_ticklabels([MinZ, 0, MaxZ])
+
+Axis.set_xlabel('X')
+Axis.set_ylabel('Y')
+Axis.set_zlabel('Z')
+plt.show()
+
 # %%
