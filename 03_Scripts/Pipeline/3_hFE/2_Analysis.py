@@ -1477,7 +1477,7 @@ class Element_Class:
 
 #%%
 # Preprocessing functions
-def Resample(Image, Factor=None, Size=None, Spacing=None):
+def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
 
     Dimension = Image.GetDimension()
     OriginalSpacing = np.array(Image.GetSpacing())
@@ -1492,15 +1492,16 @@ def Resample(Image, Factor=None, Size=None, Spacing=None):
         NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
         NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
     
-    elif Size:
+    elif Size[0]:
         NewSize = Size
         NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
     
-    elif Spacing:
+    elif Spacing[0]:
         NewSpacing = Spacing
-        NewSize = [Size/Spacing + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+        NewSize = [round(Size/Spacing) + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
     
-    NewImage = sitk.Image(NewSize, Image.GetPixelIDValue())
+    NewArray = np.zeros(NewSize[::-1],'int')
+    NewImage = sitk.GetImageFromArray(NewArray)
     NewImage.SetOrigin(Origin)
     NewImage.SetDirection(Direction)
     NewImage.SetSpacing(NewSpacing)
@@ -1525,7 +1526,7 @@ def CommonRegion(Bone, CommonFile, CommonFile_uCT):
     Mask_uCT = sitk.ReadImage(CommonFile_uCT)
 
     # Resample uCT using nearest neighbour for same spacing
-    Resampled_uCT = Resample(Mask_uCT, Spacing=Spacing)
+    Resampled_uCT = Resample(Mask_uCT, Spacing=Bone['Spacing'])
 
     Array_uCT = sitk.GetArrayFromImage(Resampled_uCT).transpose((2,1,0))
     Bone['Common_uCT'] = Adjust_Image_Size(Array_uCT, Bone['CoarseFactor'], CropZ='Crop')

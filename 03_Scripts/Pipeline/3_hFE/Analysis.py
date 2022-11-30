@@ -1477,6 +1477,37 @@ class Element_Class:
 
 #%%
 # Preprocessing functions
+def Resample(Image, Factor=None, Size=None, Spacing=None):
+
+    Dimension = Image.GetDimension()
+    OriginalSpacing = np.array(Image.GetSpacing())
+    OriginalSize = np.array(Image.GetSize())
+    PhysicalSize = OriginalSize * OriginalSpacing
+
+    Origin = Image.GetOrigin()
+    Direction = Image.GetDirection()
+    Center = OriginalSize * OriginalSpacing / 2
+
+    if Factor:
+        NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Size:
+        NewSize = Size
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Spacing:
+        NewSpacing = Spacing
+        NewSize = [Size/Spacing + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+    
+    NewImage = sitk.Image(NewSize, Image.GetPixelIDValue())
+    NewImage.SetOrigin(Origin)
+    NewImage.SetDirection(Direction)
+    NewImage.SetSpacing(NewSpacing)
+  
+    Transform = sitk.TranslationTransform(Dimension)
+    
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
 def CommonRegion(Bone, CommonFile, CommonFile_uCT):
 
     Mask = sitk.ReadImage(CommonFile)
@@ -1492,7 +1523,11 @@ def CommonRegion(Bone, CommonFile, CommonFile_uCT):
     Bone['Common'] = Array_Adjusted
 
     Mask_uCT = sitk.ReadImage(CommonFile_uCT)
-    Array_uCT = sitk.GetArrayFromImage(Mask_uCT).transpose((2,1,0))
+
+    # Resample uCT using nearest neighbour for same spacing
+    Resampled_uCT = Resample(Mask_uCT, Spacing=Spacing)
+
+    Array_uCT = sitk.GetArrayFromImage(Resampled_uCT).transpose((2,1,0))
     Bone['Common_uCT'] = Adjust_Image_Size(Array_uCT, Bone['CoarseFactor'], CropZ='Crop')
 
     return Bone
@@ -3586,6 +3621,10 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
     Bone = Calculate_BVTV(Bone, Config, ImageType)
     Bone = Generate_Mesh(Bone, FileNames)
     Bone = Calculate_Iso_Fabric(Bone)
+
+    Figure, Axis = plt.subplots(1,1)
+    Axis.imshow(Bone['Common'][:,:,360])
+    plt.savefig('Test')
 
     # 4 Material mapping
     # Compute MSL kernel list
