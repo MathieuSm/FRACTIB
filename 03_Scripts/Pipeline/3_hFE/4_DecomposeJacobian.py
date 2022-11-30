@@ -128,7 +128,7 @@ for Index in DeformationGradients.index:
 
 #%% Decompose deformation
 # Symmetry in Y plane is necessary
-SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
+SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
 #%% Write MHD
 # Compute metadata
