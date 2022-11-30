@@ -77,10 +77,9 @@ def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
     Image_Adjusted.SetDirection (Image.GetDirection())
 
     return Image_Adjusted
-def DecomposeJacobian(JacobianImage):
+def DecomposeJacobian(JacobianArray, SubSampling=1):
 
     # Determine 2D of 3D jacobian array
-    JacobianArray = sitk.GetArrayFromImage(JacobianImage)
     JacobianTerms = JacobianArray.shape[-1]
 
     if JacobianTerms == 4:
@@ -123,7 +122,7 @@ def DecomposeJacobian(JacobianImage):
 
     elif JacobianTerms == 9:
 
-        ArrayShape = JacobianArray[:, :, :, 0].shape
+        ArrayShape = JacobianArray[::SubSampling, ::SubSampling, ::SubSampling, 0].shape
 
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
@@ -135,7 +134,7 @@ def DecomposeJacobian(JacobianImage):
             for j in range(0, ArrayShape[1]):
                 for i in range(0, ArrayShape[2]):
 
-                    F_d = np.matrix(JacobianArray[k, j, i, :].reshape((3, 3)))
+                    F_d = np.matrix(JacobianArray[int(k*SubSampling), int(j*SubSampling), int(i*SubSampling), :].reshape((3, 3)))
 
                     ## Unimodular decomposition of F
                     J = np.linalg.det(F_d)
@@ -160,9 +159,7 @@ def DecomposeJacobian(JacobianImage):
                     # VM_Strain = np.sqrt(3/2) * np.linalg.norm(Deviatoric_E)
                     # VonMises_Strain[k,j,i] = VM_Strain
 
-    SphericalCompression = sitk.GetImageFromArray(SphericalCompression)
-    IsovolumicDeformation = sitk.GetImageFromArray(IsovolumicDeformation)
-
+    return SphericalCompression, IsovolumicDeformation
     for Image in [SphericalCompression, IsovolumicDeformation]:
         Image.SetSpacing(JacobianImage.GetSpacing())
         Image.SetDirection(JacobianImage.GetDirection())
