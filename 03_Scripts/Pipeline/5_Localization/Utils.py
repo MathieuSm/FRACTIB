@@ -3,6 +3,7 @@
 
 import os
 import vtk
+import sys
 import time
 import struct
 import argparse
@@ -201,27 +202,66 @@ def GetParameterMap(FileName):
 
     return ParameterMap
 
-def Resample(OriginalImage, TargetImage):
+def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
 
-    Direction = OriginalImage.GetDirection()
-    Orig_Size = np.array(OriginalImage.GetSize())
-    Orig_Spacing = np.array(OriginalImage.GetSpacing())
+    Dimension = Image.GetDimension()
+    OriginalSpacing = np.array(Image.GetSpacing())
+    OriginalSize = np.array(Image.GetSize())
+    PhysicalSize = OriginalSize * OriginalSpacing
 
-    New_Size = np.array(TargetImage.GetSize())
-    New_Spacing = np.array(TargetImage.GetSpacing())
+    Origin = Image.GetOrigin()
+    Direction = Image.GetDirection()
+    Center = OriginalSize * OriginalSpacing / 2
 
-    Offset = (Orig_Size * Orig_Spacing - New_Size * New_Spacing) / 2
+    if Factor:
+        NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Size[0]:
+        NewSize = Size
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Spacing[0]:
+        NewSpacing = Spacing
+        NewSize = [round(Size/Spacing) + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+    
+    NewArray = np.zeros(NewSize[::-1])
+    NewImage = sitk.GetImageFromArray(NewArray)
+    NewImage.SetOrigin(Origin)
+    NewImage.SetDirection(Direction)
+    NewImage.SetSpacing(NewSpacing)
+  
+    Transform = sitk.TranslationTransform(Dimension)
+    
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
 
-    Resample = sitk.ResampleImageFilter()
-    Resample.SetInterpolator = sitk.sitkLinear
-    Resample.SetOutputDirection(Direction)
-    # Resample.SetOutputOrigin(Offset)
-    Resample.SetOutputSpacing(New_Spacing)
-    Resample.SetSize(TargetImage.GetSize())
+def ProgressStart(Text):
+    global CurrentProgress
+    sys.stdout.write(Text + '|')
+    CurrentProgress = 0
+    sys.stdout.flush()
+    return
+def ProgressNext(Progress):
+    global CurrentProgress
+    if Progress > CurrentProgress:
+        CurrentProgress += 1
+        sys.stdout.write('=')
+        sys.stdout.flush()
+    return
+def ProgressEnd():
+    sys.stdout.write('|\n')
+    sys.stdout.flush()
+    return
+def ProcessTiming(StartStop:bool, Process='Progress'):
 
-    Resampled = Resample.Execute(OriginalImage)
-
-    return Resampled
+    if StartStop*1 == 1:
+        global Tic
+        Tic = time.time()
+        ProgressStart(Process)
+    elif StartStop*1 == 0:
+        ProgressEnd()
+        Toc = time.time()
+        PrintTime(Tic, Toc)
 
 
 #%% Ploting functions
@@ -455,6 +495,9 @@ class Read:
         Numpy_Image = vtk_to_numpy(Data)
         Numpy_Image = Numpy_Image.reshape(Dimension[2], Dimension[1], Dimension[0])
 
+        # Y symmetry (thanks Michi for notifying this!)
+        Numpy_Image = Numpy_Image[:,::-1,:]
+        
         # Converty numpy to ITK image
         Image = sitk.GetImageFromArray(Numpy_Image)
         Image.SetSpacing(Spacing)
@@ -957,6 +1000,9 @@ class Register:
             ElastixImageFilter.SetOutputDirectory(Path)
             ElastixImageFilter.LogToConsoleOff()
             ElastixImageFilter.LogToFileOn()
+
+        if os.name == 'posix':
+            ElastixImageFilter.SetNumberOfThreads(8)
 
         ElastixImageFilter.Execute()
 
