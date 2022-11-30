@@ -202,27 +202,37 @@ def GetParameterMap(FileName):
 
     return ParameterMap
 
-def Resample(OriginalImage, TargetImage):
+def Resample(Image, Factor=None, Size=None, Spacing=None):
 
-    Direction = OriginalImage.GetDirection()
-    Orig_Size = np.array(OriginalImage.GetSize())
-    Orig_Spacing = np.array(OriginalImage.GetSpacing())
+    Dimension = Image.GetDimension()
+    OriginalSpacing = np.array(Image.GetSpacing())
+    OriginalSize = np.array(Image.GetSize())
+    PhysicalSize = OriginalSize * OriginalSpacing
 
-    New_Size = np.array(TargetImage.GetSize())
-    New_Spacing = np.array(TargetImage.GetSpacing())
+    Origin = Image.GetOrigin()
+    Direction = Image.GetDirection()
+    Center = OriginalSize * OriginalSpacing / 2
 
-    Offset = (Orig_Size * Orig_Spacing - New_Size * New_Spacing) / 2
-
-    Resample = sitk.ResampleImageFilter()
-    Resample.SetInterpolator = sitk.sitkLinear
-    Resample.SetOutputDirection(Direction)
-    # Resample.SetOutputOrigin(Offset)
-    Resample.SetOutputSpacing(New_Spacing)
-    Resample.SetSize(TargetImage.GetSize())
-
-    Resampled = Resample.Execute(OriginalImage)
-
-    return Resampled
+    if Factor:
+        NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Size:
+        NewSize = Size
+        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+    
+    elif Spacing:
+        NewSpacing = Spacing
+        NewSize = [Size/Spacing + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+    
+    NewImage = sitk.Image(NewSize, Image.GetPixelIDValue())
+    NewImage.SetOrigin(Origin)
+    NewImage.SetDirection(Direction)
+    NewImage.SetSpacing(NewSpacing)
+  
+    Transform = sitk.TranslationTransform(Dimension)
+    
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
 
 def ProgressStart(Text):
     global CurrentProgress

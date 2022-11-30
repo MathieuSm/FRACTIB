@@ -134,7 +134,7 @@ SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F[:,::-1,:])
 # Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
 Origin = [X.min(), Y.min(), Z.min()]
-Origin = [0, 0, 0]
+# Origin = [0, 0, 0]
 
 SC = sitk.GetImageFromArray(SphericalCompression)
 SC.SetSpacing(Spacing)
@@ -150,7 +150,7 @@ Writer.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
 # %%
 
 Figure, Axis = plt.subplots(1,1)
-Axis.imshow(SphericalCompression[:,:,10])
+Axis.imshow(SphericalCompression[10,:,:])
 plt.show()
 
 # %%

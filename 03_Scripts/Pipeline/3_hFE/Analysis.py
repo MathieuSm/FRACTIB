@@ -1477,37 +1477,6 @@ class Element_Class:
 
 #%%
 # Preprocessing functions
-def Resample(Image, Factor=None, Size=None, Spacing=None):
-
-    Dimension = Image.GetDimension()
-    OriginalSpacing = np.array(Image.GetSpacing())
-    OriginalSize = np.array(Image.GetSize())
-    PhysicalSize = OriginalSize * OriginalSpacing
-
-    Origin = Image.GetOrigin()
-    Direction = Image.GetDirection()
-    Center = OriginalSize * OriginalSpacing / 2
-
-    if Factor:
-        NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
-        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
-    
-    elif Size:
-        NewSize = Size
-        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
-    
-    elif Spacing:
-        NewSpacing = Spacing
-        NewSize = [Size/Spacing + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
-    
-    NewImage = sitk.Image(NewSize, Image.GetPixelIDValue())
-    NewImage.SetOrigin(Origin)
-    NewImage.SetDirection(Direction)
-    NewImage.SetSpacing(NewSpacing)
-  
-    Transform = sitk.TranslationTransform(Dimension)
-    
-    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
 def CommonRegion(Bone, CommonFile, CommonFile_uCT):
 
     Mask = sitk.ReadImage(CommonFile)
@@ -1523,11 +1492,7 @@ def CommonRegion(Bone, CommonFile, CommonFile_uCT):
     Bone['Common'] = Array_Adjusted
 
     Mask_uCT = sitk.ReadImage(CommonFile_uCT)
-
-    # Resample uCT using nearest neighbour for same spacing
-    Resampled_uCT = Resample(Mask_uCT, Spacing=Spacing)
-
-    Array_uCT = sitk.GetArrayFromImage(Resampled_uCT).transpose((2,1,0))
+    Array_uCT = sitk.GetArrayFromImage(Mask_uCT).transpose((2,1,0))
     Bone['Common_uCT'] = Adjust_Image_Size(Array_uCT, Bone['CoarseFactor'], CropZ='Crop')
 
     return Bone
@@ -3851,59 +3816,41 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase, Directories):
     return
 
 #%%
-def Main(ConfigFile):
+# Read config and store to dictionary
+ConfigFile = 'ConfigFile.yaml'
+Config = ReadConfigFile(ConfigFile)
 
-    # Read config and store to dictionary
-    Config = ReadConfigFile(ConfigFile)
+print(yaml.dump(Config, default_flow_style=False))
 
-    print(yaml.dump(Config, default_flow_style=False))
+# Current version of the pipeline/run
+Version = Config['Version']
 
-    # Current version of the pipeline/run
-    Version = Config['Version']
+# Directories
+WD, Data, Scripts, Results = SetDirectories('FRACTIB')
+Directories = {}
+Directories['AIM'] = Data / '01_HRpQCT/'
+Directories['FEA'] = Results / '03_hFE/'
+Directories['Localization'] = Results / '05_Localizations/'
+Directories['Scripts'] = Scripts / '3_hFE/'
+Directories['BCs'] = Scripts / '3_hFE' / 'BCs/'
 
-    # Directories
-    WD, Data, Scripts, Results = SetDirectories('FRACTIB')
-    Directories = {}
-    Directories['AIM'] = Data / '01_HRpQCT/'
-    Directories['FEA'] = Results / '03_hFE/'
-    Directories['Localization'] = Results / '05_Localizations/'
-    Directories['Scripts'] = Scripts / '3_hFE/'
-    Directories['BCs'] = Scripts / '3_hFE' / 'BCs/'
-
-    # File names and folders
-    GrayScale_FileNames = Config['GrayScale_FileNames']
-    Folder_IDs = Config['Folder_IDs']
-
-
-    Sample = GrayScale_FileNames[0]
-    # for Sample in GrayScale_FileNames:
-
-    # Set paths
-    Folder = Folder_IDs[Sample]
-    InputFileName = "{}_{}.inp".format(Sample, Version)
-    InputFile = str(Directories['FEA'] / Folder / InputFileName)
-
-    # Perform material mapping
-    AIM2FE_SA_PSL(Config, Sample, Directories)
-
-    # Write load cases
-    UpDate_BCs_Files(Config, Directories)
-    Create_Canonical_LoadCases(Config, InputFile, Directories)
-    Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
+# File names and folders
+GrayScale_FileNames = Config['GrayScale_FileNames']
+Folder_IDs = Config['Folder_IDs']
 
 
-#%%
-if __name__ == '__main__':
+Sample = GrayScale_FileNames[0]
+# for Sample in GrayScale_FileNames:
 
-    # Initiate the parser with a description
-    Parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawDescriptionHelpFormatter)
+# Set paths
+Folder = Folder_IDs[Sample]
+InputFileName = "{}_{}.inp".format(Sample, Version)
+InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
-    # Add long and short argument
-    ScriptVersion = Parser.prog + ' version ' + Version
-    Parser.add_argument('-v', '--Version', help='Show script version', action='version', version=ScriptVersion)
-    Parser.add_argument('File', help='Configuration file (required)', type=str)
+# Perform material mapping
+# AIM2FE_SA_PSL(Config, Sample, Directories)
 
-    # Read arguments from the command line
-    Arguments = Parser.parse_args()
-
-    Main(Arguments.File)
+# # Write load cases
+# UpDate_BCs_Files(Config, Directories)
+# Create_Canonical_LoadCases(Config, InputFile, Directories)
+# Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
