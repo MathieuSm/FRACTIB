@@ -2998,8 +2998,11 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                         EigenValues = [e.real for e in EigenValues]
                         EigenVectors = [EigenVectors[:, p] for p in [0, 1, 2]]
 
+                # Add eigen vector transformation
+                R3 * R2 * R1 * EigenVectors ?
 
-                m[Element], mm[Element] = EigenValues, EigenVectors
+                m[Element] = EigenValues
+                mm[Element] = EigenVectors
                 DOA[Element] = EigenValues[0] / EigenValues[2]
                 COGs[Element] = COG
 
