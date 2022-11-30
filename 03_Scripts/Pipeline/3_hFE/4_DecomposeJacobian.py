@@ -17,14 +17,13 @@ plt.rc('font', size=12)
 
 #%% Functions
 # Define functions
-def DecomposeJacobian(JacobianArray, SubSampling=1):
+def DecomposeJacobian(JacobianArray):
 
     # Determine 2D of 3D jacobian array
     JacobianTerms = JacobianArray.shape[-1]
+    ArrayShape = JacobianArray.shape[:-1]
 
     if JacobianTerms == 4:
-
-        ArrayShape = JacobianArray[::SubSampling, ::SubSampling, 0].shape
 
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
@@ -34,14 +33,18 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
 
         for j in range(0, ArrayShape[0]):
             for i in range(0, ArrayShape[1]):
-                F_d = np.matrix(
-                    JacobianArray[int(j * SubSampling), int(i * SubSampling), :].reshape((2,2)))
+                F_d = np.matrix(JacobianArray[j, i, :].reshape((2,2)))
 
                 ## Unimodular decomposition of F
                 J = np.linalg.det(F_d)
                 SphericalCompression[j, i] = J
-                F_tilde = J ** (-1 / 3) * F_d
-                Norm_F_tilde = np.linalg.norm(F_tilde)
+
+                if J > 0:
+                    F_tilde = J ** (-1 / 3) * F_d
+                    Norm_F_tilde = np.linalg.norm(F_tilde)
+                else:
+                    Norm_F_tilde = 0.0
+
                 IsovolumicDeformation[j, i] = Norm_F_tilde
 
                 # ## Optional: decomposition of F_tilde
@@ -62,8 +65,6 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
 
     elif JacobianTerms == 9:
 
-        ArrayShape = JacobianArray[::SubSampling, ::SubSampling, ::SubSampling, 0].shape
-
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
         # HydrostaticStrain = np.zeros(JacobianArray[ArrayShape)
@@ -74,13 +75,18 @@ def DecomposeJacobian(JacobianArray, SubSampling=1):
             for j in range(0, ArrayShape[1]):
                 for i in range(0, ArrayShape[2]):
 
-                    F_d = np.matrix(JacobianArray[int(k*SubSampling), int(j*SubSampling), int(i*SubSampling), :].reshape((3, 3)))
+                    F_d = np.matrix(JacobianArray[k, j, i, :].reshape((3, 3)))
 
                     ## Unimodular decomposition of F
                     J = np.linalg.det(F_d)
                     SphericalCompression[k, j, i] = J
-                    F_tilde = J ** (-1 / 3) * F_d
-                    Norm_F_tilde = np.linalg.norm(F_tilde)
+
+                    if J > 0:
+                        F_tilde = J ** (-1 / 3) * F_d
+                        Norm_F_tilde = np.linalg.norm(F_tilde)
+                    else:
+                        Norm_F_tilde = 0.0
+
                     IsovolumicDeformation[k, j, i] = Norm_F_tilde
 
                     # ## Optional: decomposition of F_tilde
@@ -150,7 +156,7 @@ Writer.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
 # %%
 
 Figure, Axis = plt.subplots(1,1)
-Axis.imshow(SphericalCompression[10,:,:])
+Axis.imshow(SphericalCompression[:,:,15])
 plt.show()
 
 # %%
