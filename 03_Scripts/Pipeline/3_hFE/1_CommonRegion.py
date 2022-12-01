@@ -3,6 +3,7 @@
 
 import pandas as pd
 from Utils import *
+Show = Show()
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)

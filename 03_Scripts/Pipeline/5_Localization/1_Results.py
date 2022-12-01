@@ -5,6 +5,7 @@ import SimpleITK as sitk
 from pathlib import Path
 
 from Utils import *
+Show = Show()
 
 def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
 
@@ -100,28 +101,21 @@ RefSpacing = np.array(hFEMask.GetSpacing())
 R_Mask = Resample(Mask, Spacing=RefSpacing)
 CoarseFactor = round(hFE[0].GetSpacing()[0] / hFEMask.GetSpacing()[0])
 A_Mask = Adjust_Image_Size(R_Mask, CoarseFactor)
-R_Mask = Resample(A_Mask, Factor=CoarseFactor)
-R_Mask = Otsu.Execute(R_Mask)
+R_Mask = Resample(A_Mask, Spacing=hFE[0].GetSpacing())
 
-Pad = np.array(R_Mask.GetSize()) - np.array(hFE[0].GetSize())
+Pad = tuple(int(p) for p in np.array(R_Mask.GetSize()) - np.array(hFE[0].GetSize()))
+PhFE = [sitk.ConstantPad(P, (0, 0, 0), Pad) for P in hFE]
 
-PhFE = sitk.ConstantPad(hFE[0], (6, 4, 1), (5, 3, 0))
-Show.Registration(R_Mask, PhFE)
+Show.Registration(R_Mask, PhFE[0], AsBinary=True)
+Show.Registration(R_Mask, uCT[0])
 
-a_ = sitk.GetArrayFromImage(R_Mask)
-Figure, Axis = plt.subplots(1,1)
-Axis.imshow(a_[a_.shape[0]//2,:,:])
-
-plt.show()
-
-R_uCT = Resample(uCT[0], Size=RefSize)
 
 
 #%% Compare values
 # Results
 
-hFE_Array = sitk.GetArrayFromImage(hFE[0])
-uCT_Array = sitk.GetArrayFromImage(R_uCT)
+hFE_Array = sitk.GetArrayFromImage(PhFE[0])
+uCT_Array = sitk.GetArrayFromImage(uCT[0])
 Mask_Array = sitk.GetArrayFromImage(R_Mask)
 
 X = uCT_Array * Mask_Array
@@ -135,6 +129,8 @@ Yf = Y[Filter_uCT * Filter_hFE]
 
 Figure, Axis = plt.subplots(1,1)
 Axis.plot(Xf, Yf, color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
+Axis.set_xlabel('uCT values')
+Axis.set_ylabel('hFE values')
 plt.show()
 
 

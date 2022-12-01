@@ -270,7 +270,15 @@ class Show:
     def __init__(self):
         pass
 
-    def Slice(Image, Slice=None, Title=None, Axis='Z'):
+    def Normalize(self, Array):
+
+        Min = np.min(Array)
+        Max = np.max(Array)
+        N_Array = (Array - Min) / (Max - Min) * 255
+
+        return np.array(N_Array).astype('uint8') 
+
+    def Slice(self, Image, Slice=None, Title=None, Axis='Z'):
 
         Array = sitk.GetArrayFromImage(Image)
 
@@ -303,22 +311,31 @@ class Show:
 
         return
 
-    def Registration(Fixed, Moving, Slice=None, Title=None, Axis='Z'):
+    def Registration(self, Fixed, Moving, Slice=None, Title=None, Axis='Z', AsBinary=False):
 
         FixedArray = sitk.GetArrayFromImage(Fixed)
         MovingArray = sitk.GetArrayFromImage(Moving)
 
-        if len(np.unique(FixedArray)) > 2 or len(np.unique(MovingArray)) > 2:
+        if AsBinary:
             Otsu = sitk.OtsuThresholdImageFilter()
             Otsu.SetInsideValue(0)
             Otsu.SetOutsideValue(1)
-            Fixed_Bin = Otsu.Execute(Fixed)
-            Moving_Bin = Otsu.Execute(Moving)
-            FixedArray = sitk.GetArrayFromImage(Fixed_Bin)
-            MovingArray = sitk.GetArrayFromImage(Moving_Bin)
+            
+            if len(np.unique(FixedArray)) > 2:
+                Fixed_Bin = Otsu.Execute(Fixed)
+                FixedArray = sitk.GetArrayFromImage(Fixed_Bin)
+            
+            if len(np.unique(MovingArray)) > 2:
+                Moving_Bin = Otsu.Execute(Moving)
+                MovingArray = sitk.GetArrayFromImage(Moving_Bin)
+
+
+        FixedArray = self.Normalize(FixedArray)
+        MovingArray = self.Normalize(MovingArray)
+
 
         if Fixed.GetDimension() == 3:
-            Array = np.zeros((Fixed.GetSize()[2], Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
+            Array = np.zeros((Fixed.GetSize()[2], Fixed.GetSize()[1], Fixed.GetSize()[0], 3), 'uint8')
             Array[:,:,:,0] = FixedArray
             Array[:,:,:,1] = MovingArray
             Array[:,:,:,2] = MovingArray
@@ -818,7 +835,7 @@ class Write:
         lx, ly, lz = Image.GetSpacing()
 
         TransformMatrix = '1 0 0 0 1 0 0 0 1'
-        Offset = str(np.array(Image.GetOrigin(),'int'))[1:-1]
+        Offset = str(np.array(Image.GetOrigin()))[1:-1]
         CenterOfRotation = '0 0 0'
         AnatomicalOrientation = 'LPS'
 
