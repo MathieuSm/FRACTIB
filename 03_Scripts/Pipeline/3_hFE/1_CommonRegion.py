@@ -174,7 +174,7 @@ for i in range(NRotations):
 
     # Register images
     Dict = {'MaximumNumberOfIterations': [256]}
-    RI, TPM = Register.Rigid(uCT_Slice, HRpQCT_Rotated, str(ResultsPath / Sample), Dict)
+    RI, TPM = Register.Rigid(uCT_Slice, HRpQCT_Rotated, Path=str(ResultsPath / Sample), Dictionary=Dict)
     HRpQCT_Bin = Otsu.Execute(RI)
 
     # Compute dice coefficient
@@ -201,7 +201,7 @@ sitk.WriteTransform(T, str(ResultsPath / Sample / 'InitialTransform.txt'))
 
 HRpQCT_I = sitk.Resample(HRpQCT_Pad, T)
 HRpQCT_I = Otsu.Execute(HRpQCT_I)
-RI, TPM = Register.Rigid(uCT_Mask, HRpQCT_I, str(ResultsPath / Sample))
+RI, TPM = Register.Rigid(uCT_Mask, HRpQCT_I, Path=str(ResultsPath / Sample))
 HRpQCT_Bin = Otsu.Execute(RI)
 uCT_Bin = Otsu.Execute(uCT_Mask)
 
@@ -290,5 +290,19 @@ Writer.MHD(Common_F, str(Results / '03_hFE' / Sample / 'CommonMask'))
 # uCT_Inv = Otsu.Execute(RI)
 # Show.Registration(HRpQCT_I, uCT_Inv, Axis='X')
 
+#%% For plot
 
+
+GrayFile = str(hFE_Data / Sample / (HRpQCT_File + '_UNCOMP.AIM'))
+Gray, Add = Reader.AIM(GrayFile)
+
+Rotation = sitk.VersorRigid3DTransform()
+M = RotationMatrix(Alpha=0, Beta=sp.pi, Gamma=0)
+M = [v for v in M.flatten()]
+
+Rotation.SetMatrix(M)
+Center = np.array(HRpQCT_Mask.GetSize()) / 2 * np.array(HRpQCT_Mask.GetSpacing())
+CO = Center + np.array(HRpQCT_Mask.GetOrigin())
+Rotation.SetCenter(CO)
+Gray_Resampled = sitk.Resample(Gray, Rotation)
 # %%
