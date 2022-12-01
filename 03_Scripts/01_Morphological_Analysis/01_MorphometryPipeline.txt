@@ -1,2 +1,0 @@
-# Perform ROI morphometry analysis
-"/root/medtool45_SL77/Python27/bin/python" "/root/medtool45_SL77/bin/hma.pyc" -in "$Scan.mhd"  -out "$Scan.csv" -bvtv "ON" -tbth "ON" -tbsp "ON" -tbn "ON"  -smi "ON"  -da "ON" -norm "trace"  -ctth "ON" -pov "ON" -por "ON" -pon "ON"
