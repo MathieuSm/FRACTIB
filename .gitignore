@@ -24,3 +24,6 @@
 # Ignore Abaqus files
 *.inp
 *.odb
+
+# Ignore image files
+*.nii

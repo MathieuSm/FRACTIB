@@ -963,7 +963,7 @@ class Write:
 #%% Registration funtions
 class Register:
 
-    def Rigid(FixedImage, MovingImage, Path=None, Dictionary={}):
+    def Rigid(FixedImage, MovingImage, FixedMask=None, Path=None, Dictionary={}):
 
         print('\nPerform rigid registration')
         Tic = time.time()
@@ -996,6 +996,10 @@ class Register:
         ElastixImageFilter.SetFixedImage(FixedImage)
         ElastixImageFilter.SetMovingImage(MovingImage)
 
+        if FixedMask:
+            FixedMask = sitk.Cast(FixedMask, sitk.sitkUInt8)
+            ElastixImageFilter.SetFixedMask(FixedMask)
+
         if Path:
             ElastixImageFilter.SetOutputDirectory(Path)
             ElastixImageFilter.LogToConsoleOff()
@@ -1008,13 +1012,70 @@ class Register:
 
         # Get results
         Result_Image = ElastixImageFilter.GetResultImage()
-        TransformParameters = ElastixImageFilter.GetTransformParameterMap()
+        TransformParametersMap = ElastixImageFilter.GetTransformParameterMap()
 
         # Print elapsed time
         Toc = time.time()
         PrintTime(Tic, Toc)
 
-        return Result_Image, TransformParameters
+        return Result_Image, TransformParametersMap
+
+    def NonRigid(FixedImage, MovingImage, FixedMask=None, Path=None, Dictionary={}):
+
+        print('\nPerform non-rigid registration')
+        Tic = time.time()
+        ParameterMap = sitk.GetDefaultParameterMap('bspline')
+
+        # Set standard parameters if not specified otherwise
+        if 'MaximumNumberOfIterations' not in Dictionary.keys():
+            ParameterMap['MaximumNumberOfIterations'] = ['2000']
+
+        if 'FixedImagePyramidSchedule' not in Dictionary.keys():
+            ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+
+        if 'MovingImagePyramidSchedule' not in Dictionary.keys():
+            ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+
+        if 'SP_alpha' not in Dictionary.keys():
+            ParameterMap['SP_alpha'] = ['0.6']
+
+        if 'SP_A' not in Dictionary.keys():
+            ParameterMap['SP_A'] = ['1000']
+
+        # Set other defined parameters
+        for Key in Dictionary.keys():
+            ParameterMap[Key] = [str(Item) for Item in Dictionary[Key]]
+
+
+        # Set Elastix and perform registration
+        ElastixImageFilter = sitk.ElastixImageFilter()
+        ElastixImageFilter.SetParameterMap(ParameterMap)
+        ElastixImageFilter.SetFixedImage(FixedImage)
+        ElastixImageFilter.SetMovingImage(MovingImage)
+
+        if FixedMask:
+            FixedMask = sitk.Cast(FixedMask, sitk.sitkUInt8)
+            ElastixImageFilter.SetFixedMask(FixedMask)
+
+        if Path:
+            ElastixImageFilter.SetOutputDirectory(Path)
+            ElastixImageFilter.LogToConsoleOff()
+            ElastixImageFilter.LogToFileOn()
+
+        if os.name == 'posix':
+            ElastixImageFilter.SetNumberOfThreads(8)
+
+        ElastixImageFilter.Execute()
+
+        # Get results
+        Result_Image = ElastixImageFilter.GetResultImage()
+        TransformParametersMap = ElastixImageFilter.GetTransformParameterMap()
+
+        # Print elapsed time
+        Toc = time.time()
+        PrintTime(Tic, Toc)
+
+        return Result_Image, TransformParametersMap
         
     def ComputeInverse(FixedImage, TPMFileName, MovingImage=None, Path=None):
 

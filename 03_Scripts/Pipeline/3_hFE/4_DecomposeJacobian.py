@@ -133,7 +133,6 @@ for Index in DeformationGradients.index:
     F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
 
 #%% Decompose deformation
-# Symmetry in Y plane is necessary
 SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
 #%% Write MHD
