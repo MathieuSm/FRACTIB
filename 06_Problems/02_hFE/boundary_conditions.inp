@@ -1,0 +1,13 @@
+*************************************************************
+** Boundary conditions for Vertebra Marc
+*************************************************************
+*STATIC
+** start step size, time for displacement, min step size, max step size
+0.05, 4.8, 5e-05, 0.05
+*BOUNDARY, TYPE=DISPLACEMENT
+REF_NODE, 3, 3, 0.3
+REF_NODE, 1, 2, 0.0
+REF_NODE, 4, 6, 0.0
+
+** Hosseini loading rate: 5mm/min
+** --> 4.8sec for 0.4mm displ.
