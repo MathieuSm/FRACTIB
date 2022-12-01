@@ -138,24 +138,23 @@ SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 #%% Write MHD
 # Compute metadata
 Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
-Origin = [X.min(), Y.min(), Z.min()]
+Origin = np.array([X.min(), Y.min(), Z.min()])
 # Origin = [0, 0, 0]
+
+Pad = tuple(int(v) for v in np.floor(Origin / Spacing))
 
 SC = sitk.GetImageFromArray(SphericalCompression)
 SC.SetSpacing(Spacing)
 SC.SetOrigin(Origin)
+SCP = sitk.ConstantPad(SC, Pad, (0,0,0))
+
 ID = sitk.GetImageFromArray(IsovolumicDeformation)
 ID.SetSpacing(Spacing)
 ID.SetOrigin(Origin)
+IDP = sitk.ConstantPad(ID, Pad, (0,0,0))
 
 Writer = Write()
-Writer.MHD(SC, str(FilePath / 'J'), PixelType='float')
-Writer.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
-
-# %%
-
-Figure, Axis = plt.subplots(1,1)
-Axis.imshow(SphericalCompression[:,:,15])
-plt.show()
+Writer.MHD(SCP, str(FilePath / 'J'), PixelType='float')
+Writer.MHD(IDP, str(FilePath / 'F_Tilde'), PixelType='float')
 
 # %%
