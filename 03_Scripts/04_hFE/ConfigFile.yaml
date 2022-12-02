@@ -11,7 +11,7 @@
 Version: 'Test'
 
 # Define element size
-ElementSize: 1
+ElementSize: 1.2747
 
 # Define fabric type -> Isotropic or Local
 FabricType: 'Isotropic'

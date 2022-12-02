@@ -683,6 +683,7 @@ for Index in range(18,len(SampleList)):
     Spacing = FixedImage.GetSpacing()
     CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
     FixedImage = Adjust_Image_Size(FixedImage, CoarseFactor)
+    FixedMask = Adjust_Image_Size(FixedMask, CoarseFactor)
 
 
 
@@ -851,7 +852,7 @@ for Index in range(18,len(SampleList)):
     Orig_Size = np.array(JacobianImage.GetSize(), dtype='int')
     Orig_Spacing = JacobianImage.GetSpacing()
 
-    New_Spacing = (0.9712, 0.9712, 0.9712)
+    New_Spacing = (1.2747, 1.2747, 1.2747)
 
     Resample = sitk.ResampleImageFilter()
     Resample.SetInterpolator = sitk.sitkLinear

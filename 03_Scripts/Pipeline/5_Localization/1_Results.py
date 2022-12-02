@@ -106,7 +106,7 @@ R_Mask = Resample(A_Mask, Spacing=hFE[0].GetSpacing())
 Pad = tuple(int(p) for p in np.array(R_Mask.GetSize()) - np.array(hFE[0].GetSize()))
 PhFE = [sitk.ConstantPad(P, (0, 0, 0), Pad) for P in hFE]
 
-Show.Registration(R_Mask, PhFE[0], AsBinary=True)
+Show.Registration(R_Mask, PhFE[0], AsBinary = False)
 Show.Registration(R_Mask, uCT[0])
 
 
@@ -114,24 +114,18 @@ Show.Registration(R_Mask, uCT[0])
 #%% Compare values
 # Results
 
-hFE_Array = sitk.GetArrayFromImage(PhFE[0])
-uCT_Array = sitk.GetArrayFromImage(uCT[0])
-Mask_Array = sitk.GetArrayFromImage(R_Mask)
+for i in range(2):
+    hFE_Array = sitk.GetArrayFromImage(PhFE[i])
+    uCT_Array = sitk.GetArrayFromImage(uCT[i])
 
-X = uCT_Array * Mask_Array
-Y = hFE_Array * Mask_Array
+    X = uCT_Array[hFE_Array > 0]
+    Y = hFE_Array[hFE_Array > 0]
 
-Filter_uCT = X > 0
-Filter_hFE = Y > 0
-
-Xf = X[Filter_uCT * Filter_hFE]
-Yf = Y[Filter_uCT * Filter_hFE]
-
-Figure, Axis = plt.subplots(1,1)
-Axis.plot(Xf, Yf, color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
-Axis.set_xlabel('uCT values')
-Axis.set_ylabel('hFE values')
-plt.show()
+    Figure, Axis = plt.subplots(1,1)
+    Axis.plot(X, Y, color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
+    Axis.set_xlabel('uCT values')
+    Axis.set_ylabel('hFE values')
+    plt.show()
 
 
 

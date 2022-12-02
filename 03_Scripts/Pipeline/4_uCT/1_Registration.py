@@ -330,7 +330,7 @@ Rigid_Bin = Otsu.Execute(RigidResult * FixedMask + (1-FixedMask)*MeanValue)
 Dictionary = {'FixedImagePyramidSchedule':[64, 32, 16, 8, 4, 2, 1],
               'MovingImagePyramidSchedule':[64, 32, 16, 8, 4, 2, 1],
               'NewSamplesEveryIteration':['true'],
-              'FinalGridSpacingInPhysicalUnits':[Config['ElementSize']]} # or 0.9712
+              'FinalGridSpacingInPhysicalUnits':Config['ElementSize']} # or 0.9712
 ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, ResultsDirectory, Dictionary)
 
 BSpline_Bin = Otsu.Execute(ResultImage * FixedMask + (1-FixedMask)*MeanValue)
