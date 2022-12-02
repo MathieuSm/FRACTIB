@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999993 (TeX Live 2021/W32TeX) (preloaded format=xelatex 2022.1.11)  2 DEC 2022 08:46
+This is XeTeX, Version 3.141592653-2.6-0.999993 (TeX Live 2021/W32TeX) (preloaded format=xelatex 2022.1.11)  2 DEC 2022 11:57
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1553,88 +1553,13 @@ File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
  [2
 
 ]
-
-! LaTeX Error: File `Picture/BSpline_097' not found.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.166 ^^I\end{frame}
-                    
-I could not locate the file with any of these extensions:
-.pdf,.PDF,.ai,.AI,.png,.PNG,.jpg,.JPG,.jpeg,.JPEG,.jp2,.JP2,.jpf,.JPF,.bmp,.BMP
-,.ps,.PS,.eps,.EPS,.mps,.MPS
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-LaTeX Warning: File `Picture/BSpline_1.27' not found on input line 166.
-
-
-! LaTeX Error: File `Picture/BSpline_1.27' not found.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.166 ^^I\end{frame}
-                    
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-! LaTeX Error: Cannot determine size of graphic in Picture/BSpline_1.27 (no Bou
-ndingBox).
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.166 ^^I\end{frame}
-                    
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-File: Picture/BSpline_1.27 Graphic file (type eps)
-<Picture/BSpline_1.27>
-File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
-<Pictures/00_Unibe_Logo.png>
-[3
-
-]
-
-! LaTeX Error: File `Pictures/J_5_06' not found.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.183 ^^I\end{frame}
-                    
-I could not locate the file with any of these extensions:
-.pdf,.PDF,.ai,.AI,.png,.PNG,.jpg,.JPG,.jpeg,.JPEG,.jp2,.JP2,.jpf,.JPF,.bmp,.BMP
-,.ps,.PS,.eps,.EPS,.mps,.MPS
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-! LaTeX Error: File `Pictures/F_5_06' not found.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.183 ^^I\end{frame}
-                    
-I could not locate the file with any of these extensions:
-.pdf,.PDF,.ai,.AI,.png,.PNG,.jpg,.JPG,.jpeg,.JPEG,.jp2,.JP2,.jpf,.JPF,.bmp,.BMP
-,.ps,.PS,.eps,.EPS,.mps,.MPS
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
+File: Pictures/J_5_06.png Graphic file (type bmp)
+<Pictures/J_5_06.png>
+File: Pictures/F_5_06.png Graphic file (type bmp)
+<Pictures/F_5_06.png>
 LaTeX Font Info:    Trying to load font information for OT1+ntxtlf on input lin
-e 183.
+e 164.
+
 (c:/texlive/2021/texmf-dist/tex/latex/newtx/ot1ntxtlf.fd
 File: ot1ntxtlf.fd 2021/05/24 v1.0 font definition file for OT1/ntx/tlf
 )
@@ -1662,7 +1587,7 @@ Requested font "ntxexx" at 10.5pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
 Requested font "ntxexx" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
-LaTeX Font Info:    Trying to load font information for U+msa on input line 183
+LaTeX Font Info:    Trying to load font information for U+msa on input line 164
 .
 
 (c:/texlive/2021/texmf-dist/tex/latex/amsfonts/umsa.fd
@@ -1674,7 +1599,7 @@ Requested font "msam10" at 10.5pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm
 Requested font "msam7" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam7.tfm
-LaTeX Font Info:    Trying to load font information for U+msb on input line 183
+LaTeX Font Info:    Trying to load font information for U+msb on input line 164
 .
 
 (c:/texlive/2021/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -1687,7 +1612,7 @@ Requested font "msbm10" at 10.5pt
 Requested font "msbm7" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm7.tfm
 LaTeX Font Info:    Trying to load font information for U+ntxmia on input line 
-183.
+164.
 
 (c:/texlive/2021/texmf-dist/tex/latex/newtx/untxmia.fd
 File: untxmia.fd 2018/04/14 Fontinst v1.933 font definitions for U/ntxmia.
@@ -1699,7 +1624,7 @@ Requested font "ntxmia" at 10.5pt
 Requested font "ntxmia" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/newtx/ntxmia.tfm
 LaTeX Font Info:    Trying to load font information for U+ntxsym on input line 
-183.
+164.
 
 (c:/texlive/2021/texmf-dist/tex/latex/newtx/untxsym.fd
 File: untxsym.fd 2015/03/20 Fontinst v1.933 font definitions for U/ntxsym.
@@ -1711,7 +1636,7 @@ Requested font "ntxsym" at 10.5pt
 Requested font "ntxsym" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/newtx/ntxsym.tfm
 LaTeX Font Info:    Trying to load font information for U+ntxsyc on input line 
-183.
+164.
 
 (c:/texlive/2021/texmf-dist/tex/latex/newtx/untxsyc.fd
 File: untxsyc.fd 2012/04/12 Fontinst v1.933 font definitions for U/ntxsyc.
@@ -1729,35 +1654,81 @@ Requested font "ntxexa" at 10.5pt
 Requested font "ntxexa" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/tfm/public/newtx/ntxexa.tfm
 LaTeX Font Info:    Font shape `TU/TeXGyreTermesX(0)/m/n' will be
-(Font)              scaled to size 10.5pt on input line 183.
+(Font)              scaled to size 10.5pt on input line 164.
 Requested font "[TeXGyreTermesX-Regular.otf]/OT:script=latn;language=dflt;-ss05
 ;+tnum;+lnum;mapping=tex-text;" at 10.5pt
  -> c:/texlive/2021/texmf-dist/fonts/opentype/public/newtx/TeXGyreTermesX-Regul
 ar.otf
 LaTeX Font Info:    Font shape `TU/TeXGyreTermesX(0)/m/n' will be
-(Font)              scaled to size 7.9pt on input line 183.
+(Font)              scaled to size 7.9pt on input line 164.
 Requested font "[TeXGyreTermesX-Regular.otf]/OT:script=latn;language=dflt;-ss05
 ;+tnum;+lnum;mapping=tex-text;" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/opentype/public/newtx/TeXGyreTermesX-Regul
 ar.otf
 LaTeX Font Info:    Font shape `TU/TeXGyreTermesX(0)/m/it' will be
-(Font)              scaled to size 14.4pt on input line 183.
+(Font)              scaled to size 14.4pt on input line 164.
 Requested font "[TeXGyreTermesX-Italic.otf]/OT:script=latn;language=dflt;-ss05;
 +tnum;+lnum;mapping=tex-text;" at 14.4pt
  -> c:/texlive/2021/texmf-dist/fonts/opentype/public/newtx/TeXGyreTermesX-Itali
 c.otf
 LaTeX Font Info:    Font shape `TU/TeXGyreTermesX(0)/m/it' will be
-(Font)              scaled to size 10.5pt on input line 183.
+(Font)              scaled to size 10.5pt on input line 164.
 Requested font "[TeXGyreTermesX-Italic.otf]/OT:script=latn;language=dflt;-ss05;
 +tnum;+lnum;mapping=tex-text;" at 10.5pt
  -> c:/texlive/2021/texmf-dist/fonts/opentype/public/newtx/TeXGyreTermesX-Itali
 c.otf
 LaTeX Font Info:    Font shape `TU/TeXGyreTermesX(0)/m/it' will be
-(Font)              scaled to size 7.9pt on input line 183.
+(Font)              scaled to size 7.9pt on input line 164.
 Requested font "[TeXGyreTermesX-Italic.otf]/OT:script=latn;language=dflt;-ss05;
 +tnum;+lnum;mapping=tex-text;" at 7.9pt
  -> c:/texlive/2021/texmf-dist/fonts/opentype/public/newtx/TeXGyreTermesX-Itali
 c.otf
 File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
 <Pictures/00_Unibe_Logo.png>
+ [3
+
+]
+File: Pictures/J_2_07.png Graphic file (type bmp)
+<Pictures/J_2_07.png>
+File: Pictures/F_2_07.png Graphic file (type bmp)
+<Pictures/F_2_07.png>
+File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
+<Pictures/00_Unibe_Logo.png>
  [4
+
+]
+File: Pictures/J_0_10.png Graphic file (type bmp)
+<Pictures/J_0_10.png>
+File: Pictures/F_0_10.png Graphic file (type bmp)
+<Pictures/F_0_10.png>
+File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
+<Pictures/00_Unibe_Logo.png>
+ [5
+
+]
+File: Pictures/00_Unibe_Logo.png Graphic file (type bmp)
+<Pictures/00_Unibe_Logo.png>
+ [6
+
+]
+\tf@nav=\write5
+\openout5 = `2022_12_02.nav'.
+
+\tf@toc=\write6
+\openout6 = `2022_12_02.toc'.
+
+\tf@snm=\write7
+\openout7 = `2022_12_02.snm'.
+
+
+(./2022_12_02.aux) ) 
+Here is how much of TeX's memory you used:
+ 34280 strings out of 476257
+ 737139 string characters out of 5814694
+ 1022859 words of memory out of 5000000
+ 54237 multiletter control sequences out of 15000+600000
+ 421144 words of font info for 92 fonts, out of 8000000 for 9000
+ 1348 hyphenation exceptions out of 8191
+ 128i,15n,133p,423b,750s stack positions out of 5000i,500n,10000p,200000b,80000s
+
+Output written on 2022_12_02.pdf (6 pages).
