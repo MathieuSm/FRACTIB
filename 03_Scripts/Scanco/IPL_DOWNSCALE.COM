@@ -70,7 +70,7 @@ $ ipl_batch
 
 /write_v020
   -name                      crop
-  -filename                  "name_DOWNSCALE
+  -filename                  "downscale
   -compress_type             none
   -version_020               true
  
