@@ -363,8 +363,9 @@ plt.show()
 
 
 #%% Registration results
-Show.Registration(Rigid_Bin, BSpline_Bin)
+Show.Registration(Fixed_Bin, Rigid_Bin, Axis='X')
 Show.Registration(Fixed_Bin, BSpline_Bin, Axis='X')
+Show.Registration(Rigid_Bin, BSpline_Bin, Axis='X')
 
 # Registration Dice coefficient
 Measure.Execute(Fixed_Bin, BSpline_Bin)
