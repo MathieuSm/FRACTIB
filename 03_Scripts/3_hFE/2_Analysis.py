@@ -39,6 +39,7 @@ from vtk.numpy_interface import dataset_adapter as dsa
 from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 
 from Utils import *
+Show = Show()
 
 if os.name == 'posix':
     import resource
@@ -221,6 +222,7 @@ def AIMReader(File, Spacing):
             origdimum = ([int(s) for s in Line.split(b" ") if s.isdigit()])
 
         if Line.find("Scaled by factor".encode()) > -1:
+            # if not Scaling:
             Scaling = float(Line.split(" ".encode())[-1])
         if Line.find("Density: intercept".encode()) > -1:
             Intercept = float(Line.split(" ".encode())[-1])
@@ -228,7 +230,9 @@ def AIMReader(File, Spacing):
             Slope = float(Line.split(" ".encode())[-1])
         # if el_size scale was applied, the above still takes the original voxel size. This function works
         # only if an isotropic scaling was applied!!!!
-        if Line.find("scale".encode()) > -1:
+        if Line.find("downscaled".encode()) > -1:
+            pass
+        elif Line.find("scale".encode()) > -1:
             IPLPostScanScaling = float(Line.split(" ".encode())[-1])
     # Spacing is calculated from Original Dimensions. This is wrong, when the images were coarsened and
     # the voxel size is not anymore corresponding to the original scanning resolution!
@@ -1509,6 +1513,30 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
     Transform = sitk.TranslationTransform(Dimension)
     
     return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
+def GetTopAndBot(Image):
+
+    """
+    Return mean height of top and bottom surface
+    """
+
+    Array = sitk.GetArrayFromImage(Image).astype('bool')
+    MidXSlice = Array[:,:,Array.shape[2] // 2]
+    Sum = np.sum(MidXSlice, axis=0)
+    Counts = np.bincount(Sum[Sum > 0])
+    MeanSampleHeigth = np.argmax(Counts)
+    MeanHeightPositions = np.where(Sum == MeanSampleHeigth)[0]
+
+    TopNodes = []
+    BotNodes = []
+    for Position in MeanHeightPositions:
+        Nodes = np.argwhere(MidXSlice[:,Position])
+        TopNodes.append(Nodes.min())
+        BotNodes.append(Nodes.max())
+
+    MeanTop = int(np.mean(TopNodes).round(0))
+    MeanBot = int(np.mean(BotNodes).round(0))
+    
+    return MeanTop, MeanBot
 def CommonRegion(Bone, CommonFile, CommonFile_uCT):
 
     Mask = sitk.ReadImage(CommonFile)
@@ -3423,11 +3451,10 @@ def Log_Summary(Config, Bone, FileNames, Summary_Variables):
 
     Summary = "\n".join(
         [
-            """
-******************************************************************
-**                         SUMMARY FILE                         **
-**                hFE pipeline Denis Schenk 2018                **
-******************************************************************""",
+            """******************************************************************
+            **                         SUMMARY FILE                         **
+            **                hFE pipeline Denis Schenk 2018                **
+            ******************************************************************""",
             "File                 : {}".format(FileNames['BMDname']),
             "System computed on   : {}".format(socket.gethostname()),
             "Simulation Type      : Fast model (one phase / isotropic)",
@@ -3613,8 +3640,9 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
 
     Print_Memory_Usage()
 
-    # Read common image and mask arrays
-    Bone = CommonRegion(Bone, FileNames['Common'], FileNames['Common_uCT'])
+    # If registration, read common image and mask arrays
+    if Config['Registration']:
+        Bone = CommonRegion(Bone, FileNames['Common'], FileNames['Common_uCT'])
     Print_Memory_Usage()
 
     # Prepare material mapping
@@ -3865,7 +3893,7 @@ def Main(ConfigFile):
     # Directories
     WD, Data, Scripts, Results = SetDirectories('FRACTIB')
     Directories = {}
-    Directories['AIM'] = Data / '01_HRpQCT/'
+    Directories['AIM'] = Data / '02_uCT/'
     Directories['FEA'] = Results / '03_hFE/'
     Directories['Localization'] = Results / '05_Localizations/'
     Directories['Scripts'] = Scripts / '3_hFE/'
