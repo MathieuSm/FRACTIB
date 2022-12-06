@@ -377,7 +377,7 @@ JacobianImage = sitk.ReadImage(JacobianFile)
 JacobianImage.SetSpacing(FixedImage.GetSpacing())
 
 ## Resample Jacobian image
-NewSpacing = np.repeat([Config['ElementSize']], 3)
+NewSpacing = JFile.GetSpacing()
 ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
 
 #%% Jacobian decomposition
@@ -386,10 +386,11 @@ SphericalCompression, IsovolumicDeformation = DecomposeJacobian(ResampledJacobia
 
 #%% Write results
 ## Write results
-Writer = Write()
 JFile = str(Path(ResultsDirectory, 'J'))
 FFile = str(Path(ResultsDirectory, 'F_Tilde'))
-Writer.MHD(SphericalCompression, JFile, PixelType='float')
-Writer.MHD(IsovolumicDeformation, FFile, PixelType='float')
+Write.MHD(SphericalCompression, JFile, PixelType='float')
+Write.MHD(IsovolumicDeformation, FFile, PixelType='float')
 # os.remove(os.path.join(ResultsDirectory, 'fullSpatialJacobian.nii'))
 
+
+# %%
