@@ -232,6 +232,7 @@ MeanValue = np.mean(Array)
 # Cast fixed images to float
 FixedImage = sitk.Cast(FixedImage, 8)
 FloatMask = sitk.Cast(FixedMask, 8)
+MovingImage = sitk.Cast(MovingImage, 8)
 
 #%% Adapt image size to hFE meshing
 ConfigFile = str(Scripts / '3_hFE' / 'ConfigFile.yaml')
@@ -244,6 +245,7 @@ Spacing = FixedImage.GetSpacing()
 CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
 FixedImage = Adjust_Image_Size(FixedImage, CoarseFactor)
 FixedMask = Adjust_Image_Size(FixedMask, CoarseFactor)
+FloatMask = Adjust_Image_Size(FloatMask, CoarseFactor)
 
 
 #%% Cog alignment
@@ -310,8 +312,8 @@ for i in range(NRotations):
     Dices = pd.concat([Dices, NewData])
 
     if Dice == Dices['DSC'].max():
-        Show.Slice(Moving_Bin)
-        Show.Registration(Fixed_Bin, Moving_Bin)
+        # Show.Slice(Moving_Bin)
+        # Show.Registration(Fixed_Bin, Moving_Bin)
         BestAngle = float(i*Angle)
         Parameters = np.array(TPM[0]['TransformParameters'], 'float')
 
@@ -351,16 +353,6 @@ ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, Diction
 
 BSpline_Bin = Otsu.Execute(ResultImage * FloatMask + NegativeMask)
 Fixed_Bin = Otsu.Execute(FixedImage * FloatMask)
-
-#%%
-
-a_ = sitk.GetArrayFromImage(Fixed_Bin)
-a_[128,:128,235:363] = 2
-
-Figure, Axis = plt.subplots(1,1)
-Axis.imshow(a_[:,:,300])
-plt.show()
-
 
 #%% Registration results
 Show.Registration(Fixed_Bin, Rigid_Bin, Axis='X')

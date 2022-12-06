@@ -993,10 +993,12 @@ class Register:
             ParameterMap['MaximumNumberOfIterations'] = ['2000']
 
         if 'FixedImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            ParameterMap['FixedImagePyramidSchedule'] = [str(S) for S in Schedule]
 
         if 'MovingImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            ParameterMap['MovingImagePyramidSchedule'] = [str(S) for S in Schedule]
 
         if 'SP_alpha' not in Dictionary.keys():
             ParameterMap['SP_alpha'] = ['0.6']
@@ -1052,10 +1054,12 @@ class Register:
             ParameterMap['MaximumNumberOfIterations'] = ['2000']
 
         if 'FixedImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            ParameterMap['FixedImagePyramidSchedule'] = [str(S) for S in Schedule]
 
         if 'MovingImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            ParameterMap['MovingImagePyramidSchedule'] = [str(S) for S in Schedule]
 
         if 'SP_alpha' not in Dictionary.keys():
             ParameterMap['SP_alpha'] = ['0.6']
