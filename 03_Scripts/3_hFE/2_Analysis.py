@@ -1512,30 +1512,6 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
     Transform = sitk.TranslationTransform(Dimension)
     
     return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
-def GetTopAndBot(Image):
-
-    """
-    Return mean height of top and bottom surface
-    """
-
-    Array = sitk.GetArrayFromImage(Image).astype('bool')
-    MidXSlice = Array[:,:,Array.shape[2] // 2]
-    Sum = np.sum(MidXSlice, axis=0)
-    Counts = np.bincount(Sum[Sum > 0])
-    MeanSampleHeigth = np.argmax(Counts)
-    MeanHeightPositions = np.where(Sum == MeanSampleHeigth)[0]
-
-    TopNodes = []
-    BotNodes = []
-    for Position in MeanHeightPositions:
-        Nodes = np.argwhere(MidXSlice[:,Position])
-        TopNodes.append(Nodes.min())
-        BotNodes.append(Nodes.max())
-
-    MeanTop = int(np.mean(TopNodes).round(0))
-    MeanBot = int(np.mean(BotNodes).round(0))
-    
-    return MeanTop, MeanBot
 def CommonRegion(Bone, CommonFile, CommonFile_uCT):
 
     Mask = sitk.ReadImage(CommonFile)
