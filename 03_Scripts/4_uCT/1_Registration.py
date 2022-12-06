@@ -215,7 +215,10 @@ Files.sort()
 
 FixedImage = Read.AIM(SampleDirectory + Files[0])[0]
 MovingImage = Read.AIM(SampleDirectory + Files[1])[0]
-FixedMask = Read.AIM(SampleDirectory + Files[0][:-4] + '_SEG.AIM')[0]
+FixedCort = Read.AIM(SampleDirectory + Files[0][:-4] + '_CORT_MASK.AIM')[0]
+FixedTrab = Read.AIM(SampleDirectory + Files[0][:-4] + '_TRAB_MASK.AIM')[0]
+FixedMask = FixedCort + FixedTrab
+FixedMask.SetSpacing(FixedImage.GetSpacing())
 
 Toc = time.time()
 PrintTime(Tic, Toc)
@@ -226,12 +229,9 @@ LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
 Array = sitk.GetArrayFromImage(MovingImage)
 MeanValue = np.mean(Array)
 
-# Binarize fixed mask
-FixedMask = sitk.BinaryThreshold(FixedMask,
-                                 lowerThreshold=1,
-                                 upperThreshold=2,
-                                 insideValue=1,
-                                 outsideValue=0)
+# Cast fixed images to float
+FixedImage = sitk.Cast(FixedImage, 8)
+FloatMask = sitk.Cast(FixedMask, 8)
 
 #%% Adapt image size to hFE meshing
 ConfigFile = str(Scripts / '3_hFE' / 'ConfigFile.yaml')
@@ -310,8 +310,8 @@ for i in range(NRotations):
     Dices = pd.concat([Dices, NewData])
 
     if Dice == Dices['DSC'].max():
-        # Show.Slice(Moving_Bin)
-        # Show.Registration(Fixed_Bin, Moving_Bin)
+        Show.Slice(Moving_Bin)
+        Show.Registration(Fixed_Bin, Moving_Bin)
         BestAngle = float(i*Angle)
         Parameters = np.array(TPM[0]['TransformParameters'], 'float')
 
@@ -321,7 +321,7 @@ for i in range(NRotations):
 # Rotation
 
 T = sitk.Euler3DTransform()
-R = RotationMatrix(Gamma=Angle + Parameters[0])
+R = RotationMatrix(Gamma=BestAngle + Parameters[0])
 T.SetMatrix([Value for Value in R.flatten()])
 T.SetTranslation((Parameters[0], Parameters[1], 0))
 T.SetCenter(Center)
@@ -331,20 +331,26 @@ Moving_R = sitk.Resample(IniMove, T)
 
 #%% Rigid registration
 # Perform rigid registration
-RigidResult, TPM = Register.Rigid(FixedImage, Moving_R, FixedMask, Path=ResultsDirectory)
+RigidResult, TPM = Register.Rigid(FixedImage, Moving_R, FixedMask)
 
-Rigid_Bin = Otsu.Execute(RigidResult * FixedMask + (1-FixedMask)*MeanValue)
+NegativeMask = (1-FloatMask) * MeanValue
+Rigid_Bin = Otsu.Execute(RigidResult * FloatMask + NegativeMask)
 
 #%% Non-rigid registration
 # Perform non-rigid registration
-Dictionary = {'FixedImagePyramidSchedule':[64, 32, 16, 8, 4, 2, 1],
-              'MovingImagePyramidSchedule':[64, 32, 16, 8, 4, 2, 1],
-              'NewSamplesEveryIteration':['true'],
-              'FinalGridSpacingInPhysicalUnits':[Config['ElementSize']]} # or 0.9712
-ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, ResultsDirectory, Dictionary)
+Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1],3)
+Dictionary = {'FixedImagePyramidSchedule':Schedule,
+              'MovingImagePyramidSchedule':Schedule,
+              'NewSamplesEveryIteration':['true']}
 
-BSpline_Bin = Otsu.Execute(ResultImage * FixedMask + (1-FixedMask)*MeanValue)
-Fixed_Bin = Otsu.Execute(sitk.Cast(FixedImage, 8) * FixedMask)
+# Match b-spline interpolation with elements size
+JFile = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
+Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+
+ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, Dictionary=Dictionary)
+
+BSpline_Bin = Otsu.Execute(ResultImage * FloatMask + NegativeMask)
+Fixed_Bin = Otsu.Execute(FixedImage * FloatMask)
 
 #%%
 

@@ -1023,6 +1023,8 @@ class Register:
             ElastixImageFilter.SetOutputDirectory(Path)
             ElastixImageFilter.LogToConsoleOff()
             ElastixImageFilter.LogToFileOn()
+        else:
+            ElastixImageFilter.LogToConsoleOn()
 
         if os.name == 'posix':
             ElastixImageFilter.SetNumberOfThreads(8)
@@ -1080,6 +1082,8 @@ class Register:
             ElastixImageFilter.SetOutputDirectory(Path)
             ElastixImageFilter.LogToConsoleOff()
             ElastixImageFilter.LogToFileOn()
+        else:
+            ElastixImageFilter.LogToConsoleOn()
 
         if os.name == 'posix':
             ElastixImageFilter.SetNumberOfThreads(8)
