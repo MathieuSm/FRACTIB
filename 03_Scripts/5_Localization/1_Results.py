@@ -91,22 +91,14 @@ for V in Variables:
     hFE_Data = sitk.ReadImage(str(hFEDir / Sample / (V + '.mhd')))
     hFE.append(hFE_Data)
 
-Mask = sitk.ReadImage(str(uCTDir / Sample / 'CommonMask.mhd'))
 
-#%% Resampling
-# Resampling
-
-RefSpacing = np.array(hFEMask.GetSpacing())
-R_Mask = Resample(Mask, Spacing=RefSpacing)
-CoarseFactor = round(hFE[0].GetSpacing()[0] / hFEMask.GetSpacing()[0])
-A_Mask = Adjust_Image_Size(R_Mask, CoarseFactor)
-R_Mask = Resample(A_Mask, Spacing=hFE[0].GetSpacing())
-
-Pad = tuple(int(p) for p in np.array(R_Mask.GetSize()) - np.array(hFE[0].GetSize()))
+#%% Padding
+# Padding
+Pad = tuple(int(p) for p in np.array(uCT[0].GetSize()) - np.array(hFE[0].GetSize()))
 PhFE = [sitk.ConstantPad(P, (0, 0, 0), Pad) for P in hFE]
 
-Show.Registration(R_Mask, PhFE[0], AsBinary = False)
-Show.Registration(R_Mask, uCT[0])
+Show.Registration(uCT[0], PhFE[0], AsBinary = False)
+Show.Registration(uCT[0], uCT[0])
 
 
 
@@ -117,8 +109,8 @@ for i in range(2):
     hFE_Array = sitk.GetArrayFromImage(PhFE[i])
     uCT_Array = sitk.GetArrayFromImage(uCT[i])
 
-    X = uCT_Array[hFE_Array > 0]
-    Y = hFE_Array[hFE_Array > 0]
+    X = uCT_Array.flatten()#[hFE_Array > 0]
+    Y = hFE_Array.flatten()#[hFE_Array > 0]
 
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(X, Y, color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
