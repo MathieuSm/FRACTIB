@@ -3423,11 +3423,10 @@ def Log_Summary(Config, Bone, FileNames, Summary_Variables):
 
     Summary = "\n".join(
         [
-            """
-******************************************************************
-**                         SUMMARY FILE                         **
-**                hFE pipeline Denis Schenk 2018                **
-******************************************************************""",
+            """******************************************************************
+            **                         SUMMARY FILE                         **
+            **                hFE pipeline Denis Schenk 2018                **
+            ******************************************************************""",
             "File                 : {}".format(FileNames['BMDname']),
             "System computed on   : {}".format(socket.gethostname()),
             "Simulation Type      : Fast model (one phase / isotropic)",
