@@ -15,6 +15,7 @@ Registration: False
 
 # Define element size
 ElementSize: 1.2747
+Adjust_ElementSize: True
 
 # Scaling for BV/TV -> 0: no scaling, 1: Hosseini 2017 Seg scaling
 BVTV_Scaling: 1

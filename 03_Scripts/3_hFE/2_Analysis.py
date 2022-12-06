@@ -17,7 +17,7 @@ Description = """
     Date: October 2021
     """
 
-#%%
+#%% Modules import
 import os
 import re
 import vtk
@@ -46,7 +46,7 @@ if os.name == 'posix':
 elif os.name == 'nt':
     import psutil
 
-#%%
+#%% Image function
 # Image functions
 def ReadConfigFile(Filename):
 
@@ -222,7 +222,6 @@ def AIMReader(File, Spacing):
             origdimum = ([int(s) for s in Line.split(b" ") if s.isdigit()])
 
         if Line.find("Scaled by factor".encode()) > -1:
-            # if not Scaling:
             Scaling = float(Line.split(" ".encode())[-1])
         if Line.find("Density: intercept".encode()) > -1:
             Intercept = float(Line.split(" ".encode())[-1])
@@ -1619,7 +1618,7 @@ def Calculate_BVTV(Bone, Config, ImageType):
     Bone['BVTV_Raw'] = BVTV_Raw * Mask
 
     return Bone
-def Generate_Mesh(Bone, FileNames):
+def Generate_Mesh(Bone, FileNames, Config):
 
     """
     Adapted from Denis's preprocessing_SA.py -> PSL_generate_full_block_mesh_accurate
@@ -1641,7 +1640,7 @@ def Generate_Mesh(Bone, FileNames):
     """
 
     # Get bone values
-    CommonMask = Bone['Common_uCT']
+
     BVTV_Scaled = Bone['BVTV_Scaled']
     CORTMASK_Array = Bone['CORTMASK_Array']
     TRABMASK_Array = Bone['TRABMASK_Array']
@@ -1653,14 +1652,33 @@ def Generate_Mesh(Bone, FileNames):
     MASK_Array = np.add(CORTMASK_Array, TRABMASK_Array)
     BVTV_Masked[MASK_Array == 0] = 0
 
+    if Config['Registration']:
+        MeshShape = Bone['Common_uCT'].shape
+    else:
+        MeshShape = BVTV_Scaled.shape
+
+    # Adjust element size and coarse factor to fit image size
+    if Config['Adjust_ElementSize']:
+        print('\nAdjust elements size')
+        Height = Spacing[2] * MeshShape[2]
+        N_Elements = np.floor(Height / FEelSize[2]) + 1
+
+        print('Original coarse factor: %.6f' % (CoarseFactor))
+        CoarseFactor = np.floor(MeshShape[2] / N_Elements * 1E6) / 1E6
+        print('New coarse factor: %.6f' % (CoarseFactor))
+        FEelSize = Spacing * CoarseFactor
+        Bone['Spacing'] = Spacing 
+        Bone['CoarseFactor'] = CoarseFactor 
+
+
+
     # Create array for MESH (no padding)
-    MESH = np.ones(([int(dim) for dim in np.floor(np.array(CommonMask.shape) / CoarseFactor)]))
+    MESH = np.ones(([int(dim) for dim in np.floor(np.array(MeshShape) / CoarseFactor)]))
     MESH = MESH.transpose(2, 1, 0)  # weird numpy array convention (z,y,x)
 
     Print_Memory_Usage()
     print('Spacing = ' + str(Spacing))
     print('FEelSize = ' + str(FEelSize))
-    print(FEelSize[0] / 0.082)
 
     # Write MESH to Abaqus input file
     print('\n\nGenerate full block mesh (Abaqus inp file)')
@@ -1729,7 +1747,7 @@ def Numpy2VTK(NumpyArray, Spacing):
     Points.SetScalars(VTK_Image)
     return Image
 
-#@njit
+@njit
 def TransformPoints(Points, C1, R1, T1, C2, R2, T2, C3, R3, T3):
     
     TransformedPoints = []
@@ -1798,7 +1816,7 @@ def AssignVTKCells2Masks(NFacet, COG_Temp, TRAB_Mask, Spacing, Tolerance, DimZ):
             Indices_Cort.append(i)
 
     return COGPoints_Trab , Indices_Trab , COGPoints_Cort , Indices_Cort
-def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, Spacing, FileNames):
+def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, Spacing, FileNames, Config):
 
     """
     Adapted from Denis's preprocessing_SA.py
@@ -1883,26 +1901,27 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     COGPoints_Trab, Indices_Trab, COGPoints_Cort, Indices_Cort = AssignVTKCells2Masks(np.array(NFacet), np.array(COG_Temp), np.array(TRAB_Mask), np.array(Spacing), np.array(Tolerance), np.array(DimZ))
     
     # Transform COG points
-    I = sitk.ReadImage(FileNames['Common'])
-    Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
-    C1 = Center + np.array(I.GetOrigin())
-    R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
-    T1 = np.array([0, 0, 0])
+    if Config['Registration']:
+        I = sitk.ReadImage(FileNames['Common'])
+        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+        C1 = Center + np.array(I.GetOrigin())
+        R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
+        T1 = np.array([0, 0, 0])
 
-    IT = sitk.ReadTransform(FileNames['InitialTransform'])
-    C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-    P2 = IT.GetParameters()
-    R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
-    T2 = -np.array(P2[3:])
+        IT = sitk.ReadTransform(FileNames['InitialTransform'])
+        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+        P2 = IT.GetParameters()
+        R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+        T2 = -np.array(P2[3:])
 
-    FT = GetParameterMap(FileNames['Transform'])
-    C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-    P3 = np.array(FT['TransformParameters'],'float')
-    R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
-    T3 = -np.array(P3[3:])
+        FT = GetParameterMap(FileNames['Transform'])
+        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+        P3 = np.array(FT['TransformParameters'],'float')
+        R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
+        T3 = -np.array(P3[3:])
 
-    COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), C1, R1, T1, C2, R2, T2, C3, R3, T3)
-    COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), C1, R1, T1, C2, R2, T2, C3, R3, T3)
+        COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), C1, R1, T1, C2, R2, T2, C3, R3, T3)
+        COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), C1, R1, T1, C2, R2, T2, C3, R3, T3)
 
     print('Step 4/7: Computation COG finished')
     PrintTime(Tic, time.time())
@@ -2028,7 +2047,7 @@ def Compute_Local_MSL(Bone, Config, FileNames):
     Image_Dim = np.shape(SEG_array) * Spacing
 
     # Compute STL elements, their normal and area (AreaDyadic)
-    Bone = Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, STL_Tolerance, TRAB_Mask, Spacing, FileNames)
+    Bone = Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, STL_Tolerance, TRAB_Mask, Spacing, FileNames, Config)
 
     # General variables for both compartments
     # Find dimensions of mesh
@@ -2930,23 +2949,24 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     mixed_phase_element = 0
 
     # Extract transforms parameters
-    I = sitk.ReadImage(FileNames['Common'])
-    Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
-    C1 = Center + np.array(I.GetOrigin())
-    R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
-    T1 = np.array([0, 0, 0])
+    if Config['Registration']:
+        I = sitk.ReadImage(FileNames['Common'])
+        Center = np.array(I.GetSize()) / 2 * np.array(I.GetSpacing())
+        C1 = Center + np.array(I.GetOrigin())
+        R1 = np.array([[-1, 0, 0],[0, 1, 0],[0, 0, -1]])
+        T1 = np.array([0, 0, 0])
 
-    IT = sitk.ReadTransform(FileNames['InitialTransform'])
-    C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
-    P2 = IT.GetParameters()
-    R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
-    T2 = -np.array(P2[3:])
+        IT = sitk.ReadTransform(FileNames['InitialTransform'])
+        C2 = np.array(IT.GetFixedParameters()[:-1], 'float')
+        P2 = IT.GetParameters()
+        R2 = RotationMatrix(-P2[0], -P2[1], -P2[2])
+        T2 = -np.array(P2[3:])
 
-    FT = GetParameterMap(FileNames['Transform'])
-    C3 = np.array(FT['CenterOfRotationPoint'], 'float')
-    P3 = np.array(FT['TransformParameters'],'float')
-    R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
-    T3 = -np.array(P3[3:])
+        FT = GetParameterMap(FileNames['Transform'])
+        C3 = np.array(FT['CenterOfRotationPoint'], 'float')
+        P3 = np.array(FT['TransformParameters'],'float')
+        R3 = RotationMatrix(-P3[0], -P3[1], -P3[2])
+        T3 = -np.array(P3[3:])
 
     # ---------------------------------------------------------------------------
     print('\n\nPerform material mapping')
@@ -2956,7 +2976,10 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()], axis=0)  # center of gravity of each element
 
         # Transform Center of gravity from uCT to HRpQCT space
-        COG_Inv = InverseTransformPoints(np.array([COG]), C1, R1, T1, C2, R2, T2, C3, R3, T3)[0]
+        if Config['Registration']:
+            COG_Inv = InverseTransformPoints(np.array([COG]), C1, R1, T1, C2, R2, T2, C3, R3, T3)[0]
+        else:
+            COG_Inv = COG
 
         # 2.2 compute PHI from masks
         Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
@@ -3062,11 +3085,12 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                         EigenVectors = [EigenVectors[:, p] for p in [0, 1, 2]]
 
                 # Transform eigen vectors from HRpQCT to uCT space
-                for iVector, Vector in enumerate(EigenVectors):
-                    RV = np.dot(R1, Vector)
-                    RV = np.dot(R2, RV)
-                    RV = np.dot(R3, RV)
-                    EigenVectors[iVector] = RV
+                if Config['Registration']:
+                    for iVector, Vector in enumerate(EigenVectors):
+                        RV = np.dot(R1, Vector)
+                        RV = np.dot(R2, RV)
+                        RV = np.dot(R3, RV)
+                        EigenVectors[iVector] = RV
 
                 m[Element] = EigenValues
                 mm[Element] = EigenVectors
@@ -3621,7 +3645,7 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
     Adapted from Denis's aim2fe_SA_PSL.py
     """
 
-    print('\n\nPerform material mapping for sample: ', Sample)
+    print('\nPerform material mapping: ')
     FileNames = Set_FileNames(Config, Sample, Directories)
 
     print(yaml.dump(FileNames, default_flow_style=False))
@@ -3648,7 +3672,7 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
     # Prepare material mapping
     ImageType = Config['ImageType']
     Bone = Calculate_BVTV(Bone, Config, ImageType)
-    Bone = Generate_Mesh(Bone, FileNames)
+    Bone = Generate_Mesh(Bone, FileNames, Config)
     Bone = Calculate_Iso_Fabric(Bone)
 
     # 4 Material mapping
@@ -3907,18 +3931,38 @@ def Main(ConfigFile):
     Sample = GrayScale_FileNames[0]
     # for Sample in GrayScale_FileNames:
 
+    print('\n\nStart FE Analysis of sample ' + Sample)
+
     # Set paths
     Folder = Folder_IDs[Sample]
     InputFileName = "{}_{}.inp".format(Sample, Version)
     InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
     # Perform material mapping
+    Tic = time.time()
     AIM2FE_SA_PSL(Config, Sample, Directories)
+    Toc1 = time.time()
 
     # Write load cases
     UpDate_BCs_Files(Config, Directories)
+    Toc2 = time.time()
     Create_Canonical_LoadCases(Config, InputFile, Directories)
+    Toc3 = time.time()
     Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
+    Toc4 = time.time()
+
+    print('\nInput files written')
+    PrintTime(Tic,Toc4)
+    print('\tAIM2FE')
+    PrintTime(Tic, Toc1)
+    print('\tUpdate BCs')
+    PrintTime(Toc1, Toc2)
+    print('\tCreate canonical loadcases')
+    PrintTime(Toc2, Toc3)
+    print('\tCreate FZ max loadcase')
+    PrintTime(Toc3, Toc4)
+
+    return
 
 
 #%%

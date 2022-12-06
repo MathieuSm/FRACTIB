@@ -110,7 +110,7 @@ def DecomposeJacobian(JacobianArray):
 
 #%% Load files
 # 01 Set variables
-FilePath = Path.cwd() / '..' / '..' / '..' / '04_Results' / '03_hFE' / '432_L_77_F'
+FilePath = Path.cwd() / '..' / '..' / '04_Results' / '03_hFE' / '432_L_77_F'
 
 # 02 Load files
 ElementsPositions = pd.read_csv(str(FilePath / 'ElementsPositions.csv'),names=['X','Y','Z'])

@@ -7,7 +7,8 @@ import csv
 
 print '\n\n\n'
 print 'Open odb file...'
-odb = openOdb(path='/home/ms20s284/FRACTIB/04_Results/03_hFE/432_L_77_F/C0003103.odb')
+Directory = '/home/ms20s284/FRACTIB/04_Results/03_hFE/432_L_77_F/'
+odb = openOdb(path=Directory + 'C0001901.odb')
 
 # Create a variable that refers to the
 # last frame of the first step.
@@ -81,12 +82,12 @@ for Element in Instance.elements[:N]:
 # Write into csv file
 print '\n\n\n'
 print 'Save to csv...'
-with open('ElementsPositions.csv', 'w') as File:
+with open(Directory + 'ElementsPositions.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in ElementsPositions.T:
         Writer.writerow(Row)
         
-with open('DeformationGradients.csv', 'w') as File:
+with open(Directory + 'DeformationGradients.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in DeformationGradients.T:
         Writer.writerow(Row)

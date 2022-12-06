@@ -4,6 +4,9 @@
 import yaml
 import pandas as pd
 from Utils import *
+Show = Show()
+Read = Read()
+Write = Write()
 
 desired_width = 500
 pd.set_option('display.max_rows', 100)
@@ -207,12 +210,12 @@ SampleData = {'Sample': Sample}
 LogFile.write('Sample: ' + Sample + '\n')
 
 SampleDirectory = str(Data / '02_uCT' / Sample) + '/'
-Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.mhd')]
+Files = [File for File in os.listdir(SampleDirectory) if File.endswith('DOWNSCALED.AIM')]
 Files.sort()
 
-FixedImage = sitk.ReadImage(SampleDirectory + Files[0])
-MovingImage = sitk.ReadImage(SampleDirectory + Files[1])
-FixedMask = sitk.ReadImage(SampleDirectory + Files[0][:-4] + '_FULLMASK.mhd')
+FixedImage = Read.AIM(SampleDirectory + Files[0])[0]
+MovingImage = Read.AIM(SampleDirectory + Files[1])[0]
+FixedMask = Read.AIM(SampleDirectory + Files[0][:-4] + '_SEG.AIM')[0]
 
 Toc = time.time()
 PrintTime(Tic, Toc)
@@ -223,8 +226,15 @@ LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
 Array = sitk.GetArrayFromImage(MovingImage)
 MeanValue = np.mean(Array)
 
+# Binarize fixed mask
+FixedMask = sitk.BinaryThreshold(FixedMask,
+                                 lowerThreshold=1,
+                                 upperThreshold=2,
+                                 insideValue=1,
+                                 outsideValue=0)
+
 #%% Adapt image size to hFE meshing
-ConfigFile = str(Scripts / 'Pipeline' / '3_hFE' / 'ConfigFile.yaml')
+ConfigFile = str(Scripts / '3_hFE' / 'ConfigFile.yaml')
 
 # Read config and store to dictionary
 Config = ReadConfigFile(ConfigFile)
