@@ -541,6 +541,12 @@ $ ipl_batch
   -common_region_only        true
   -multiply_zero_pixels      true
 
+/write_v020
+  -name                      aim_final
+  -filename                  "aim
+  -compress_type             none
+  -version_020               true
+
 /list true false
 
 !! =================================================================================================================

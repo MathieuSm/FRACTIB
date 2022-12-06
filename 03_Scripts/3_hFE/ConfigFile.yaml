@@ -10,6 +10,9 @@
 # Run/hFE version (for file names)
 Version: '00'
 
+# State if properties must be computed using transform or in original configuration
+Registration: False
+
 # Define element size
 ElementSize: 1.2747
 
@@ -54,17 +57,17 @@ PSL_LoadCases_BCs_Folder: 'BCs/'
 
 
 # File name post fixes
-Postfix_CortMask: '_CORT_MASK_UNCOMP.AIM'
-Postfix_TrabMask: '_TRAB_MASK_UNCOMP.AIM'
-Postfix_BMD: '_UNCOMP.AIM'
-Postfix_SEG: '_SEG_UNCOMP.AIM'
+Postfix_CortMask: '_CORT_MASK.AIM'
+Postfix_TrabMask: '_TRAB_MASK.AIM'
+Postfix_BMD: '.AIM'
+Postfix_SEG: '_SEG.AIM'
 
 # Images type
 ImageType: "NATIVE"  # BMD/NATIVE
 
 # Images
 GrayScale_FileNames: [
-    'C0003103',
+    'C0001901_DOWNSCALED',
 #    'C0003114',
 #    'C0003111',
 #    'C0003106',
@@ -93,7 +96,7 @@ GrayScale_FileNames: [
 
 # Folder IDs for file-folder mapping
 Folder_IDs:
-  C0003103: 432_L_77_F
+  C0001901_DOWNSCALED: 432_L_77_F
   C0003114: 433_R_77_F
   C0003111: 434_L_90_F
   C0003106: 435_R_90_F
