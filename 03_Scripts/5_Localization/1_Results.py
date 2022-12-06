@@ -91,8 +91,7 @@ for V in Variables:
     hFE_Data = sitk.ReadImage(str(hFEDir / Sample / (V + '.mhd')))
     hFE.append(hFE_Data)
 
-Mask = sitk.ReadImage(str(ResDir / Sample / 'CommonMask.mhd'))
-hFEMask = sitk.ReadImage(str(hFEDir / Sample / 'CommonMask.mhd'))
+Mask = sitk.ReadImage(str(uCTDir / Sample / 'CommonMask.mhd'))
 
 #%% Resampling
 # Resampling
