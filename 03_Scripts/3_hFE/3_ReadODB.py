@@ -4,9 +4,10 @@
 from odbAccess import *
 import numpy as np
 import csv
+import sys
 
-print '\n\n\n'
-print 'Open odb file...'
+print '\n\n'
+print 'Open odb file'
 Directory = '/home/ms20s284/FRACTIB/04_Results/03_hFE/432_L_77_F/'
 odb = openOdb(path=Directory + 'C0001901.odb')
 
@@ -36,21 +37,17 @@ Nodes = Instance.nodes
 
 # Create node labels array
 NodeLabels = np.array([])
-for Node in Nodes:
+for iNode, Node in enumerate(Nodes):
     NodeLabels = np.append(NodeLabels,Node.label)
 
 # Initialize loop
 N = len(Instance.elements)
 ElementsPositions = np.zeros((3,N))
 DeformationGradients = np.zeros((9,N))
-ElementNumber = 0
 
-print '\n\n\n'
-print 'Read elements data...'
-for Element in Instance.elements[:N]:
-    #print '\n'
-    #print 'Element label: ', Element.label
-    #print 'Element connectivity: ', Element.connectivity
+for ElementNumber, Element in enumerate(Instance.elements[:N]):
+    sys.stdout.write("\r" + "Read element " + str(ElementNumber) + "/" + str(N))
+    sys.stdout.flush()
     
     # Compute element central position
     XYZ = np.zeros((len(Element.connectivity),3))
@@ -76,12 +73,9 @@ for Element in Instance.elements[:N]:
     ElementsPositions[:,ElementNumber] = np.mean(XYZ,axis=0)
     DeformationGradients[:,ElementNumber] = F_IntegrationPoints
     
-    ElementNumber += 1
-    
 
 # Write into csv file
-print '\n\n\n'
-print 'Save to csv...'
+print '\nSave to csv'
 with open(Directory + 'ElementsPositions.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in ElementsPositions.T:

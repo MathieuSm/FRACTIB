@@ -477,8 +477,10 @@ class Read:
             if Line.find("Density: slope".encode()) > -1:
                 Slope = float(Line.split(" ".encode())[-1])
             # if el_size scale was applied, the above still takes the original voxel size. This function works
-            # only if an isotropic scaling was applied!!!!
-            if Line.find("scale".encode()) > -1:
+            # only if an isotropic scaling was applied!!!
+            if Line.find('downscaled'.encode()) > -1:
+                pass
+            elif Line.find("scale".encode()) > -1:
                 IPLPostScanScaling = float(Line.split(" ".encode())[-1])
         # Spacing is calculated from Original Dimensions. This is wrong, when the images were coarsened and
         # the voxel size is not anymore corresponding to the original scanning resolution!
