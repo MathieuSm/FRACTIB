@@ -191,7 +191,11 @@ def DecomposeJacobian(JacobianImage):
     # Determine 2D of 3D jacobian array
     JacobianArray = sitk.GetArrayFromImage(JacobianImage)
     
+    print('\nDecompose Jacobian')
+    Tic = time.time()
     SC, ID = Decomposition(JacobianArray)
+    Toc = time.time()
+    PrintTime(Tic, Toc)
 
     SphericalCompression = sitk.GetImageFromArray(SC)
     IsovolumicDeformation = sitk.GetImageFromArray(ID)
@@ -375,7 +379,7 @@ Dictionary = {'FixedImagePyramidSchedule':Schedule,
 JFile = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
 Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
 
-ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, ResultsDirectory, Dictionary)
+ResultImage, TPM = Register.NonRigid(RigidResult, FixedImage, FixedMask, ResultsDirectory, Dictionary)
 
 BSpline_Bin = Otsu.Execute(ResultImage * FloatMask + NegativeMask)
 Fixed_Bin = Otsu.Execute(FixedImage * FloatMask)
@@ -391,12 +395,12 @@ print('\nDice coefficient of the full image: %.3f' % (Dice))
 
 #%% Inverse
 # Compute the inverse transform
-InitialTransform = str(Path(ResultsDirectory, 'TransformParameters.0.txt'))
-InverseTPM = Register.ComputeInverse(FixedImage, InitialTransform, FixedMask, Path=ResultsDirectory)
+# InitialTransform = str(Path(ResultsDirectory, 'TransformParameters.0.txt'))
+# InverseTPM = Register.ComputeInverse(FixedImage, InitialTransform, FixedMask, Path=ResultsDirectory)
 
 #%% Transformix
 ## Use transformix to compute spatial jacobian
-ResultImage = Register.Apply(RigidResult, TPM, ResultsDirectory, Jacobian=True)
+ResultImage = Register.Apply(FixedImage, TPM, ResultsDirectory, Jacobian=True)
 
 
 #%% Jacobian resampling
