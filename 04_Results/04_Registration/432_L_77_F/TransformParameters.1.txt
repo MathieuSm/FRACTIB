@@ -1,6 +1,6 @@
-(Transform "TranslationTransform")
-(NumberOfParameters 3)
-(TransformParameters 0.003103 -0.002320 -0.003640)
+(Transform "AffineTransform")
+(NumberOfParameters 12)
+(TransformParameters 0.998751 0.001452 0.000361 0.002093 0.999521 0.000326 0.001190 0.001734 1.002336 -0.005654 0.000550 -0.004254)
 (InitialTransformParametersFileName "/home/mathieu/Documents/FRACTIB/04_Results/04_Registration/432_L_77_F/TransformParameters.0.txt")
 (UseBinaryFormatForTransformationParameters "false")
 (HowToCombineTransforms "Compose")
@@ -16,6 +16,9 @@
 (Origin 0.0000000000 0.0000000000 0.0000000000)
 (Direction 1.0000000000 0.0000000000 0.0000000000 0.0000000000 1.0000000000 0.0000000000 0.0000000000 0.0000000000 1.0000000000)
 (UseDirectionCosines "true")
+
+// AdvancedAffineTransform specific
+(CenterOfRotationPoint 20.1608083947 22.0864050438 15.3774332537)
 
 // ResampleInterpolator specific
 (ResampleInterpolator "FinalBSplineInterpolator")

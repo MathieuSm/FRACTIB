@@ -251,6 +251,7 @@ LogFile.write('Files loaded in %.3f s'%(Toc-Tic) + '\n')
 # Mean moving image value
 Array = sitk.GetArrayFromImage(MovingImage)
 MeanValue = np.mean(Array)
+del Array
 
 # Cast fixed images to float
 FixedImage = sitk.Cast(FixedImage, 8)
@@ -372,23 +373,26 @@ Dictionary = {'FixedImagePyramidSchedule':Schedule,
 
 # Match b-spline interpolation with elements size
 JFile = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
-# Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
 
-ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, Dictionary=Dictionary)
+ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, ResultsDirectory, Dictionary)
 
 BSpline_Bin = Otsu.Execute(ResultImage * FloatMask + NegativeMask)
 Fixed_Bin = Otsu.Execute(FixedImage * FloatMask)
 
 #%% Registration results
-Show.Registration(Fixed_Bin, Rigid_Bin, Axis='X')
-Show.Registration(Fixed_Bin, BSpline_Bin, Axis='X')
-Show.Registration(Rigid_Bin, BSpline_Bin, Axis='X')
+Show.Registration(FixedImage, RigidResult, Axis='X')
+Show.Registration(FixedImage, ResultImage, Axis='X')
 
 # Registration Dice coefficient
 Measure.Execute(Fixed_Bin, BSpline_Bin)
 Dice = Measure.GetDiceCoefficient()
 print('\nDice coefficient of the full image: %.3f' % (Dice))
 
+#%% Inverse
+# Compute the inverse transform
+InitialTransform = str(Path(ResultsDirectory, 'TransformParameters.0.txt'))
+InverseTPM = Register.ComputeInverse(FixedImage, InitialTransform, FixedMask, Path=ResultsDirectory)
 
 #%% Transformix
 ## Use transformix to compute spatial jacobian

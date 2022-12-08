@@ -1104,7 +1104,7 @@ class Register:
 
         return Result_Image, TransformParametersMap
         
-    def ComputeInverse(FixedImage, TPMFileName, MovingImage=None, Path=None):
+    def ComputeInverse(FixedImage, TPMFileName, FixedMask=None, MovingImage=None, Path=None, Dictionary={}):
 
         """
         Compute inverse of rigid elastix transform. Manual 6.1.6
@@ -1120,11 +1120,32 @@ class Register:
         EF.SetInitialTransformParameterFileName(TPMFileName)
 
         EF.SetParameter('HowToCombineTransforms','Compose')
-        EF.SetParameter('MaximumNumberOfIteration','2000')
-        EF.SetParameter('FixedImagePyramidSchedule', ['50', '20', '10'])
-        EF.SetParameter('MovingImagePyramidSchedule', ['50', '20', '10'])
-        EF.SetParameter('SP_alpha', '0.6')
-        EF.SetParameter('SP_A', '1000')
+
+        # Set standard parameters if not specified otherwise
+        if 'MaximumNumberOfIterations' not in Dictionary.keys():
+            EF.SetParameter('MaximumNumberOfIterations','2000')
+
+        if 'FixedImagePyramidSchedule' not in Dictionary.keys():
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            EF.SetParameter('FixedImagePyramidSchedule', [str(S) for S in Schedule])
+
+        if 'MovingImagePyramidSchedule' not in Dictionary.keys():
+            Schedule = np.repeat(['50', '20', '10'], FixedImage.GetDimension())
+            EF.SetParameter('MovingImagePyramidSchedule', [str(S) for S in Schedule])
+
+        if 'SP_alpha' not in Dictionary.keys():
+            EF.SetParameter('SP_alpha', '0.6')
+
+        if 'SP_A' not in Dictionary.keys():
+            EF.SetParameter('SP_A', '1000')
+
+        # Set other defined parameters
+        for Key in Dictionary.keys():
+            EF.SetParameter(Key, [str(Item) for Item in Dictionary[Key]])
+
+        if FixedMask:
+            FixedMask = sitk.Cast(FixedMask,sitk.sitkUInt8)
+            EF.SetFixedMask(FixedMask)
 
         if MovingImage:
             EF.SetParameter('Size', '%i %i %i'%MovingImage.GetSize())
