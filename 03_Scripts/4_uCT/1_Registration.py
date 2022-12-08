@@ -3,6 +3,8 @@
 
 import yaml
 import pandas as pd
+from numba import njit
+
 from Utils import *
 Show = Show()
 Read = Read()
@@ -81,24 +83,28 @@ def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
     Image_Adjusted.SetDirection (Image.GetDirection())
 
     return Image_Adjusted
-def DecomposeJacobian(JacobianImage):
 
-    # Determine 2D of 3D jacobian array
-    JacobianArray = sitk.GetArrayFromImage(JacobianImage)
-    JacobianTerms = JacobianArray.shape[-1]
+@njit
+def Decomposition(JacobianArray):
+
+    # ProcessTiming(1, 'Decompose Jacobian of deformation')
+
+    Terms = JacobianArray.shape[-1]
     ArrayShape = JacobianArray.shape[:-1]
 
-    if JacobianTerms == 4:
+    if Terms == 4:
 
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
-        # HydrostaticStrain = np.zeros(JacobianArray[ArrayShape)
-        # VonMises_Strain = np.zeros(JacobianArray[ArrayShape)
-        # MaxShear = np.zeros(JacobianArray[ArrayShape)
+        # HydrostaticStrain = np.zeros(ArrayShape)
+        # VonMises_Strain = np.zeros(ArrayShape)
+        # MaxShear = np.zeros(ArrayShape)
 
+        # ProcessLength = ArrayShape[0] * ArrayShape[1]
+        # Progress = 0
         for j in range(0, ArrayShape[0]):
             for i in range(0, ArrayShape[1]):
-                F_d = np.matrix(JacobianArray[j, i, :].reshape((2,2)))
+                F_d = JacobianArray[j, i, :].reshape((2,2))
 
                 ## Unimodular decomposition of F
                 J = np.linalg.det(F_d)
@@ -128,19 +134,24 @@ def DecomposeJacobian(JacobianImage):
                 # VM_Strain = np.sqrt(3/2) * np.linalg.norm(Deviatoric_E)
                 # VonMises_Strain[k,j,i] = VM_Strain
 
-    elif JacobianTerms == 9:
+                # Progress += 1
+                # ProgressNext(Progress/ProcessLength*20)
+
+    elif Terms == 9:
 
         SphericalCompression = np.zeros(ArrayShape)
         IsovolumicDeformation = np.zeros(ArrayShape)
-        # HydrostaticStrain = np.zeros(JacobianArray[ArrayShape)
-        # VonMises_Strain = np.zeros(JacobianArray[ArrayShape)
-        # MaxShear = np.zeros(JacobianArray[ArrayShape)
+        # HydrostaticStrain = np.zeros(ArrayShape)
+        # VonMises_Strain = np.zeros(ArrayShape)
+        # MaxShear = np.zeros(ArrayShape)
 
+        # ProcessLength = ArrayShape[0] * ArrayShape[1] * ArrayShape[2]
+        # Progress = 0
         for k in range(0, ArrayShape[0]):
             for j in range(0, ArrayShape[1]):
                 for i in range(0, ArrayShape[2]):
 
-                    F_d = np.matrix(JacobianArray[k, j, i, :].reshape((3, 3)))
+                    F_d = JacobianArray[k, j, i, :].reshape((3, 3))
 
                     ## Unimodular decomposition of F
                     J = np.linalg.det(F_d)
@@ -169,9 +180,21 @@ def DecomposeJacobian(JacobianImage):
                     #
                     # VM_Strain = np.sqrt(3/2) * np.linalg.norm(Deviatoric_E)
                     # VonMises_Strain[k,j,i] = VM_Strain
+                    
+                    # Progress += 1
+                    # ProgressNext(Progress/ProcessLength*20)
 
-    SphericalCompression = sitk.GetImageFromArray(SphericalCompression)
-    IsovolumicDeformation = sitk.GetImageFromArray(IsovolumicDeformation)
+    return SphericalCompression, IsovolumicDeformation
+
+def DecomposeJacobian(JacobianImage):
+
+    # Determine 2D of 3D jacobian array
+    JacobianArray = sitk.GetArrayFromImage(JacobianImage)
+    
+    SC, ID = Decomposition(JacobianArray)
+
+    SphericalCompression = sitk.GetImageFromArray(SC)
+    IsovolumicDeformation = sitk.GetImageFromArray(ID)
 
     for Image in [SphericalCompression, IsovolumicDeformation]:
         Image.SetSpacing(JacobianImage.GetSpacing())
@@ -320,6 +343,7 @@ for i in range(NRotations):
 
 
 #%% Perform initial rotation
+
 # Rotation
 
 T = sitk.Euler3DTransform()
@@ -341,13 +365,14 @@ Rigid_Bin = Otsu.Execute(RigidResult * FloatMask + NegativeMask)
 #%% Non-rigid registration
 # Perform non-rigid registration
 Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1],3)
+Schedule = np.repeat([50, 20, 10, 5],3)
 Dictionary = {'FixedImagePyramidSchedule':Schedule,
               'MovingImagePyramidSchedule':Schedule,
               'NewSamplesEveryIteration':['true']}
 
 # Match b-spline interpolation with elements size
 JFile = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
-Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+# Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
 
 ResultImage, TPM = Register.NonRigid(FixedImage, RigidResult, FixedMask, Dictionary=Dictionary)
 
@@ -382,7 +407,7 @@ ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
 
 #%% Jacobian decomposition
 ## Perform jacobian unimodular decomposition
-SphericalCompression, IsovolumicDeformation = DecomposeJacobian(ResampledJacobian)
+SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
 
 #%% Write results
 ## Write results

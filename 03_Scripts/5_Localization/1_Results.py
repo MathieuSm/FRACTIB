@@ -111,6 +111,8 @@ for i in range(2):
 
     X = uCT_Array.flatten()#[hFE_Array > 0]
     Y = hFE_Array.flatten()#[hFE_Array > 0]
+    X = uCT_Array[hFE_Array > 0]
+    Y = hFE_Array[hFE_Array > 0]
 
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(X, Y, color=(1,0,0), linestyle='none', marker='o', fillstyle='none')
