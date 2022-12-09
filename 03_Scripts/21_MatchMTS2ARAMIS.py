@@ -26,31 +26,8 @@ import argparse
 from Utils import *
 
 
-#%% Functions
-# Define functions
-
-def AFunction(Argument):
-
-    return Something
-
-
-#%% Classes
-# Define classes
-
-class AClass():
-
-    def __init__(self):
-        self.Attribute = 'DefaultValue'
-
 #%% Main
 # Main code
-
-class Arguments():
-
-    def __init__(self):
-        self.Folder = 'FRACTIB'
-        self.Sample = '432_L_77_F'
-Arguments = Arguments()
 
 def Main(Arguments):
 
@@ -166,7 +143,7 @@ def Main(Arguments):
     MissingPoints = len(Matched) - len(Forces)
     Forces = np.concatenate([Forces, np.ones(MissingPoints)* np.nan])
     Matched['F'] = Forces
-    Matched.to_csv(str(ResultsDir / 'MatchedSignals.csv'))
+    Matched.to_csv(str(ResultsDir / 'MatchedSignals.csv'), index=False)
 
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(Matched['T'], Matched['Z'] / Matched['Z'].max(), color=(1,0,0), label='Displacement')
@@ -183,6 +160,7 @@ def Main(Arguments):
     PrintTime(TIC, TOC)
 
     return
+
 
 #%% Execution part
 # Execution as main
