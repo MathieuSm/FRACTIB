@@ -31,7 +31,7 @@ SampleList = pd.read_csv(str(CurrentWorkingDirectory / '02_Data/SampleList.csv')
 
 #%%
 # 01 Set paths and load files
-DataPath  = '02_Data/04_Experiment'
+DataPath  = '02_Data/03_Experiment'
 MachineData = ['1_MTS','2_ARAMIS']
 FilesPath = 'FracTib_ARAMIS_270820'
 ResultsPath = str(CurrentWorkingDirectory / '04_Results/FractureZoneAssessment/01_Experiment/SamplesData')
