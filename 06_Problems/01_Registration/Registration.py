@@ -1473,8 +1473,10 @@ NR = Otsu.Execute(NR)
 Show.Overlay(NR, M)
 
 #%% Non-rigid registration
-# Dictionary = {'NewSamplesEveryIteration':['true'],
-            #   'FinalGridSpacingInPhysicalUnits':['0.5 0.5']}
+Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1], FixedImage.GetDimension())
+Dictionary = {'NewSamplesEveryIteration':['true'],
+              'FinalGridSpacingInPhysicalUnits':['0.97 0.97'],
+              'FixedImagePyramidSchedule':[str(S) for S in Schedule]}
 
 NonRigid, TPM = Register.NonRigid(Bin_Rigid, Bin_Fixed, Dictionary=Dictionary)
 Bin_NonRigid = Otsu.Execute(NonRigid)
