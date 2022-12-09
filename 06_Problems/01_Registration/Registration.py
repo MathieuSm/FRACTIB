@@ -1465,7 +1465,7 @@ Show.Overlay(F,M)
 Dictionary = {'NewSamplesEveryIteration':['true'],
               'GridSize': ['10', '7'],
               'GridSpacing': ['8', '8'],
-              'FinalGridSpacingInPhysicalUnits':['0.25', '0.25', '0.25'],
+              'FinalGridSpacingInPhysicalUnits':['0.25', '0.25'],
               'GridSpacingSchedule':['16', '8', '4', '2', '1'],
               'NumberOfResolutions':['5']}
 NR, TPM = Register.NonRigid(M, F, Dictionary=Dictionary)
@@ -1473,8 +1473,8 @@ NR = Otsu.Execute(NR)
 Show.Overlay(NR, M)
 
 #%% Non-rigid registration
-Dictionary = {'NewSamplesEveryIteration':['true'],
-              'FinalGridSpacingInPhysicalUnits':['0.5 0.5']}
+# Dictionary = {'NewSamplesEveryIteration':['true'],
+            #   'FinalGridSpacingInPhysicalUnits':['0.5 0.5']}
 
 NonRigid, TPM = Register.NonRigid(Bin_Rigid, Bin_Fixed, Dictionary=Dictionary)
 Bin_NonRigid = Otsu.Execute(NonRigid)
