@@ -1,21 +1,6 @@
-#%%
-#! /usr/bin/env python3
+#%% #!/usr/bin/env python3
+# Initialization
 
-import os
-import vtk
-import sys
-import time
-import struct
-import argparse
-import numpy as np
-import sympy as sp
-import SimpleITK as sitk
-from pathlib import Path
-import scipy.signal as sig
-import matplotlib.pyplot as plt
-from vtk.util.numpy_support import vtk_to_numpy
-
-#%%
 Version = '01'
 
 Description = """
@@ -32,7 +17,36 @@ Description = """
     Date: November 2022
     """
 
-#%% General functions
+#%% Imports
+# Modules import
+
+import os
+import vtk
+import sys
+import time
+import struct
+import argparse
+import numpy as np
+import sympy as sp
+import pandas as pd
+import SimpleITK as sitk
+from pathlib import Path
+import scipy.signal as sig
+import matplotlib.pyplot as plt
+from vtk.util.numpy_support import vtk_to_numpy
+
+#%% Tuning
+# Tune diplay settings
+
+DWidth = 320 # display width in number of character
+pd.set_option('display.width', DWidth)
+np.set_printoptions(linewidth=DWidth)
+
+plt.rc('font', size=12) # increase slightly plot font size for readability
+
+
+#%% Functions
+# Define some general functions
 
 def SetDirectories(Name):
 
@@ -1236,9 +1250,6 @@ class Register:
 #%% Signal treatment functions
 class Signal:
 
-    def __init__(self):
-        pass
-
     def FFT(Signal, Sampling, Show=False):
 
         """
@@ -1315,19 +1326,17 @@ class Signal:
 if __name__ == '__main__':
 
     # Initiate the parser with a description
-    Parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    FC = argparse.RawDescriptionHelpFormatter
+    Parser = argparse.ArgumentParser(description=Description, formatter_class=FC)
 
     # Add required arguments
-    Parser.add_argument('File', help='File to read (required)', type=str)
+    Parser.add_argument('File', help='File to process', type=str)
 
     # Add long and short optional arguments
-    ScriptVersion = Parser.prog + ' version ' + Version
-    Parser.add_argument('-v', '--Version', help='Show script version', action='version', version=ScriptVersion)
-    Parser.add_argument('--BMD', default=False, help='Convert gray values to BMD (bool), !!! Depends on voltage, current and time !!!', type=bool)
-    Parser.add_argument('--Echo', default=False, help='Print out current operation and results (bool)', type=bool)
-    Parser.add_argument('--Info', default=False, help='Write file info into text file (bool)', type=bool)
-
+    SV = Parser.prog + ' version ' + Version
+    Parser.add_argument('-v', '--Version', help='Show script version', action='version', version=SV)
     # Read arguments from the command line
     Arguments = Parser.parse_args()
     
     # This part to finish
+    # Do something
