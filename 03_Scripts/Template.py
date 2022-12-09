@@ -33,7 +33,7 @@ def AFunction(Argument):
 #%% Classes
 # Define classes
 
-def AClass():
+class AClass():
 
     def __init__(self):
         self.Attribute = 'DefaultValue'
