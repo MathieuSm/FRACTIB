@@ -267,7 +267,7 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
   
     Transform = sitk.TranslationTransform(Dimension)
     
-    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkNearestNeighbor)
 
 def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
 
@@ -325,7 +325,7 @@ def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
             Sliced = sitk.Slice(Image, (0, 0, int(Size[2]/2)), (Size[0], Size[1], int(Size[2]/2)+1))
         
             if Slice2D:
-                Array = sitk.GetArrayFromImage(Sliced)[2]
+                Array = sitk.GetArrayFromImage(Sliced)[0]
                 Sliced2D = sitk.GetImageFromArray(Array)
                 Sliced2D.SetOrigin(Origin[:2])
                 Sliced2D.SetSpacing(Spacing[:2])
@@ -336,7 +336,7 @@ def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
             Sliced = sitk.Slice(Image, (0, int(Size[1]/2), 0), (Size[0], int(Size[1]/2)+1, Size[2]))
         
             if Slice2D:
-                Array = sitk.GetArrayFromImage(Sliced)[1]
+                Array = sitk.GetArrayFromImage(Sliced)[:,0]
                 Sliced2D = sitk.GetImageFromArray(Array)
                 Sliced2D.SetOrigin(Origin[::2])
                 Sliced2D.SetSpacing(Spacing[::2])
@@ -347,7 +347,7 @@ def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
             Sliced = sitk.Slice(Image, (int(Size[0]/2), 0, 0), (int(Size[0]/2)+1, Size[1], Size[2]))
 
             if Slice2D:
-                Array = sitk.GetArrayFromImage(Sliced)[2]
+                Array = sitk.GetArrayFromImage(Sliced)[:,:,0]
                 Sliced2D = sitk.GetImageFromArray(Array)
                 Sliced2D.SetOrigin(Origin[1:])
                 Sliced2D.SetSpacing(Spacing[1:])
@@ -449,7 +449,6 @@ class Register:
         # Set other defined parameters
         for Key in Dictionary.keys():
             ParameterMap[Key] = [str(Item) for Item in Dictionary[Key]]
-
 
         # Set Elastix and perform registration
         ElastixImageFilter = sitk.ElastixImageFilter()
@@ -639,6 +638,7 @@ class Register:
 class Show:
 
     def __init__(self):
+        self.V = [0.8, 1.2]
         pass
 
     def Normalize(self, Array):
@@ -682,7 +682,7 @@ class Show:
 
         return
 
-    def Registration(self, Fixed, Moving, Slice=None, Title=None, Axis='Z', AsBinary=False):
+    def Overlay(self, Fixed, Moving, Slice=None, Title=None, Axis='Z', AsBinary=False):
 
         FixedArray = sitk.GetArrayFromImage(Fixed)
         MovingArray = sitk.GetArrayFromImage(Moving)
@@ -728,7 +728,7 @@ class Show:
                     Array = Array[:,:,Array.shape[2]//2]
 
         else:
-            Array = np.zeros((Fixed.GetSize()[1], Fixed.GetSize()[0], 3))
+            Array = np.zeros((Fixed.GetSize()[1], Fixed.GetSize()[0], 3), 'uint8')
             Array[:,:,0] = FixedArray
             Array[:,:,1] = MovingArray
             Array[:,:,2] = MovingArray
@@ -741,6 +741,69 @@ class Show:
             Axis.set_title(Title)
 
         plt.show(Figure)
+
+        return
+
+    def Intensity(self, Structure, Deformations, Mask=None, Slice=None, Axis='Z'):
+
+        Array = sitk.GetArrayFromImage(Structure)
+        Values = sitk.GetArrayFromImage(Deformations)
+
+        if Mask:
+            MaskArray = sitk.GetArrayFromImage(Mask).astype('bool')
+
+        if Structure.GetDimension() == 3:
+            
+            if Axis == 'Z':
+                if Slice:
+                    Array = Array[Slice,:,:]
+                    Values = Values[Slice,:,:]
+                    if Mask:
+                        MaskArray = MaskArray[Slice,:,:]
+                else:
+                    Array = Array[Array.shape[0]//2,:,:]
+                    Values = Values[Values.shape[0]//2,:,:]
+                    if Mask:
+                        MaskArray = MaskArray[MaskArray.shape[0]//2,:,:]
+
+            if Axis == 'Y':
+                if Slice:
+                    Array = Array[:,Slice,:]
+                    Values = Values[:,Slice,:]
+                    if Mask:
+                        MaskArray = MaskArray[:,Slice,:]
+                else:
+                    Array = Array[:,Array.shape[1]//2,:]
+                    Values = Values[:,Values.shape[1]//2,:]
+                    if Mask:
+                        MaskArray = MaskArray[:,MaskArray.shape[1]//2,:]
+
+            if Axis == 'X':
+                if Slice:
+                    Array = Array[:,:,Slice]
+                    Values = Values[:,:,Slice]
+                    if Mask:
+                        MaskArray = MaskArray[:,:,Slice]
+                else:
+                    Array = Array[:,:,Array.shape[2]//2]
+                    Values = Values[:,:,Values.shape[2]//2]
+                    if Mask:
+                        MaskArray = MaskArray[:,:,MaskArray.shape[2]//2]
+
+        Structure = np.zeros((Array.shape[0], Array.shape[1], 4))
+        Structure[:,:,3] = self.Normalize(Array) / 255
+        
+        if Mask:
+            Values[~MaskArray] = np.nan
+        else:
+            Values[Values == 0] = np.nan
+
+        Figure, Axis = plt.subplots(1,1)
+        Plot = Axis.imshow(Values, cmap='jet', vmin=self.V[0], vmax=self.V[1], interpolation=None)
+        Axis.imshow(Structure)
+        Axis.axis('Off')
+        plt.colorbar(Plot, orientation='vertical')
+        plt.show()
 
         return
 
@@ -1372,29 +1435,50 @@ FixedCort = Read.AIM(SampleDirectory + Files[0][:-4] + '_CORT_MASK.AIM')[0]
 FixedTrab = Read.AIM(SampleDirectory + Files[0][:-4] + '_TRAB_MASK.AIM')[0]
 FixedMask = FixedCort + FixedTrab
 FixedMask.SetSpacing(FixedImage.GetSpacing())
+
 #%% Preprocessing
 
+# Binarize images
 Otsu = sitk.OtsuThresholdImageFilter()
 Otsu.SetInsideValue(0)
 Otsu.SetOutsideValue(1)
 Bin_Fixed = Otsu.Execute(FixedImage)
 Bin_Moving = Otsu.Execute(MovingImage)
 
+# Pad fixed images for include full moving image
+Bin_Fixed = sitk.ConstantPad(Bin_Fixed, (50, 50, 0), (50, 50, 0))
+FixedMask = sitk.ConstantPad(FixedMask, (50, 50, 0), (50, 50, 0))
+
 #%% Rigid registration
 
 Rigid, TPM = Register.Rigid(Bin_Fixed, Bin_Moving, FixedMask)
 Bin_Rigid = Otsu.Execute(Rigid)
-Show.Registration(Bin_Fixed, Bin_Rigid, Axis='X')
+Show.Overlay(Bin_Fixed, Bin_Rigid, Axis='X')
+
+#%% 2D bspline registration
+
+F = GetSlice(Bin_Fixed, Axis='X')
+M = GetSlice(Bin_Rigid, Axis='X')
+Show.Overlay(F,M)
+
+#%% 2D Bspline registration
+Dictionary = {'NewSamplesEveryIteration':['true'],
+              'GridSize': ['10', '7'],
+              'GridSpacing': ['8', '8'],
+              'FinalGridSpacingInPhysicalUnits':['0.25', '0.25', '0.25'],
+              'GridSpacingSchedule':['16', '8', '4', '2', '1'],
+              'NumberOfResolutions':['5']}
+NR, TPM = Register.NonRigid(M, F, Dictionary=Dictionary)
+NR = Otsu.Execute(NR)
+Show.Overlay(NR, M)
 
 #%% Non-rigid registration
-Schedule = np.repeat([50, 20, 10, 5],3)
-Dictionary = {'FixedImagePyramidSchedule':Schedule,
-              'MovingImagePyramidSchedule':Schedule,
-              'NewSamplesEveryIteration':['true']}
+Dictionary = {'NewSamplesEveryIteration':['true'],
+              'FinalGridSpacingInPhysicalUnits':['0.5 0.5']}
 
 NonRigid, TPM = Register.NonRigid(Bin_Rigid, Bin_Fixed, Dictionary=Dictionary)
 Bin_NonRigid = Otsu.Execute(NonRigid)
-Show.Registration(Bin_Rigid, Bin_NonRigid, Axis='X')
+Show.Overlay(Bin_Rigid, Bin_NonRigid, Axis='X')
 
 #%% Registration metrics
 Measure = sitk.LabelOverlapMeasuresImageFilter()
@@ -1404,7 +1488,29 @@ print(Dice)
 
 #%% Spatial Jacobian
 
-Results = Register.Apply(Bin_Fixed, TPM[0], str(Path.cwd()), Jacobian=True)
-Show.Slice(Results)
+Deformed = Register.Apply(Bin_Fixed, TPM, str(Path.cwd()), Jacobian=True)
+Show.Slice(Results, Axis='X')
+
+#%% Load and decompose jacobian
+JacobianImage = sitk.ReadImage('fullSpatialJacobian.nii')
+JacobianImage.SetSpacing(FixedImage.GetSpacing())
+
+## Resample Jacobian image
+JhFE = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
+NewSpacing = JhFE.GetSpacing()
+ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
+
+## Perform jacobian unimodular decomposition
+SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
+
+#%% Plot results
+
+RJ = Resample(JhFE, Spacing=FixedImage.GetSpacing())
+Pad = np.array(RJ.GetSize()) - np.array(FixedImage.GetSize())
+RJ = sitk.ConstantPad(RJ, (1,6,1), (1,6,0))
+
+Show.Intensity(FixedImage, SphericalCompression, Mask=FixedMask, Axis='X')
+Show.V = [0.9, 1.1]
+Show.Intensity(FixedImage, RJ, Axis='X')
 
 # %%
