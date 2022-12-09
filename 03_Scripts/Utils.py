@@ -269,7 +269,6 @@ class Show:
 
     def __init__(self):
         self.V = [0.8, 1.2]
-        pass
 
     def Normalize(self, Array):
 
