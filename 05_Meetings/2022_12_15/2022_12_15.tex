@@ -1,0 +1,226 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Beamer Presentation
+% LaTeX Template
+% Version 1.0 (01/07/19)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------
+%	PACKAGES AND THEMES		-----------------------------------
+%----------------------------------------------------------------
+
+\documentclass[xcolor=table,11pt]{beamer}
+
+\mode<presentation> {
+	
+	\usetheme{Frankfurt}
+	\usecolortheme{dove}
+	\usefonttheme{serif}
+	
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{booktabs} 
+\usepackage{subfig}
+\usepackage{pgf}
+\usepackage{multirow}
+\usepackage{appendixnumberbeamer}
+\usepackage{bookmark}
+\usepackage{siunitx}
+\usepackage{animate}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{pifont}
+\usepackage{caption}
+\usepackage{array}
+\captionsetup{skip=0pt,belowskip=0pt}
+
+
+%----------------------------------------------------------------
+%	GENERAL OPTIONS 	-----------------------------------------
+%----------------------------------------------------------------
+
+% Set template options
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{frametitle}{\vspace*{1em}\insertframetitle}
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{section in head/foot}{fg=white, bg=black}
+
+% Headline
+\makeatletter
+\setbeamertemplate{headline}
+{%
+	\pgfuseshading{beamer@barshade}%
+	\vskip-5ex%
+	\begin{beamercolorbox}[ignorebg,ht=2.25ex,dp=3.75ex]{section in head/foot}
+		\insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}
+	\end{beamercolorbox}%
+	\ifbeamer@sb@subsection%
+	\begin{beamercolorbox}[ignorebg,ht=2.125ex,dp=1.125ex,%
+		leftskip=.3cm,rightskip=.3cm plus1fil]{subsection in head/foot}
+		\usebeamerfont{subsection in head/foot}\insertsubsectionhead
+	\end{beamercolorbox}%
+	\fi%
+}%
+\makeatother
+
+% Footline
+\makeatletter
+\setbeamertemplate{footline}
+{
+	\leavevmode%
+	\hbox{%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,left]{section in head/foot}%
+			\usebeamerfont{author in head/foot}\hspace{10pt}\insertshortauthor
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{section in head/foot}%
+			\usebeamerfont{title in head/foot}\insertshorttitle
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{section in head/foot}%
+			\usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}
+			\insertframenumber{}\hspace*{2em}
+	\end{beamercolorbox}}%
+	\vskip0pt%
+}
+\makeatother
+
+% Add logo
+\logo{\pgfputat{\pgfxy(0,7)}{\includegraphics[width=0.1\paperwidth]{Pictures/00_Unibe_Logo}}}
+
+% Table settings
+\renewcommand{\arraystretch}{2}
+\captionsetup{labelformat=empty,labelsep=none}
+\definecolor{Gray}{gray}{0.9}
+
+% Define highlitghing command
+\makeatletter
+\let\HL\hl
+\renewcommand\hl{%
+	\let\set@color\beamerorig@set@color
+	\let\reset@color\beamerorig@reset@color
+	\HL}
+\makeatother
+
+% Add overview at each begin of section
+%\AtBeginSection[]
+%{
+	%	\begin{frame}
+		%		\frametitle{Overview}
+		%		\tableofcontents[currentsection]
+		%	\end{frame}
+	%}
+
+
+\renewcommand{\arraystretch}{1.4}
+\newcommand{\ColWidth}{1}
+\newcommand{\TrimSize}{50}
+
+%----------------------------------------------------------------
+%	TITLE PAGE 	-------------------------------------------------
+%----------------------------------------------------------------
+
+\title[Bilateral Meeting]{
+	\uppercase{Bilateral Meeting}
+} 
+
+\author{Mathieu Simon}
+\medskip
+\date{December 15, 2022}
+
+\begin{document}
+	
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Top Surface Motion}
+	
+	\begin{frame}
+		\frametitle{Force - Displacement}
+		\begin{figure}
+			\includegraphics[width=0.45\linewidth]{Pictures/NormSig}			\includegraphics[width=0.45\linewidth]{Pictures/ForceDisp}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Experiment Configuration}
+		$\Rightarrow$ Fit displacement
+		\begin{figure}
+			\includegraphics[width=0.8\linewidth]{Pictures/OriginalSys}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}[noframenumbering]
+		\frametitle{Experiment Configuration}
+		$\Rightarrow$ Fit displacement
+		\begin{figure}
+			\includegraphics[width=0.8\linewidth]{Pictures/RotatedSys}
+		\end{figure}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Experiment Configuration}
+		Check rotations\\
+		!! minus sign !!
+		\begin{figure}
+			\includegraphics[width=0.8\linewidth]{Pictures/RotatedSys2}
+		\end{figure}
+	\end{frame}
+
+	\section{Densification}
+	
+	\begin{frame}
+		\frametitle{Modified UMAT}
+		\begin{figure}
+			\includegraphics[width=0.45\linewidth]{Pictures/NormSig2}			\includegraphics[width=0.45\linewidth]{Pictures/Densification}
+		\end{figure}
+	\end{frame}
+
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{}
+	\begin{frame}
+		Thank you for your attention !	
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	%\appendix
+	
+	%\section{References}
+	%\begin{frame}
+	%	\frametitle{Osteogenesis Imperfecta}
+	%	\footnotesize{
+		%		\begin{thebibliography}{99}
+			%			\setbeamertemplate{bibliography item}[triangle]
+			%			
+			%			\bibitem[Mortier et al. 2019]{p1} Mortier et al. (2019)
+			%			\newblock Nosology and classification of genetic skeletal disorders: 2019 revision
+			%			\newblock \textit{American Journal of Medical Genetics, Part A} (179), 2393-2419
+			%			
+			%			\bibitem[Tournis 2018]{p2} Tournis, S., Dede, A.D. (2018)
+			%			\newblock Osteogenesis imperfecta A clinical update
+			%			\newblock \textit{Metabolism: Clinical and Experimental} (80), 27-37
+			%			
+			%			\bibitem[Lim et al. 2017]{p3}  Lim, J., Grafe, I., Alexander, S., Lee, B. (2017)
+			%			\newblock Genetic causes and mechanisms of osteogenesis imperfecta
+			%			\newblock \textit{Bone} (102), 40-49
+			%			
+			%		\end{thebibliography}
+		%	}
+	%\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+\end{document} 

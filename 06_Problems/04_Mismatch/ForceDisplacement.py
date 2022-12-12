@@ -21,6 +21,7 @@ SimData5 = ReadDAT('C000' + str(uCT_ID) + '_5.dat')
 SimData2 = ReadDAT('C000' + str(uCT_ID) + '_2.dat')
 SimData3 = ReadDAT('C000' + str(uCT_ID) + '_3.dat')
 SimData1 = ReadDAT('C000' + str(uCT_ID) + '_1.dat')
+SimDataD = ReadDAT('C000' + str(uCT_ID) + '_D.dat')
 
 #%% Force displacement
 X = 'Displacement (mm)'
@@ -28,10 +29,11 @@ Y = 'Force (N)'
 
 Figure, Axis = plt.subplots(1,1)
 Axis.plot(ExpData[X], ExpData[Y], color=(0,0,0), label='Experiment')
-Axis.plot(-SimData5['U3'], -SimData5['F3'], color=(1,0,0), label='All free')
-Axis.plot(-SimData2['U3'], -SimData2['F3'], color=(1,0,1), label='Translations locked')
-Axis.plot(-SimData3['U3'], -SimData3['F3'], color=(0,0,1), label='Rotations locked')
-Axis.plot(-SimData1['U3'], -SimData1['F3'], color=(0,1,1), label='All locked')
+Axis.plot(-SimData5['Z'], -SimData5['FZ'], color=(1,0,0), label='All free')
+Axis.plot(-SimData2['Z'], -SimData2['FZ'], color=(1,0,1), label='Translations locked')
+Axis.plot(-SimData3['Z'], -SimData3['FZ'], color=(0,0,1), label='Rotations locked')
+Axis.plot(-SimData1['Z'], -SimData1['FZ'], color=(0,1,1), label='All locked')
+Axis.plot(-SimDataD['Z'], -SimDataD['FZ'], color=(0.7,0.7,0.7), label='Densification')
 Axis.set_xlabel(X)
 Axis.set_ylabel(Y)
 plt.legend()
