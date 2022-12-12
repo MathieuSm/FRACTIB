@@ -59,6 +59,8 @@ def Main(File):
 
         for iName, Name in enumerate(ColNames):
             Data[Name] = Values[:,iName]
+        
+        Data.columns = ['X', 'FX', 'Y', 'FY', 'Z', 'FZ', 'Phi', 'MX', 'Theta', 'MY', 'Psi', 'MZ']
 
         return Data
 

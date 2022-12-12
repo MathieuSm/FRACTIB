@@ -135,19 +135,19 @@ def Main(Arguments):
         NewData = Signal.Filter(Interpolated, Sampling, CutOff)
 
         if iV < 3:
-            Matched[V[1]] = NewData[Protocol1_Shift:]
+            Matched[V[1]] = NewData[Protocol1_Shift:] - NewData[Protocol1_Shift]
         else:
-            Matched[V[:-7]] = NewData[Protocol1_Shift:]
+            Matched[V[:-7]] = NewData[Protocol1_Shift:] - NewData[Protocol1_Shift]
 
     # Add force data and write csv
     MissingPoints = len(Matched) - len(Forces)
     Forces = np.concatenate([Forces, np.ones(MissingPoints)* np.nan])
-    Matched['F'] = Forces
+    Matched['FZ'] = Forces - Forces[0]
     Matched.to_csv(str(ResultsDir / 'MatchedSignals.csv'), index=False)
 
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(Matched['T'], Matched['Z'] / Matched['Z'].max(), color=(1,0,0), label='Displacement')
-    Axis.plot(Matched['T'], Matched['F'] / Matched['F'].min(), color=(0,0,1), label='Force')
+    Axis.plot(Matched['T'], Matched['FZ'] / Matched['FZ'].min(), color=(0,0,1), label='Force')
     Axis.set_xlabel('Time (s)')
     Axis.set_ylabel('Normalized signals (-)')
     plt.legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.12))
