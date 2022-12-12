@@ -29,6 +29,9 @@ C     IMPLEMENTED NEW MATERIAL SUPERPOSITION OF SSSS, FFFF, FF AND
 C     POSTYIELD BEHAVIOR FLAG 5 (SIMPLE SOFTENING FOR USE IN
 C     MATERIAL SUPERPOSITION - DS, ISTB, 11/2018
 C
+C     ADDED BACK DENSIFICATION ROUTINE CREATED BY JJS, ITSB 2012
+C     FOR USE IN STRAIN LINES LOCALIZATION - MS, ARTORG MSB, 12/2022
+C
 C====================================================================
 C
 C     Variables provided by Abaqus:
@@ -87,6 +90,7 @@ C     SDV 9-14:  NOMINAL STRESS VECTOR
 C     SDV 15:    BVTVC
 C     SDV 16:    BVTVT
 C     SDV 22:    OF VALUE
+C     SDV 23-28: DENSIFICATION STRESS VECTOR
 C
 C====================================================================
 C
@@ -107,18 +111,20 @@ C====================================================================
 C
 C     Hard wired flags:
 C
-C     VISCOSITY: 0 - RATE-INDEPENDENT (DEFAULT)
-C                1 - LINEAR VISCOSITY
-C                2 - EXPONENTIAL VISC
-C                3 - LOGARITHMIC VISC
-C                4 - POLYNOMIAL VISC
-C                5 - POWER LAW VISC 
-C     POSTYIELD: 0 - PERFECT PLASTICITY
-C                1 - EXPONENTIAL HARDENING
-C                2 - SIMPLE SOFTENING
-C                3 - EXPONENTIAL SOFTENING
-C                4 - PIECEWISE SOFTENING
-C                5 - SIMPLE SOFTENING CORRECTED (DENIS)
+C     VISCOSITY:     0 - RATE-INDEPENDENT (DEFAULT)
+C                    1 - LINEAR VISCOSITY
+C                    2 - EXPONENTIAL VISC
+C                    3 - LOGARITHMIC VISC
+C                    4 - POLYNOMIAL VISC
+C                    5 - POWER LAW VISC 
+C     POSTYIELD:     0 - PERFECT PLASTICITY
+C                    1 - EXPONENTIAL HARDENING
+C                    2 - SIMPLE SOFTENING
+C                    3 - EXPONENTIAL SOFTENING
+C                    4 - PIECEWISE SOFTENING
+C                    5 - SIMPLE SOFTENING CORRECTED (DENIS)
+C     DENSIFICATION: 0 - DENSIFICATION OFF
+C                    1 - DENSIFICATION ON
 C
 C====================================================================
 C
@@ -221,6 +227,7 @@ C     PRIMAL CPP ALGORITHM AND LINE SEARCH VARIABLES
       DOUBLE PRECISION RRR(7),RRI(7),XXI(7),XX1(7),DDD(7),JJJ(7,7)
       DOUBLE PRECISION INVJ(7,7),DDJ(7,7),AUX,DMK,UPLIM
       DOUBLE PRECISION ETAL,BETA,MKI,MK1,ALPHA1,ALPHA2,ALPHA
+C
 C     VARIABLES FOR MATERIAL SUPERPOSITION
       INTEGER NROTC
       INTEGER NROTT
@@ -234,8 +241,14 @@ C     VARIABLES FOR MATERIAL SUPERPOSITION
       DOUBLE PRECISION FFFFSUP(6,6)
       DOUBLE PRECISION FFFFSUPMUL(6,6)
 C
-C     PERSONALIZED LOADINF
+C     PERSONALIZED LOADING
       DOUBLE PRECISION EPS0, R, OF
+C
+C     DENSIFICATOR ROUTINE VARIABLES
+      DOUBLE PRECISION ECRIT,GAMMAL0,RL,GAMMAP0,RP,POWERDNS
+      DOUBLE PRECISION TRACEEN,CRITERION,GAMMAL,GAMMAP
+      DOUBLE PRECISION SDNS(6),SDNST(3,3),XIDENV(6),XIDEN(3,3)
+      DOUBLE PRECISION XDENSSTIFF1,TANGDENS(6,6)
 C      
 C     INTERFACE FOR ARRAY VALUED EXTERNAL FUNCTION VECDYAD
       INTERFACE
@@ -292,6 +305,16 @@ C     TENSOR INITIALISATION
       FFFFINTT= 0.0D0
       FFFFSUP= 0.0D0
 C
+      DO K1=1,3
+        DO K2=1,3
+         XIDEN(K1,K2)=0.0D0
+        END DO
+      END DO
+C 
+      DO K1=1,3
+         XIDEN(K1,K1)=1.0D0
+      ENDDO
+C
 C     VECTOR INITIALISATION
       FFT    = 0.0D0
       FFTI   = 0.0D0
@@ -323,6 +346,12 @@ C     VECTOR INITIALISATION
       DDD    = 0.0D0
       J12    = 0.0D0
       J21    = 0.0D0
+C
+      XIDENV = 0.0D0
+C 
+      DO K1=1,3
+         XIDENV(K1)=1.0D0
+      ENDDO  
 C
 C     SCALAR INITIALISATION
       ITER    = 0
@@ -456,13 +485,25 @@ C
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
         PYFL   = 0
+        DENSFL = 1
+C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
         KWIDTH = 8.0D0
         KMIN   = 0.1D0
         GMIN   = -2.0D0
         EXPS   = 300.0D0
-        ND     = 2.0D0      
+        ND     = 2.0D0
+C
+C       DENSITY-BASED DENSIFICATION PARAMETERS
+        ECRIT = -0.3D0
+        GAMMAL0 = 1100.0D0
+        RL = 2.928D0
+        GAMMAP0 = 1300.0D0
+        RP = 2.77D0
+        POWERDNS = 6.0D0
+        BVTV = BVTVT + BVTVC
+C
 C       TRABECULAR PARAMETERS
 C       ELASTICITY PARAMETERS (FABRGWTB PMUBC, PHZ, 2013) NEW VERSION 2017
         E0  = 9759.0D0*(12000.0D0/9759.0D0)*SCA1
@@ -651,14 +692,24 @@ C
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
         PYFL   = 0
+        DENSFL = 1
+C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
         KWIDTH = 8.0D0
         KMIN   = 0.1D0
         GMIN   = -2.0D0
         EXPS   = 300.0D0
-        ND     = 2.0D0     
-        
+        ND     = 2.0D0
+C
+C       DENSITY-BASED DENSIFICATION PARAMETERS
+        ECRIT = -0.3D0
+        GAMMAL0 = 1100.0D0
+        RL = 2.928D0
+        GAMMAP0 = 1300.0D0
+        RP = 2.77D0
+        POWERDNS = 6.0D0
+C
 C       BVTV was BVTVC*PBVC before. But as we now superimpose the stiffness matrices, I think we should change this to BVTV=BVTVC!
         BVTV = BVTVT
 C        
@@ -760,9 +811,11 @@ C     CORTICAL SSSS, FFFF, FF
       ELSE IF (PBVC.GT.0.0D0.AND.PBVT.EQ.0.0D0) THEN
 C     DENSITY-BASED TRANSVERSELY ISOTROPIC COMPACT BONE, MAIN DIRECTION 3
 C     ___________________________________________________________________
-C
+C       FLAGS
         VISCFL = 0
         PYFL   = 0
+        DENSFL = 1
+C
 C
 C       POSTYIELD PARAMETERS
         KSLOPE = 300.D0
@@ -771,7 +824,15 @@ C       POSTYIELD PARAMETERS
         GMIN   = -2.0D0
         EXPS   = 300.0D0
         ND     = 2.0D0
-C        
+C
+C       DENSITY-BASED DENSIFICATION PARAMETERS
+        ECRIT = -0.3D0
+        GAMMAL0 = 1100.0D0
+        RL = 2.928D0
+        GAMMAP0 = 1300.0D0
+        RP = 2.77D0
+        POWERDNS = 6.0D0
+C
 C       BVTV was BVTVC*PBVC before. But as we now superimpose the stiffness matrices, I think we should change this to BVTV=BVTVC!
         BVTV = BVTVC
 C
@@ -1355,6 +1416,76 @@ C
       DO K1 = 1,6
         STATEV(8+K1) = SS1(K1)
       END DO
+C     __________________________________________________________________
+C
+C     DENSIFICATION ROUTINE          
+C     __________________________________________________________________
+C 
+      IF (DENSFL.EQ.1) THEN
+C     __________________________________________________________________
+C
+C     CALCULATE THE DENSIFICATION STRESS AND TANGENT           
+C     __________________________________________________________________
+C 
+        TRACEEN = ETOT1(1)+ETOT1(2)+ETOT1(3)
+C 
+        CRITERION = TRACEEN-ECRIT
+C 
+        IF (CRITERION .LE. 0.0D0) THEN
+C 
+        GAMMAL = GAMMAL0*(BVTV**RL)
+        GAMMAP = GAMMAP0*(BVTV**RP)
+C 
+          DO K1=1,3
+            DO K2=1,3
+              SDNST(K1,K2) = (GAMMAL*CRITERION+GAMMAP*
+     1            CRITERION**(POWERDNS-1.0D0))*XIDEN(K1,K2)
+            ENDDO
+          ENDDO
+C     __________________________________________________________________
+C
+C     UPDATING THE NOMINAL STRESS TENSOR BY  
+C     ADDING THE  DENSIFICATION STRESS     
+C     __________________________________________________________________
+C 
+          DO K1 =1,3
+            SS1(K1)=SS1(K1)+SDNST(K1,K1)
+            SDNS(K1)=SDNST(K1,K1)
+          ENDDO
+C 
+          SDNS(4)=SDNST(1,2)
+          SDNS(5)=SDNST(1,3)
+          SDNS(6)=SDNST(2,3)
+C 
+          SS1(4)=SS1(4)+SDNST(1,2)*DSQRT(2.0D0)
+          SS1(5)=SS1(5)+SDNST(1,3)*DSQRT(2.0D0)
+          SS1(6)=SS1(6)+SDNST(2,3)*DSQRT(2.0D0)
+C
+C     __________________________________________________________________
+C
+C     UPDATING THE NOMINAL JACOBIAN 
+C     (ADDING THE DENSIFICATOR TANGENT STIFFNESS)     
+C     __________________________________________________________________
+C 
+          XDENSSTIFF1 = (GAMMAL+GAMMAP*(POWERDNS-1.0D0)*
+     1              CRITERION**(POWERDNS-2.0D0))
+C 
+          TANGDENS=XDENSSTIFF1*VECDYAD(XIDENV,XIDENV)   
+C 
+          TANM=TANM+TANGDENS 
+C 
+        ENDIF
+C 
+C     __________________________________________________________________
+C
+C     END OF DENSIFICATION ROUTINE               
+C     __________________________________________________________________
+C 
+        DO K1 = 1,6
+          STATEV(14+K1) = SDNS(K1)
+        ENDDO
+C
+      ENDIF
 C     _______________________________________________________________
 C
 C     RETURN VARIABLES TO ABAQUS 
