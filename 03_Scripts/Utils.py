@@ -39,8 +39,10 @@ from vtk.util.numpy_support import vtk_to_numpy
 # Tune diplay settings
 
 DWidth = 320 # display width in number of character
+pd.set_option('display.max_rows', 100)
+pd.set_option('display.max_columns', DWidth)
 pd.set_option('display.width', DWidth)
-np.set_printoptions(linewidth=DWidth)
+np.set_printoptions(linewidth=DWidth,suppress=True,formatter={'float_kind':'{:3}'.format})
 
 plt.rc('font', size=12) # increase slightly plot font size for readability
 
