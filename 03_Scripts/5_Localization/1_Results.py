@@ -5,7 +5,6 @@ import SimpleITK as sitk
 from pathlib import Path
 
 from Utils import *
-Show = Show()
 
 def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
 
@@ -97,8 +96,8 @@ for V in Variables:
 Pad = tuple(int(p) for p in np.array(uCT[0].GetSize()) - np.array(hFE[0].GetSize()))
 PhFE = [sitk.ConstantPad(P, (0, 0, 0), Pad) for P in hFE]
 
-Show.Registration(uCT[0], PhFE[0], AsBinary = False)
-Show.Registration(uCT[0], uCT[0])
+Show.Overlay(uCT[0], PhFE[0], AsBinary = False)
+Show.Overlay(uCT[0], uCT[0])
 
 
 

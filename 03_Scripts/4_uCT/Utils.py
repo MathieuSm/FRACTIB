@@ -377,6 +377,7 @@ class Show:
 class Read:
 
     def __init__(self):
+        self.Echo = True
         pass
     
     def Get_AIM_Ints(self, File):
@@ -404,8 +405,9 @@ class Read:
         from Denis hFE pipeline
         """
 
-        print('\nRead AIM')
-        Tic = time.time()
+        if self.Echo:
+            print('\nRead AIM')
+            Tic = time.time()
 
         # read header
         with open(File, 'rb') as f:
@@ -527,8 +529,9 @@ class Read:
                         'Intercept':Intercept,
                         'Header':Header}
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return Image, AdditionalData
 

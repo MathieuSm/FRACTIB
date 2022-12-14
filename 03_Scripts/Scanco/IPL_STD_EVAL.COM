@@ -174,7 +174,7 @@ $ ipl_batch
 !! Start of trabecular masking
 !!------------------------------------------------------------------------------
 
-!we end up with only trabecular structure
+! We end up with only trabecular structure
 !! Creating only trabecular structure
 
 /subtract_aims
@@ -299,7 +299,7 @@ $ ipl_batch
 !! This loop will only be executed if variable loop := trab_close
 !! If this variable is set to trab_short, the processing will continue
 !! directly at the end of this loop!
-`!! *************************************************************************
+!! *************************************************************************
 
 
 ! At this stage, the Tb mask (trab_bbc) is close to be correct,

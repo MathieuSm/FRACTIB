@@ -249,7 +249,7 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
   
     Transform = sitk.TranslationTransform(Dimension)
     
-    return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
+    return sitk.Resample(Image, NewImage, Transform, sitk.sitkNearestNeighbor)
 
 def ProgressStart(Text):
     global CurrentProgress
@@ -457,7 +457,7 @@ Show = Show()
 class Read:
 
     def __init__(self):
-        pass
+        self.Echo = True
     
     def Get_AIM_Ints(self, File):
 
@@ -484,8 +484,9 @@ class Read:
         from Denis hFE pipeline
         """
 
-        print('\nRead AIM')
-        Tic = time.time()
+        if self.Echo:
+            print('\nRead AIM')
+            Tic = time.time()
 
         # read header
         with open(File, 'rb') as f:
@@ -607,8 +608,9 @@ class Read:
                         'Intercept':Intercept,
                         'Header':Header}
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return Image, AdditionalData
 
@@ -1062,54 +1064,62 @@ class Write:
 
 Write = Write()
 #%% Registration funtions
-class Register:
+class Registration:
 
-    def Rigid(FixedImage, MovingImage, Path=None, Dictionary={}):
+    def Register(FixedImage, MovingImage, Type, FixedMask=None, MovingMask=None, Path=None, Dictionary={}):
 
-        print('\nPerform rigid registration')
+        print('\nPerform ' + Type + ' registration')
         Tic = time.time()
-        ParameterMap = sitk.GetDefaultParameterMap('rigid')
+        PM = sitk.GetDefaultParameterMap(Type)
 
         # Set standard parameters if not specified otherwise
         if 'MaximumNumberOfIterations' not in Dictionary.keys():
-            ParameterMap['MaximumNumberOfIterations'] = ['2000']
+            PM['MaximumNumberOfIterations'] = ['2000']
 
         if 'FixedImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['FixedImagePyramidSchedule'] = ['50', '20', '10']
+            PM['FixedImagePyramidSchedule'] = ['50', '20', '10']
 
         if 'MovingImagePyramidSchedule' not in Dictionary.keys():
-            ParameterMap['MovingImagePyramidSchedule'] = ['50', '20', '10']
+            PM['MovingImagePyramidSchedule'] = ['50', '20', '10']
 
         if 'SP_alpha' not in Dictionary.keys():
-            ParameterMap['SP_alpha'] = ['0.6']
+            PM['SP_alpha'] = ['0.6']
 
         if 'SP_A' not in Dictionary.keys():
-            ParameterMap['SP_A'] = ['1000']
+            PM['SP_A'] = ['1000']
 
         # Set other defined parameters
         for Key in Dictionary.keys():
-            ParameterMap[Key] = [str(Item) for Item in Dictionary[Key]]
+            PM[Key] = [str(Item) for Item in Dictionary[Key]]
 
 
         # Set Elastix and perform registration
-        ElastixImageFilter = sitk.ElastixImageFilter()
-        ElastixImageFilter.SetParameterMap(ParameterMap)
-        ElastixImageFilter.SetFixedImage(FixedImage)
-        ElastixImageFilter.SetMovingImage(MovingImage)
+        EIF = sitk.ElastixImageFilter()
+        EIF.SetParameterMap(PM)
+        EIF.SetFixedImage(FixedImage)
+        EIF.SetMovingImage(MovingImage)
+
+        if FixedMask:
+            FixedMask = sitk.Cast(FixedMask, sitk.sitkUInt8)
+            EIF.SetFixedMask(FixedMask)
+
+        if MovingMask:
+            MovingMask = sitk.Cast(MovingMask, sitk.sitkUInt8)
+            EIF.SetMovingMask(MovingMask)
 
         if Path:
-            ElastixImageFilter.SetOutputDirectory(Path)
-            ElastixImageFilter.LogToConsoleOff()
-            ElastixImageFilter.LogToFileOn()
+            EIF.SetOutputDirectory(Path)
+            EIF.LogToConsoleOff()
+            EIF.LogToFileOn()
 
         if os.name == 'posix':
-            ElastixImageFilter.SetNumberOfThreads(8)
+            EIF.SetNumberOfThreads(8)
 
-        ElastixImageFilter.Execute()
+        EIF.Execute()
 
         # Get results
-        Result_Image = ElastixImageFilter.GetResultImage()
-        TransformParameters = ElastixImageFilter.GetTransformParameterMap()
+        Result_Image = EIF.GetResultImage()
+        TransformParameters = EIF.GetTransformParameterMap()
 
         # Print elapsed time
         Toc = time.time()
@@ -1188,6 +1198,9 @@ class Register:
         TIF.Execute()
 
         ResultImage = TIF.GetResultImage()
+
+        ResultImage.SetOrigin(np.array(TransformParameterMap[0]['Origin'], float))
+        ResultImage.SetSpacing(np.array(TransformParameterMap[0]['Spacing'], float))
 
         # Print elapsed time
         Toc = time.time()
