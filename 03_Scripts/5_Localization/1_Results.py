@@ -68,6 +68,7 @@ def Adjust_Image_Size(Image, CoarseFactor, CropZ='Crop'):
 
 CW, Data, Script, Results = SetDirectories('FRACTIB')
 
+ImageDir = Data / '02_uCT'
 hFEDir = Results / '03_hFE'
 uCTDir = Results / '04_Registration'
 ResDir = Results / '05_Localizations'
@@ -90,6 +91,11 @@ for V in Variables:
     hFE_Data = sitk.ReadImage(str(hFEDir / Sample / (V + '.mhd')))
     hFE.append(hFE_Data)
 
+PreFile = str(ImageDir / Sample / 'C0001901_DOWNSCALED.AIM')
+PostFile = str(ImageDir / Sample / 'C0001939_DOWNSCALED.AIM')
+Pre = Read.AIM(PreFile)[0]
+Post = Read.AIM(PostFile)[0]
+
 
 #%% Padding
 # Padding
@@ -99,7 +105,8 @@ PhFE = [sitk.ConstantPad(P, (0, 0, 0), Pad) for P in hFE]
 Show.Overlay(uCT[0], PhFE[0], AsBinary = False)
 Show.Overlay(uCT[0], uCT[0])
 
-
+Show.Intensity(Pre, uCT[0], Axis='X')
+Show.Intensity(Pre, Resample(hFE[0], Size=Post.GetSize()), Axis='X')
 
 #%% Compare values
 # Results

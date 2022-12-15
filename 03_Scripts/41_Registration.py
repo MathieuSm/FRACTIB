@@ -288,9 +288,9 @@ def Main(Arguments):
 
 
     # Pad for transformations    
-    Pad = 100
-    PreI = sitk.ConstantPad(PreI, (Pad, Pad, 50), (Pad, Pad, 50))
-    PreM = sitk.ConstantPad(PreM, (Pad, Pad, 50), (Pad, Pad, 50))
+    Pad = 3 * CoarseFactor
+    PreI = sitk.ConstantPad(PreI, (Pad, Pad, Pad), (Pad, Pad, Pad))
+    PreM = sitk.ConstantPad(PreM, (Pad, Pad, Pad), (Pad, Pad, Pad))
     PostI = sitk.ConstantPad(PostI, (Pad, Pad, 0), (Pad, Pad, 0))
     PostM = sitk.ConstantPad(PostM, (Pad, Pad, 0), (Pad, Pad, 0))
 
@@ -384,11 +384,15 @@ def Main(Arguments):
                   'SP_a':['0.1']}
 
     ## Match b-spline interpolation with elements size
-    # JFile = sitk.ReadImage(str(Results / '03_hFE' / Sample / 'J.mhd'))
-    # Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+    JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
+    Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
 
-    BSplineI, TPM = Registration.Register(RigidI, PreI, 'bspline', RigidM, str(ResultDir), Dictionary)
-    BSplineM = Registration.Apply(PreM, TPM, str(ResultsDir), Jacobian=True)
+    ## Perform b-spline registration
+    BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
+    
+    ## Resample mask to match hFE element size and apply transform to compute jacobian
+    RigidR = Resample(RigidM, Factor=CoarseFactor)
+    BSplineM = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
     Toc = time.time()
     PrintTime(Tic, Toc)
 
@@ -410,6 +414,10 @@ def Main(Arguments):
     FFile = str(ResultsDir / 'F_Tilde')
     Write.MHD(SphericalCompression, JFile, PixelType='float')
     Write.MHD(IsovolumicDeformation, FFile, PixelType='float')
+
+    TOC = time.time()
+    print('Images registered')
+    PrintTime(TIC,TOC)
 
     Show.Overlay(RigidI, AffineI, Title='Affine registration', Axis='X')
 

@@ -148,8 +148,7 @@ ID = sitk.GetImageFromArray(IsovolumicDeformation)
 ID.SetSpacing(Spacing)
 ID.SetOrigin(Origin)
 
-Writer = Write()
-Writer.MHD(SC, str(FilePath / 'J'), PixelType='float')
-Writer.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
+Write.MHD(SC, str(FilePath / 'J'), PixelType='float')
+Write.MHD(ID, str(FilePath / 'F_Tilde'), PixelType='float')
 
 # %%
