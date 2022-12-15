@@ -276,49 +276,45 @@ def Main(Arguments):
         del Cort
         del Trab
 
-        if iFile == 0: # Adjust size as in hFE analysis for size matching
+        if iFile == 0: 
             CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
             PreI = AdjustImageSize(Image, CoarseFactor)
             PreM = AdjustImageSize(Mask, CoarseFactor)
         else:
-            PostI = Image
-            PostM = Mask
+            PostI = AdjustImageSize(Image, CoarseFactor)
+            PostM = AdjustImageSize(Mask, CoarseFactor)
 
     ProcessTiming(0)
 
+    # Downscale images to reduce computational cost
+    DownFactor = 2
+    R_PreI = Resample(PreI,Factor=DownFactor)
+    R_PreM = Resample(PreM,Factor=DownFactor)
+    R_PostI = Resample(PostI,Factor=DownFactor)
+    R_PostM = Resample(PostM,Factor=DownFactor)
+
 
     # Pad for transformations    
-    Pad = 3 * CoarseFactor
-    PreI = sitk.ConstantPad(PreI, (Pad, Pad, Pad), (Pad, Pad, Pad))
-    PreM = sitk.ConstantPad(PreM, (Pad, Pad, Pad), (Pad, Pad, Pad))
-    PostI = sitk.ConstantPad(PostI, (Pad, Pad, 0), (Pad, Pad, 0))
-    PostM = sitk.ConstantPad(PostM, (Pad, Pad, 0), (Pad, Pad, 0))
-
-
-    # Align centers of gravity
-    print('\nAlign centers of gravity')
-    Tic = time.time()
-    CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
-    IniT = sitk.CenteredTransformInitializer(PreM, PostM, sitk.Euler3DTransform(), CenterType)
-    Ini = sitk.Resample(PostM, PreM, IniT, sitk.sitkNearestNeighbor, PostM.GetPixelID())
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+    Pad = CoarseFactor
+    P_PreI = sitk.ConstantPad(R_PreI, (Pad, Pad, Pad), (Pad, Pad, Pad))
+    P_PreM = sitk.ConstantPad(R_PreM, (Pad, Pad, Pad), (Pad, Pad, Pad))
+    P_PostI = sitk.ConstantPad(R_PostI, (Pad, Pad, Pad), (Pad, Pad, Pad))
+    P_PostM = sitk.ConstantPad(R_PostM, (Pad, Pad, Pad), (Pad, Pad, Pad))
 
 
     # Perform initial rotation
     print('\nPerform rotations for registration starting point')
     Tic = time.time()
 
-
     ## Extract slices for quick registration
-    PreS = GetSlice(PreM, int(PreM.GetSize()[2]*0.8))
-    PostS = GetSlice(PostM, int(PostM.GetSize()[2]*0.8))
+    PreS = GetSlice(PreM, int(P_PreM.GetSize()[2]*0.8))
+    PostS = GetSlice(PostM, int(P_PostM.GetSize()[2]*0.8))
 
     ## Set rotations variables
     NRotations = 8
     Angle = 2*sp.pi/NRotations
     Rotation2D = sitk.Euler2DTransform()
-    PhysicalSize = np.array(PostM.GetSize()) * np.array(PostM.GetSpacing())
+    PhysicalSize = np.array(P_PostM.GetSize()) * np.array(P_PostM.GetSpacing())
     Center = (PhysicalSize + np.array(PostM.GetOrigin())) / 2
     Rotation2D.SetCenter(Center[:2])
 
@@ -356,8 +352,8 @@ def Main(Arguments):
     T.SetTranslation((Parameters[0], Parameters[1], 0))
     T.SetCenter(Center)
 
-    PostI = sitk.Resample(PostI, PreI, IniT, sitk.sitkNearestNeighbor, PostI.GetPixelID())
-    PostI = sitk.Resample(PostI, T)
+    P_PostI = sitk.Resample(P_PostI, T)
+    P_PostM = sitk.Resample(P_PostM, T)
 
     Toc = time.time()
     PrintTime(Tic, Toc)
@@ -366,8 +362,10 @@ def Main(Arguments):
     # Perform rigid registration and transform mask
     print('\nPerform rigid registration')
     Tic = time.time()
-    RigidI, TPM = Registration.Register(PreI, PostI, 'rigid', PreM,  Path=str(ResultsDir))
-    RigidM = Registration.Apply(PostM, TPM) 
+    RigidI, TPM = Registration.Register(P_PreI, P_PostI, 'rigid', P_PreM,  Path=str(ResultsDir))
+    RigidM = Registration.Apply(P_PostM, TPM) 
+    RigidM.SetOrigin(RigidI.GetOrigin())
+    RigidM.SetSpacing(RigidI.GetSpacing())
     Toc = time.time()
     PrintTime(Tic, Toc)
 
@@ -386,10 +384,13 @@ def Main(Arguments):
     ## Match b-spline interpolation with elements size
     JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
     Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+    Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
 
     ## Perform b-spline registration
-    BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
+    BSplineI, TPM = Registration.Register(P_PreI, RigidI, 'bspline', P_PreM, Path=str(ResultsDir), Dictionary=Dictionary)
+    Show.Overlay(BSplineI, P_PreI, Axis='X')
     
+
     ## Resample mask to match hFE element size and apply transform to compute jacobian
     RigidR = Resample(RigidM, Factor=CoarseFactor)
     BSplineM = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
