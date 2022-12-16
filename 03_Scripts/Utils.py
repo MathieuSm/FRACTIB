@@ -325,10 +325,10 @@ class Show:
         if (Title):
             Axis.set_title(Title)
 
-        if (FName):
+        if (self.FName):
             plt.savefig(FName)
 
-        if ShowPlot:
+        if self.ShowPlot:
             plt.show()
         else:
             plt.close()
@@ -341,18 +341,18 @@ class Show:
         MovingArray = sitk.GetArrayFromImage(Moving)
 
         if AsBinary:
-            Otsu = sitk.OtsuThresholdImageFilter()
-            Otsu.SetInsideValue(0)
-            Otsu.SetOutsideValue(1)
+            Otsu = sitk.OtsuMultipleThresholdsImageFilter()
+            Otsu.SetNumberOfThresholds(2)
             
             if len(np.unique(FixedArray)) > 2:
                 Fixed_Bin = Otsu.Execute(Fixed)
                 FixedArray = sitk.GetArrayFromImage(Fixed_Bin)
+                FixedArray = (FixedArray == 2) * 1
             
             if len(np.unique(MovingArray)) > 2:
                 Moving_Bin = Otsu.Execute(Moving)
                 MovingArray = sitk.GetArrayFromImage(Moving_Bin)
-
+                MovingArray = (MovingArray == 2) * 1
 
         FixedArray = self.Normalize(FixedArray)
         MovingArray = self.Normalize(MovingArray)
@@ -393,10 +393,10 @@ class Show:
         if (Title):
             Axis.set_title(Title)
 
-        if (FName):
+        if (self.FName):
             plt.savefig(FName)
 
-        if ShowPlot:
+        if self.ShowPlot:
             plt.show()
         else:
             plt.close()
@@ -466,10 +466,10 @@ class Show:
         if (Title):
             Axis.set_title(Title)
 
-        if (FName):
+        if (self.FName):
             plt.savefig(FName)
 
-        if ShowPlot:
+        if self.ShowPlot:
             plt.show()
         else:
             plt.close()
@@ -1090,10 +1090,14 @@ Write = Write()
 #%% Registration funtions
 class Registration:
 
+    def __init__(self):
+        self.Echo = True
+
     def Register(FixedImage, MovingImage, Type, FixedMask=None, MovingMask=None, Path=None, Dictionary={}):
 
-        print('\nPerform ' + Type + ' registration')
-        Tic = time.time()
+        if self.Echo:
+            print('\nPerform ' + Type + ' registration')
+            Tic = time.time()
         PM = sitk.GetDefaultParameterMap(Type)
 
         # Set standard parameters if not specified otherwise
@@ -1146,8 +1150,9 @@ class Registration:
         TransformParameters = EIF.GetTransformParameterMap()
 
         # Print elapsed time
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return Result_Image, TransformParameters
         
@@ -1157,8 +1162,9 @@ class Registration:
         Compute inverse of rigid elastix transform. Manual 6.1.6
         """
 
-        print('\nCompute registration inverse transform')
-        Tic = time.time()
+        if self.Echo:
+            print('\nCompute registration inverse transform')
+            Tic = time.time()
 
         # Set Elastix and perform registration
         EF = sitk.ElastixImageFilter()
@@ -1188,8 +1194,9 @@ class Registration:
         del InvertedTransform['InitialTransformParametersFileName']
 
         # Print elapsed time
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return InvertedTransform
 
@@ -1199,8 +1206,9 @@ class Registration:
         Apply transform parametermap from elastix to an image
         """
 
-        print('\nApply transform using Transformix')
-        Tic = time.time()
+        if self.Echo:
+            print('\nApply transform using Transformix')
+            Tic = time.time()
 
         TIF = sitk.TransformixImageFilter()
         TIF.ComputeDeterminantOfSpatialJacobianOff()
@@ -1227,8 +1235,9 @@ class Registration:
         ResultImage.SetSpacing(np.array(TransformParameterMap[0]['Spacing'], float))
 
         # Print elapsed time
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return ResultImage
  
@@ -1286,6 +1295,7 @@ class Registration:
 
         return Image_T
 
+Registration = Registration()
 #%% Signal treatment functions
 class Signal:
 

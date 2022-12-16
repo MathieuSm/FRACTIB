@@ -28,6 +28,7 @@ import argparse
 from Utils import *
 from numba import njit
 Read.Echo = False
+Registration.Echo = False
 
 #%% Functions
 # Define functions
@@ -229,6 +230,8 @@ class Arguments(): # for testing purpose
     def __init__(self):
         self.Sample = '432_L_77_F'
         self.Folder = 'FRACTIB'
+        self.Show = True
+        self.Type = 'BSpline'
 
 Arguments = Arguments()
 
@@ -343,7 +346,7 @@ def Main(Arguments):
 
         if Dice == Dices['DSC'].max():
             # Show.Slice(Moving_Bin)
-            Show.Overlay(PreS, Result)
+            Show.Overlay(PreS, Result, AsBinary=True)
             BestAngle = float(i*Angle)
             Parameters = np.array(TPM[0]['TransformParameters'], 'float')
 
@@ -373,7 +376,7 @@ def Main(Arguments):
 
     if Arguments.Type == 'Rigid':
         Show.FName = str(ResultsDir / 'RigidRegistration')
-        Show.Overlay(PreI, RigidI, AsBinary=True)
+        Show.Overlay(P_PreI, RigidI, Axis='X', AsBinary=True)
 
 
     # Perform bspline registration
@@ -388,13 +391,10 @@ def Main(Arguments):
                     'NewSamplesEveryIteration':['true'],
                     'SP_a':['0.1']}
 
-    ## Match b-spline interpolation with elements size
-    JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
-    Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
-    Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
         ## Match b-spline interpolation with elements size
         JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
         Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+        Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
 
         ## Perform b-spline registration
         BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
