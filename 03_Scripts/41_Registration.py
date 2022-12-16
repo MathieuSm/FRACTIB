@@ -393,8 +393,8 @@ def Main(Arguments):
 
         ## Match b-spline interpolation with elements size
         JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
-        Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
-        Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
+        Dictionary['FinalGridSpacingInPhysicalUnits'] = np.array(JFile.GetSpacing()) / 2
+        # Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
 
         ## Perform b-spline registration
         BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
