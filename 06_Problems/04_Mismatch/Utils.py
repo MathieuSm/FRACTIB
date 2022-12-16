@@ -268,7 +268,8 @@ def ProcessTiming(StartStop:bool, Process='Progress'):
 class Show:
 
     def __init__(self):
-        pass
+        self.FName = None
+        self.ShowPlot = True
 
     def Normalize(self, Array):
 
@@ -304,10 +305,16 @@ class Show:
         Axis.imshow(Array,interpolation=None, cmap='binary_r')
         Axis.axis('Off')
         
-        if(Title):
+        if (Title):
             Axis.set_title(Title)
 
-        plt.show(Figure)
+        if (self.FName):
+            plt.savefig(FName)
+
+        if (self.ShowPlot):
+            plt.show(Figure)
+        else:
+            plt.close(Figure)
 
         return
 
@@ -369,7 +376,13 @@ class Show:
         if(Title):
             Axis.set_title(Title)
 
-        plt.show(Figure)
+        if (self.FName):
+            plt.savefig(FName)
+
+        if (self.ShowPlot):
+            plt.show(Figure)
+        else:
+            plt.close(Figure)
 
         return
 

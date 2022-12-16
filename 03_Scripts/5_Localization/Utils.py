@@ -268,7 +268,8 @@ def ProcessTiming(StartStop:bool, Process='Progress'):
 class Show:
 
     def __init__(self):
-        pass
+        self.FName = None
+        self.ShowPlot = True
 
     def Normalize(self, Array):
 

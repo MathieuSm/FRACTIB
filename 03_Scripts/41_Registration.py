@@ -237,6 +237,8 @@ Arguments = Arguments()
 
 def Main(Arguments):
 
+    Show.ShowPlot = Arguments.Show
+
     print('\nRegister Pre / Post-test scans')
     TIC = time.time()
 
@@ -371,56 +373,62 @@ def Main(Arguments):
     Toc = time.time()
     PrintTime(Tic, Toc)
 
+    if Arguments.Type == 'Rigid':
+        Show.FName = str(ResultsDir / 'RigidRegistration')
+        Show.Overlay(PreI, RigidI, AsBinary=True)
+
 
     # Perform bspline registration
-    print('\nPerform b-spline registration')
-    Tic = time.time()
+    if Arguments.Type == 'BSpline':
+        print('\nPerform b-spline registration')
+        Tic = time.time()
 
-    ## Specific parameters
-    Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1],3)
-    Dictionary = {'FixedImagePyramidSchedule':Schedule,
-                  'MovingImagePyramidSchedule':Schedule,
-                  'NewSamplesEveryIteration':['true'],
-                  'SP_a':['0.1']}
+        ## Specific parameters
+        Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1],3)
+        Dictionary = {'FixedImagePyramidSchedule':Schedule,
+                    'MovingImagePyramidSchedule':Schedule,
+                    'NewSamplesEveryIteration':['true'],
+                    'SP_a':['0.1']}
 
-    ## Match b-spline interpolation with elements size
-    JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
-    Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
+        ## Match b-spline interpolation with elements size
+        JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
+        Dictionary['FinalGridSpacingInPhysicalUnits'] = JFile.GetSpacing()
 
-    ## Perform b-spline registration
-    BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
-    
-    ## Resample mask to match hFE element size and apply transform to compute jacobian
-    RigidR = Resample(RigidM, Factor=CoarseFactor)
-    BSplineM = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+        ## Perform b-spline registration
+        BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
+        Show.FName = str(ResultsDir / 'BSplineRegistration')
+        Show.Overlay(PreI, BSplineI, AsBinary=True)
 
+    # Compute deformation jacobian
+    if Arguments.Jac == True:
 
-    # Read Jacobian
-    JacobianFile = str(ResultsDir / 'fullSpatialJacobian.nii')
-    JacobianImage = sitk.ReadImage(JacobianFile)
-    JacobianImage.SetSpacing(PreM.GetSpacing())
+        ## Resample mask to match hFE element size and apply transform to compute jacobian
+        RigidR = Resample(RigidM, Factor=CoarseFactor)
+        BSplineM = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
+        Toc = time.time()
+        PrintTime(Tic, Toc)
 
-    ## Resample Jacobian image
-    NewSpacing = JFile.GetSpacing()
-    ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
+        ## Read Jacobian
+        JacobianFile = str(ResultsDir / 'fullSpatialJacobian.nii')
+        JacobianImage = sitk.ReadImage(JacobianFile)
+        JacobianImage.SetSpacing(PreM.GetSpacing())
 
-    ## Perform jacobian unimodular decomposition
-    SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
+        ## Resample Jacobian image
+        NewSpacing = JFile.GetSpacing()
+        ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
 
-    ## Write results
-    JFile = str(ResultsDir / 'J')
-    FFile = str(ResultsDir / 'F_Tilde')
-    Write.MHD(SphericalCompression, JFile, PixelType='float')
-    Write.MHD(IsovolumicDeformation, FFile, PixelType='float')
+        ## Perform jacobian unimodular decomposition
+        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
+
+        ## Write results
+        JFile = str(ResultsDir / 'J')
+        FFile = str(ResultsDir / 'F_Tilde')
+        Write.MHD(SphericalCompression, JFile, PixelType='float')
+        Write.MHD(IsovolumicDeformation, FFile, PixelType='float')
 
     TOC = time.time()
     print('Images registered')
     PrintTime(TIC,TOC)
-
-    Show.Overlay(RigidI, AffineI, Title='Affine registration', Axis='X')
-
 
     return
 
@@ -439,8 +447,11 @@ if __name__ == '__main__':
 
     # Add defaults arguments
     Parser.add_argument('-F', '--Folder', help='Root folder name', type=str, default='FRACTIB')
+    Parser.add_argument('-T','--Type', help='Registration type', type=str, default='Rigid')
+    Parser.add_argument('-S','--Show', help='Show plots', type=bool, default=False)
+    Parser.add_argument('-J','--Jac', help='Compute deformation Jacobian', type=bool, default=False)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments.Sample)
+    Main(Arguments)
