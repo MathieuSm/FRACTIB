@@ -284,7 +284,9 @@ def ProcessTiming(StartStop:bool, Process='Progress'):
 class Show:
 
     def __init__(self):
-        self.V = [0.8, 1.2]
+        self.FName = None
+        self.ShowPlot = True
+        self.IRange = [0.8, 1.2]
 
     def Normalize(self, Array):
 
@@ -320,10 +322,16 @@ class Show:
         Axis.imshow(Array,interpolation=None, cmap='binary_r')
         Axis.axis('Off')
         
-        if(Title):
+        if (Title):
             Axis.set_title(Title)
 
-        plt.show(Figure)
+        if (FName):
+            plt.savefig(FName)
+
+        if ShowPlot:
+            plt.show()
+        else:
+            plt.close()
 
         return
 
@@ -382,10 +390,16 @@ class Show:
         Axis.imshow(Array,interpolation=None)
         Axis.axis('Off')
         
-        if(Title):
+        if (Title):
             Axis.set_title(Title)
 
-        plt.show(Figure)
+        if (FName):
+            plt.savefig(FName)
+
+        if ShowPlot:
+            plt.show()
+        else:
+            plt.close()
 
         return
 
@@ -444,11 +458,21 @@ class Show:
             Values[Values == 0] = np.nan
 
         Figure, Axis = plt.subplots(1,1)
-        Plot = Axis.imshow(Values, cmap='jet', vmin=self.V[0], vmax=self.V[1], interpolation=None)
+        Plot = Axis.imshow(Values, cmap='jet', vmin=self.IRange[0], vmax=self.IRange[1], interpolation=None)
         Axis.imshow(Structure)
         Axis.axis('Off')
         plt.colorbar(Plot, orientation='vertical')
-        plt.show()
+
+        if (Title):
+            Axis.set_title(Title)
+
+        if (FName):
+            plt.savefig(FName)
+
+        if ShowPlot:
+            plt.show()
+        else:
+            plt.close()
 
         return
 
