@@ -222,19 +222,19 @@ def DecomposeJacobian(JacobianImage):
 
 
 
-#%% Classes
+# %% Classes
 # Define classes
 
-# class Arguments(): # for testing purpose
+class Arguments(): # for testing purpose
 
-#     def __init__(self):
-#         self.Sample = '432_L_77_F'
-#         self.Folder = 'FRACTIB'
-#         self.Show = True
-#         self.Type = 'BSpline'
-#         self.Jac = True
+    def __init__(self):
+        self.Sample = '432_L_77_F'
+        self.Folder = 'FRACTIB'
+        self.Show = True
+        self.Type = 'BSpline'
+        self.Jac = True
 
-# Arguments = Arguments()
+Arguments = Arguments()
 
 #%% Main
 # Main code
@@ -286,6 +286,11 @@ def Main(Arguments):
         # del Trab
 
         Mask = Otsu.Execute(Image)
+        Array = sitk.GetArrayFromImage(Mask)
+        Array[Array < 2] = 0
+        Array[Array > 0] = 1
+        Mask = sitk.GetImageFromArray(Array)
+        Mask.SetSpacing(Spacing)
 
         if iFile == 0: 
             CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
@@ -313,20 +318,37 @@ def Main(Arguments):
     P_PostM = sitk.ConstantPad(R_PostM, (Pad, Pad, Pad), (Pad, Pad, Pad))
 
 
+    # Align centers of gravity
+    print('\nAlign centers of gravity')
+    Tic = time.time()
+    CenterType = sitk.CenteredTransformInitializerFilter.MOMENTS
+
+    IniTransform = sitk.CenteredTransformInitializer(P_PreI, P_PostI, sitk.Euler3DTransform(), CenterType)
+    P_PostI = sitk.Resample(P_PostI, P_PreI, IniTransform, sitk.sitkNearestNeighbor, P_PostI.GetPixelID())
+    P_PostM = sitk.Resample(P_PostM, P_PreM, IniTransform, sitk.sitkNearestNeighbor, P_PostM.GetPixelID())
+    PostI = sitk.Resample(PostI, PreI, IniTransform, sitk.sitkNearestNeighbor, PostI.GetPixelID())
+    Toc = time.time()
+    PrintTime(Tic, Toc)
+
+
     # Perform initial rotation
     print('\nPerform rotations for registration starting point')
     Tic = time.time()
 
     ## Extract slices for quick registration
-    PreS = GetSlice(PreM, int(P_PreM.GetSize()[2]*0.8))
-    PostS = GetSlice(PostM, int(P_PostM.GetSize()[2]*0.8))
+    PreS = GetSlice(P_PreM, int(P_PreM.GetSize()[2]*0.8))
+    PostS = GetSlice(P_PostM, int(P_PostM.GetSize()[2]*0.8))
+
+    ## Binary dilation for easier registration
+    PreS = sitk.BinaryDilate(PreS, 5)
+    PostS = sitk.BinaryDilate(PostS, 5)
 
     ## Set rotations variables
     NRotations = 8
     Angle = 2*sp.pi/NRotations
     Rotation2D = sitk.Euler2DTransform()
     PhysicalSize = np.array(P_PostM.GetSize()) * np.array(P_PostM.GetSpacing())
-    Center = (PhysicalSize + np.array(PostM.GetOrigin())) / 2
+    Center = (PhysicalSize + np.array(P_PostM.GetOrigin())) / 2
     Rotation2D.SetCenter(Center[:2])
 
     ## Find best image initial position with successive rotations
@@ -364,7 +386,7 @@ def Main(Arguments):
     T.SetCenter(Center)
 
     P_PostI = sitk.Resample(P_PostI, T)
-    P_PostM = sitk.Resample(P_PostM, T)
+    PostI = sitk.Resample(PostI, T)
 
     Toc = time.time()
     PrintTime(Tic, Toc)
@@ -374,17 +396,18 @@ def Main(Arguments):
     print('\nPerform rigid registration')
     Tic = time.time()
     RigidI, TPM = Registration.Register(P_PreI, P_PostI, 'rigid',  Path=str(ResultsDir))
-    RigidM = Registration.Apply(PostI, TPM)
-    RigidM.SetOrigin(RigidI.GetOrigin())
-    RigidM.SetSpacing(RigidI.GetSpacing())
+    TPM[0]['Size'] = [str(S) for S in PreI.GetSize()]
+    TPM[0]['Spacing'] = [str(S) for S in PreI.GetSpacing()]
+    TPM[0]['Origin'] = [str(O) for O in PreI.GetOrigin()]
+    RigidP = Registration.Apply(PostI, TPM)
     Toc = time.time()
     PrintTime(Tic, Toc)
 
     Show.FName = str(ResultsDir / 'RigidRegistration.png')
-    Show.Overlay(P_PreI, RigidI, Axis='X', AsBinary=True)
+    Show.Overlay(PreI, RigidP, Axis='X', AsBinary=True)
     
     NFile = str(ResultsDir / 'Rigid')
-    Write.MHD(RigidM, NFile, PixelType='float')
+    Write.MHD(RigidP, NFile, PixelType='float')
 
     # Perform bspline registration
     if Arguments.Type == 'BSpline':
@@ -410,12 +433,15 @@ def Main(Arguments):
 
         ## Perform b-spline registration
         BSplineI, TPM = Registration.Register(P_PreI, RigidI, 'bspline', Dictionary=Dictionary)
-        BSplineM = Registration.Apply(RigidM, TPM)
+        TPM[0]['Size'] = [str(S) for S in PreI.GetSize()]
+        TPM[0]['Spacing'] = [str(S) for S in PreI.GetSpacing()]
+        TPM[0]['Origin'] = [str(O) for O in PreI.GetOrigin()]
+        BSplineP = Registration.Apply(RigidP, TPM)
         NFile = str(ResultsDir / 'NonRigid')
-        Write.MHD(BSplineM, NFile, PixelType='float')
+        Write.MHD(BSplineP, NFile, PixelType='float')
         
         Show.FName = str(ResultsDir / 'BSplineRegistration')
-        Show.Overlay(P_PreI, BSplineI, AsBinary=True, Axis='X')
+        Show.Overlay(PreI, BSplineP, AsBinary=True, Axis='X')
 
         c = Otsu.Execute(P_PreI)
         b = Otsu.Execute(BSplineI)
@@ -430,15 +456,17 @@ def Main(Arguments):
     if Arguments.Jac == True:
 
         ## Resample mask to match hFE element size and apply transform to compute jacobian
-        RigidR = Resample(RigidM, Factor=CoarseFactor)
-        BSplineM = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
+        RigidR = Resample(RigidP, Factor=CoarseFactor)
+        TPM[0]['Size'] = [str(S) for S in RigidR.GetSize()]
+        TPM[0]['Spacing'] = [str(S) for S in RigidR.GetSpacing()]
+        BSplineR = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
         Toc = time.time()
         PrintTime(Tic, Toc)
 
         ## Read Jacobian
         JacobianFile = str(ResultsDir / 'fullSpatialJacobian.nii')
         JacobianImage = sitk.ReadImage(JacobianFile)
-        JacobianImage.SetSpacing(PreM.GetSpacing())
+        JacobianImage.SetSpacing(RigidR.GetSpacing())
 
         ## Resample Jacobian image
         NewSpacing = np.array([1.2495, 1.2495, 1.2495])
