@@ -326,7 +326,7 @@ class Show:
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(FName)
+            plt.savefig(self.FName)
 
         if self.ShowPlot:
             plt.show()
@@ -394,7 +394,7 @@ class Show:
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(FName)
+            plt.savefig(self.FName)
 
         if self.ShowPlot:
             plt.show()
@@ -467,7 +467,7 @@ class Show:
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(FName)
+            plt.savefig(self.FName)
 
         if self.ShowPlot:
             plt.show()
@@ -1093,7 +1093,7 @@ class Registration:
     def __init__(self):
         self.Echo = True
 
-    def Register(FixedImage, MovingImage, Type, FixedMask=None, MovingMask=None, Path=None, Dictionary={}):
+    def Register(self, FixedImage, MovingImage, Type, FixedMask=None, MovingMask=None, Path=None, Dictionary={}):
 
         if self.Echo:
             print('\nPerform ' + Type + ' registration')
@@ -1156,7 +1156,7 @@ class Registration:
 
         return Result_Image, TransformParameters
         
-    def ComputeInverse(FixedImage, TPMFileName, MovingImage=None, Path=None):
+    def ComputeInverse(self, FixedImage, TPMFileName, MovingImage=None, Path=None):
 
         """
         Compute inverse of rigid elastix transform. Manual 6.1.6
@@ -1200,7 +1200,7 @@ class Registration:
 
         return InvertedTransform
 
-    def Apply(Image,TransformParameterMap,Path=None,Jacobian=None):
+    def Apply(self, Image,TransformParameterMap,Path=None,Jacobian=None):
 
         """
         Apply transform parametermap from elastix to an image
@@ -1241,7 +1241,7 @@ class Registration:
 
         return ResultImage
  
-    def ApplyCustom(Image, TransformParameterMap):
+    def ApplyCustom(self, Image, TransformParameterMap):
 
         """
         Apply costum parameter map to an image
@@ -1265,7 +1265,7 @@ class Registration:
 
         return Image_T
            
-    def ApplyInverse(Image, TransformParameterMap):
+    def ApplyInverse(self, Image, TransformParameterMap):
 
         """
         Apply inverse rigid transform from transform parameter map

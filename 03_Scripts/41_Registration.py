@@ -225,15 +225,16 @@ def DecomposeJacobian(JacobianImage):
 #%% Classes
 # Define classes
 
-class Arguments(): # for testing purpose
+# class Arguments(): # for testing purpose
 
-    def __init__(self):
-        self.Sample = '432_L_77_F'
-        self.Folder = 'FRACTIB'
-        self.Show = True
-        self.Type = 'BSpline'
+#     def __init__(self):
+#         self.Sample = '432_L_77_F'
+#         self.Folder = 'FRACTIB'
+#         self.Show = True
+#         self.Type = 'BSpline'
+#         self.Jac = True
 
-Arguments = Arguments()
+# Arguments = Arguments()
 
 #%% Main
 # Main code
@@ -263,23 +264,28 @@ def Main(Arguments):
     Files = [File for File in os.listdir(DataDir) if File.endswith('DOWNSCALED.AIM')]
     Files.sort()
 
+    Otsu = sitk.OtsuMultipleThresholdsImageFilter()
+    Otsu.SetNumberOfThresholds(2)
+
     for iFile, File in enumerate(Files):
 
         Image = Read.AIM(str(DataDir / File))[0]
         Spacing = Image.GetSpacing()
         ProgressNext(1+iFile*3 / 6 * 6)
 
-        Cort = Read.AIM(str(DataDir / (File[:-4] + '_CORT_MASK.AIM')))[0]
-        ProgressNext(2+iFile*3 / 6 * 6)
+        # Cort = Read.AIM(str(DataDir / (File[:-4] + '_CORT_MASK.AIM')))[0]
+        # ProgressNext(2+iFile*3 / 6 * 6)
 
-        Trab = Read.AIM(str(DataDir / (File[:-4] + '_TRAB_MASK.AIM')))[0]
-        ProgressNext(3+iFile*3 / 6 * 6)
+        # Trab = Read.AIM(str(DataDir / (File[:-4] + '_TRAB_MASK.AIM')))[0]
+        # ProgressNext(3+iFile*3 / 6 * 6)
 
-        Mask = Cort + Trab
-        Mask.SetSpacing(Spacing)
+        # Mask = Cort + Trab
+        # Mask.SetSpacing(Spacing)
 
-        del Cort
-        del Trab
+        # del Cort
+        # del Trab
+
+        Mask = Otsu.Execute(Image)
 
         if iFile == 0: 
             CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
@@ -367,17 +373,18 @@ def Main(Arguments):
     # Perform rigid registration and transform mask
     print('\nPerform rigid registration')
     Tic = time.time()
-    RigidI, TPM = Registration.Register(P_PreI, P_PostI, 'rigid', P_PreM,  Path=str(ResultsDir))
-    RigidM = Registration.Apply(P_PostM, TPM) 
+    RigidI, TPM = Registration.Register(P_PreI, P_PostI, 'rigid',  Path=str(ResultsDir))
+    RigidM = Registration.Apply(PostI, TPM)
     RigidM.SetOrigin(RigidI.GetOrigin())
     RigidM.SetSpacing(RigidI.GetSpacing())
     Toc = time.time()
     PrintTime(Tic, Toc)
 
-    if Arguments.Type == 'Rigid':
-        Show.FName = str(ResultsDir / 'RigidRegistration')
-        Show.Overlay(P_PreI, RigidI, Axis='X', AsBinary=True)
-
+    Show.FName = str(ResultsDir / 'RigidRegistration.png')
+    Show.Overlay(P_PreI, RigidI, Axis='X', AsBinary=True)
+    
+    NFile = str(ResultsDir / 'Rigid')
+    Write.MHD(RigidM, NFile, PixelType='float')
 
     # Perform bspline registration
     if Arguments.Type == 'BSpline':
@@ -385,21 +392,39 @@ def Main(Arguments):
         Tic = time.time()
 
         ## Specific parameters
-        Schedule = np.repeat([64, 32, 16, 8, 4, 2, 1],3)
+        Tic = time.time()
+        Schedule = np.repeat([32, 16, 8, 4, 2],3)
         Dictionary = {'FixedImagePyramidSchedule':Schedule,
                     'MovingImagePyramidSchedule':Schedule,
                     'NewSamplesEveryIteration':['true'],
-                    'SP_a':['0.1']}
+                    'SP_a':['1']}
 
         ## Match b-spline interpolation with elements size
-        JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
-        Dictionary['FinalGridSpacingInPhysicalUnits'] = np.array(JFile.GetSpacing()) / 2
-        # Dictionary['FinalGridSpacingInPhysicalUnits'] = P_PreI.GetSpacing()
+        # JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
+        # Dictionary['FinalGridSpacingInPhysicalUnits'] = [str(S) for S in JFile.GetSpacing()]
+        # Dictionary['FinalGridSpacingInPhysicalUnits'] = [str(S) for S in P_PreI.GetSpacing()]
+        # Dictionary['FinalGridSpacingInPhysicalUnits'] = ['2', '2', '2']
+        Dictionary['FinalGridSpacingInPhysicalUnits'] = ['1.2495', '1.2495', '1.2495']
+        Dictionary['NumberOfResolutions'] = ['5']
+        Dictionary['GridSpacingSchedule'] = ['16', '8', '4', '2', '1']
 
         ## Perform b-spline registration
-        BSplineI, TPM = Registration.Register(PreI, RigidI, 'bspline', RigidM, str(ResultDir), Dictionary)
+        BSplineI, TPM = Registration.Register(P_PreI, RigidI, 'bspline', Dictionary=Dictionary)
+        BSplineM = Registration.Apply(RigidM, TPM)
+        NFile = str(ResultsDir / 'NonRigid')
+        Write.MHD(BSplineM, NFile, PixelType='float')
+        
         Show.FName = str(ResultsDir / 'BSplineRegistration')
-        Show.Overlay(PreI, BSplineI, AsBinary=True)
+        Show.Overlay(P_PreI, BSplineI, AsBinary=True, Axis='X')
+
+        c = Otsu.Execute(P_PreI)
+        b = Otsu.Execute(BSplineI)
+        Measure.Execute(c,b)
+        Dice = Measure.GetDiceCoefficient()
+        print('Results')
+        print(Dice)
+        PrintTime(Tic, time.time())
+
 
     # Compute deformation jacobian
     if Arguments.Jac == True:
@@ -416,7 +441,7 @@ def Main(Arguments):
         JacobianImage.SetSpacing(PreM.GetSpacing())
 
         ## Resample Jacobian image
-        NewSpacing = JFile.GetSpacing()
+        NewSpacing = np.array([1.2495, 1.2495, 1.2495])
         ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
 
         ## Perform jacobian unimodular decomposition
@@ -432,7 +457,7 @@ def Main(Arguments):
     print('Images registered')
     PrintTime(TIC,TOC)
 
-    return
+    return Dice
 
 #%% Execution part
 # Execution as main
