@@ -1,0 +1,124 @@
+#
+# This file is the configuration file used for the run of the hFE pipeline, modified from Denis's config_noPSL.yaml.
+#
+# Author: Mathieu Simon, ARTORG Center for Biomedical Engineering Research, SITEM Insel, University of Bern
+# Date: October 2021
+#
+# No padding
+#
+
+# Run/hFE version (for file names)
+Version: '00'
+
+# State if properties must be computed using transform or in original configuration
+Registration: False
+
+# Define element size
+ElementSize: 1.2747
+Adjust_ElementSize: True
+
+# Scaling for BV/TV -> 0: no scaling, 1: Hosseini 2017 Seg scaling
+BVTV_Scaling: 1
+
+# Custom BV/TV scaling if BVTV_Scaling == 0
+BVTV_Slope: 1
+BVTV_Intercept: 0
+
+# Parameters to compute mean surface length (MSL) fabric (Hosseini 2017)
+STL_Tolerance: 0.2
+ROI_Kernel_Size_Cort: 5
+ROI_Kernel_Size_Trab: 5
+
+# Diameter of sphere with same volume as FEelement (3./4*(Volume_FEelement/math.pi))**(1./3)*2
+ROI_BVTV_Size_Cort: 1.3453
+ROI_BVTV_Size_Trab: 4
+
+# Parameters for cortex
+Isotropic_Cortex: False  # Cortex fabric isotropic, or projected on surface
+
+# Elements containing part of a mask are converted to FE mesh, even if they don't hold BVTV. In this case, BVTV is set to 1%.
+All_Mask: True
+
+# Simulation parameters
+nlgeom: on # affects NLGEOM parameter in abaqus simulation (on/off)
+Max_Increments: 1000  # int number [1-1000]
+Control: Displacement # [Force/Displacement] discribes the loading boundary conditions
+BCs_Mode: 5           # 0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
+Fz_Max_Factor: 1.0    # Displacement in FZ direction for no psl FZ_MAX
+BCs_Load: [[1.0, 0, 0, 0, 0, 0],
+           [0, 1.0, 0, 0, 0, 0],
+           [0, 0, 1.0, 0, 0, 0],
+           [0, 0, 0, 1.0, 0, 0],
+           [0, 0, 0, 0, 1.0, 0],
+           [0, 0, 0, 0, 0, 1.0]]
+
+# Relative directories
+BCs: 'BCs/boundary_conditions_basic.inp'
+PSL_LoadCases_BCs_Folder: 'BCs/'
+
+
+# File name post fixes
+Postfix_CortMask: '_CORT_MASK.AIM'
+Postfix_TrabMask: '_TRAB_MASK.AIM'
+Postfix_BMD: '.AIM'
+Postfix_SEG: '_SEG.AIM'
+
+# Images type
+ImageType: "NATIVE"  # BMD/NATIVE
+
+# Images
+GrayScale_FileNames: [
+    'C0001901_DOWNSCALED',
+    'C0001929_DOWNSCALED',
+    'C0001911_DOWNSCALED',
+    'C0001915_DOWNSCALED',
+    'C0001910_DOWNSCALED',
+    'C0001918_DOWNSCALED',
+    'C0001927_DOWNSCALED',
+    'C0001930_DOWNSCALED',
+    'C0001909_DOWNSCALED',
+    'C0001916_DOWNSCALED',
+    'C0001899_DOWNSCALED',
+    'C0001903_DOWNSCALED',
+    'C0001906_DOWNSCALED',
+    'C0001904_DOWNSCALED',
+    'C0001900_DOWNSCALED',
+    'C0001912_DOWNSCALED',
+    'C0001907_DOWNSCALED',
+    'C0001933_DOWNSCALED',
+    'C0001919_DOWNSCALED',
+    'C0001931_DOWNSCALED',
+    'C0001922_DOWNSCALED',
+    'C0001923_DOWNSCALED',
+    'C0001925_DOWNSCALED',
+    'C0001920_DOWNSCALED',
+    'C0001926_DOWNSCALED',
+]
+
+# Folder IDs for file-folder mapping
+Folder_IDs:
+  C0001901_DOWNSCALED: 432_L_77_F
+  C0001929_DOWNSCALED: 433_R_77_F
+  C0001911_DOWNSCALED: 434_L_90_F
+  C0001915_DOWNSCALED: 435_R_90_F
+  C0001910_DOWNSCALED: 436_L_90_F
+  C0001918_DOWNSCALED: 437_R_90_F
+  C0001927_DOWNSCALED: 438_L_71_F
+  C0001930_DOWNSCALED: 439_R_71_F
+  C0001909_DOWNSCALED: 440_L_64_M
+  C0001916_DOWNSCALED: 441_R_64_M
+  C0001899_DOWNSCALED: 442_R_75_F
+  C0001903_DOWNSCALED: 443_L_73_F
+  C0001906_DOWNSCALED: 444_R_92_F
+  C0001904_DOWNSCALED: 445_R_93_F
+  C0001900_DOWNSCALED: 446_R_75_F
+  C0001912_DOWNSCALED: 447_L_83_M
+  C0001907_DOWNSCALED: 448_L_80_M
+  C0001933_DOWNSCALED: 449_L_93_F
+  C0001919_DOWNSCALED: 450_L_77_F
+  C0001931_DOWNSCALED: 451_L_75_F
+  C0001922_DOWNSCALED: 452_L_75_F
+  C0001923_DOWNSCALED: 453_R_79_M
+  C0001925_DOWNSCALED: 454_L_94_F
+  C0001920_DOWNSCALED: 455_L_97_F
+  C0001926_DOWNSCALED: 456_R_97_F
