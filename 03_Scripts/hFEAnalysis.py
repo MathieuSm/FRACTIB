@@ -3909,6 +3909,8 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase, Directories):
 
 #%%
 def Main(ConfigFile):
+    
+    TIC = time.time()
 
     # Read config and store to dictionary
     Config = ReadConfigFile(ConfigFile)
@@ -3966,9 +3968,9 @@ def Main(ConfigFile):
         print('\tCreate FZ max loadcase')
         PrintTime(Toc3, Toc4)
         
-        print('Time for full sample analysis')
-        PrintTime(Tic, Toc4)
-
+    print('Time for full script')
+    PrintTime(TIC, time.time())
+        
     return
 
 

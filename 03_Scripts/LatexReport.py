@@ -26,13 +26,6 @@ from pylatex import Document, Section, Figure, SubFigure, NoEscape, NewPage
 from pylatex.package import Package
 from Utils import *
 
-#%% Functions
-# Define functions
-
-def AFunction(Argument):
-
-    return Something
-
 
 #%% Classes
 # Define classes
@@ -58,41 +51,41 @@ def Main(File):
     SampleList = pd.read_csv(str(Data / 'SampleList.csv'))['Internal ID']
     Doc = Document(default_filepath=str(Report))
 
-    Sample = SampleList[0]
+    for Sample in SampleList[:2]:
 
-    Image1 = str(ResultsDir / Sample / 'RigidRegistration')
-    Image2 = str(ResultsDir / Sample / 'BSplineRegistration')
-    Image3 = str(ResultsDir / Sample / 'DetF')
-    Image4 = str(ResultsDir / Sample / 'Ftilde')
-    Image5 = str(ResultsDir / Sample / 'RigidRegistration')
-    Image6 = str(ResultsDir / Sample / 'BSplineRegistration')
-    Images = [Image1, Image2, Image3, Image4, Image5, Image6]
+        Image1 = str(ResultsDir / Sample / 'RigidRegistration')
+        Image2 = str(ResultsDir / Sample / 'BSplineRegistration')
+        Image3 = str(ResultsDir / Sample / 'DetF')
+        Image4 = str(ResultsDir / Sample / 'Ftilde')
+        Image5 = str(ResultsDir / Sample / 'RigidRegistration')
+        Image6 = str(ResultsDir / Sample / 'BSplineRegistration')
+        Images = [Image1, Image2, Image3, Image4, Image5, Image6]
 
-    SubCaptions = ['Rigid',
-                   'B-spline',
-                   'Registration |F|',
-                   'Registration \textasciitilde{F}',
-                   '|F|',
-                   r'\textasciitilde{F}']
+        SubCaptions = ['Rigid',
+                    'B-spline',
+                    r'$\lvert \mathbf{F} \rvert$',
+                    r'$\tilde{\mathbf{F}$',
+                    r'$\lvert \mathbf{F} \rvert$',
+                    r'$\tilde{\mathbf{F}$']
 
-    Captions = ['Registration', 'Deformation gradient', 'hFE analysis']
+        Captions = ['Registration results', 'Registration analysis', 'hFE analysis']
 
-    # Create section and add pictures
-    with Doc.create(Section(Sample, numbering=False)):
+        # Create section and add pictures
+        with Doc.create(Section(Sample, numbering=False)):
 
-        for j in range(3):
-            with Doc.create(Figure(position='h!')) as Fig:
-                
-                for i in range(2):
-                    SubFig = SubFigure(position='b', width=NoEscape(r'0.5\linewidth'))
-                    with Doc.create(SubFig) as SF:
-                        SF.add_image(Images[2*j+i],
-                                     width=NoEscape(r'\linewidth'))
-                        SF.add_caption(SubCaptions[2*j+i])
+            for j in range(3):
+                with Doc.create(Figure(position='h!')) as Fig:
+                    
+                    for i in range(2):
+                        SubFig = SubFigure(position='b', width=NoEscape(r'0.5\linewidth'))
+                        with Doc.create(SubFig) as SF:
+                            SF.add_image(Images[2*j+i],
+                                        width=NoEscape(r'\linewidth'))
+                            SF.add_caption(SubCaptions[2*j+i])
 
-                Fig.add_caption(Captions[j])
+                    Fig.add_caption(NoEscape(Captions[j]))
 
-    Doc.append(NewPage())
+        Doc.append(NewPage())
 
     Doc.packages.append(Package('subcaption', options='aboveskip=0pt'))
             
