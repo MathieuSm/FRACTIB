@@ -22,9 +22,12 @@ Samples = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
 Scripts = [File for File in os.listdir(str(SD)) if File.endswith('.py')]
 
 SList = [Scripts[1]]
-Arguments = [{'Type':'BSpline', 'Jac':True}]
+Arguments = [{'Folder':'FRACTIB',
+              'Show':False,
+              'Type':'BSpline',
+              'Jac':True}]
 
-File = str(CWD / 'Submit.py')
+File = str(SD / 'Submit.py')
 print('\n\nWrite submit file')
 with open(File, 'w') as F:
 
@@ -33,32 +36,34 @@ with open(File, 'w') as F:
     for Script in SList:
         F.write('from ' + Script[:-3] + ' import Main as ' + Script[:-3] + '\n')
 
-    F.write('\nSamples = [')
-    for Sample in Samples[:-1]:
-        F.write(Sample + ',\n')
-    F.write(Samples[-1] + ']\n')
+    F.write('\nSamples = [\'' + Samples[0] + '\',\n')
+    for Sample in Samples[1:-1]:
+        F.write('           \'' + Sample + '\',\n')
+    F.write('           \'' + Samples.values[-1] + '\']\n')
     
     F.write('\nclass Arguments():\n')
     F.write('\n\tdef __init__(self):\n')
     F.write('\t\tpass\n')
-    F.write('\nArguments = Arguments()')
+    F.write('\nArguments = Arguments()\n')
 
-    F.write('for Sample in Samples:\n')
-    for Sample in Samples:
+    F.write('\nfor Sample in Samples:\n')
+    F.write('\n\tArguments.Sample = Sample\n')
 
-        F.write('\n\tArguments.Sample = ' + Sample + '\n')
+    for iScript, Script in enumerate(SList):
+        
+        SArguments = Arguments[iScript]
+        if SArguments:
+            
+            for iKey, Key in enumerate(SArguments):
+                Item = SArguments[Key]
+                Line = '\tArguments.' + Key + ' = '
+                if type(Item) == str:
+                    Line += '\'' + Item + '\'\n'
+                else:
+                    Line += str(Item) + '\n'
+                F.write(Line)
 
-        for iScript, Script in enumerate(SList):
-
-            if Arguments[iScript]:
-                
-                F.write()
-
-        Line = 'python ' + str(SD / Script) + ' ' + Sample
-
-
-
-        F.write(Line + '\n')
+        F.write('\n\t' + Script[:-3] + '(Arguments)\n\n')
 
 F.close()
 print('Done!')

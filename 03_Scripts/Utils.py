@@ -34,6 +34,7 @@ from pathlib import Path
 import scipy.signal as sig
 import matplotlib.pyplot as plt
 from vtk.util.numpy_support import vtk_to_numpy
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #%% Tuning
 # Tune diplay settings
@@ -326,7 +327,7 @@ class Show:
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(self.FName)
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0)
 
         if self.ShowPlot:
             plt.show()
@@ -394,7 +395,7 @@ class Show:
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(self.FName)
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0)
 
         if self.ShowPlot:
             plt.show()
@@ -403,7 +404,7 @@ class Show:
 
         return
 
-    def Intensity(self, Structure, Deformations, Mask=None, Slice=None, Axis='Z'):
+    def Intensity(self, Structure, Deformations, Mask=None, Slice=None, Axis='Z', Title=None):
 
         Array = sitk.GetArrayFromImage(Structure)
         Values = sitk.GetArrayFromImage(Deformations)
@@ -461,13 +462,17 @@ class Show:
         Plot = Axis.imshow(Values, cmap='jet', vmin=self.IRange[0], vmax=self.IRange[1], interpolation=None)
         Axis.imshow(Structure)
         Axis.axis('Off')
-        plt.colorbar(Plot, orientation='vertical')
+
+        # Colorbar hack
+        Divider = make_axes_locatable(Axis)
+        CAxis = Divider.append_axes("right", size="5%", pad=0.05)
+        plt.colorbar(Plot, cax=CAxis, orientation='vertical')
 
         if (Title):
             Axis.set_title(Title)
 
         if (self.FName):
-            plt.savefig(self.FName)
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0)
 
         if self.ShowPlot:
             plt.show()

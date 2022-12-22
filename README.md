@@ -11,11 +11,13 @@ Administrative matters relative to the project such as official descritpion, pre
 Raw data obtained from the scans (HR-pQCT and uCT) and from the experiment.
 
 ### 03 Scripts
-Scripts used to analyse and process the data. They are named "XX_ScriptName.ext", where the first "X" stand for the results type of the analysis and the second "X" is the second level numbering. The main part analysed are:
+Scripts used to analyse and process the data. The analysis structure is as following:
 1. Samples morphology
-2. Experiment
+2. Experiment:
+    - MatchMTS2ARAMIS.py
 3. hFE simulations
-4. Pre/Post-test registrations
+4. Pre/Post-test registrations:
+    - Registration.py
 5. Comparison of localizations
 
 ### 04 Results

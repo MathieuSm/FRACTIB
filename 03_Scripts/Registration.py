@@ -225,16 +225,16 @@ def DecomposeJacobian(JacobianImage):
 # %% Classes
 # Define classes
 
-class Arguments(): # for testing purpose
+# class Arguments(): # for testing purpose
 
-    def __init__(self):
-        self.Sample = '432_L_77_F'
-        self.Folder = 'FRACTIB'
-        self.Show = True
-        self.Type = 'BSpline'
-        self.Jac = True
+#     def __init__(self):
+#         self.Sample = '432_L_77_F'
+#         self.Folder = 'FRACTIB'
+#         self.Show = True
+#         self.Type = 'BSpline'
+#         self.Jac = True
 
-Arguments = Arguments()
+# Arguments = Arguments()
 
 #%% Main
 # Main code
@@ -374,7 +374,7 @@ def Main(Arguments):
 
         if Dice == Dices['DSC'].max():
             # Show.Slice(Moving_Bin)
-            Show.Overlay(PreS, Result, AsBinary=True)
+            # Show.Overlay(PreS, Result, AsBinary=True)
             BestAngle = float(i*Angle)
             Parameters = np.array(TPM[0]['TransformParameters'], 'float')
 
@@ -475,6 +475,16 @@ def Main(Arguments):
         ## Perform jacobian unimodular decomposition
         SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
 
+        ## Resample for plotting
+        SC_R = Resample(SphericalCompression, Spacing=PreI.GetSpacing())
+        VD_R = Resample(IsovolumicDeformation, Spacing=PreI.GetSpacing())
+        Show.IRange = [0.3, 1.7]
+        Show.FName = str(ResultsDir / 'DetF')
+        Show.Intensity(PreI, SC_R, Axis='X')
+        Show.IRange = [1.7, 2.0]
+        Show.FName = str(ResultsDir / 'Ftilde')
+        Show.Intensity(PreI, VD_R, Axis='X')
+        
         ## Write results
         JFile = str(ResultsDir / 'J')
         FFile = str(ResultsDir / 'F_Tilde')
