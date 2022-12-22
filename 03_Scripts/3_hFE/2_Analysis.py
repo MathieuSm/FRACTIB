@@ -222,6 +222,7 @@ def AIMReader(File, Spacing):
             origdimum = ([int(s) for s in Line.split(b" ") if s.isdigit()])
 
         if Line.find("Scaled by factor".encode()) > -1:
+            # if not Scaling:
             Scaling = float(Line.split(" ".encode())[-1])
         if Line.find("Density: intercept".encode()) > -1:
             Intercept = float(Line.split(" ".encode())[-1])
@@ -1512,6 +1513,30 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
     Transform = sitk.TranslationTransform(Dimension)
     
     return sitk.Resample(Image, NewImage, Transform, sitk.sitkLinear, 0.0)
+def GetTopAndBot(Image):
+
+    """
+    Return mean height of top and bottom surface
+    """
+
+    Array = sitk.GetArrayFromImage(Image).astype('bool')
+    MidXSlice = Array[:,:,Array.shape[2] // 2]
+    Sum = np.sum(MidXSlice, axis=0)
+    Counts = np.bincount(Sum[Sum > 0])
+    MeanSampleHeigth = np.argmax(Counts)
+    MeanHeightPositions = np.where(Sum == MeanSampleHeigth)[0]
+
+    TopNodes = []
+    BotNodes = []
+    for Position in MeanHeightPositions:
+        Nodes = np.argwhere(MidXSlice[:,Position])
+        TopNodes.append(Nodes.min())
+        BotNodes.append(Nodes.max())
+
+    MeanTop = int(np.mean(TopNodes).round(0))
+    MeanBot = int(np.mean(BotNodes).round(0))
+    
+    return MeanTop, MeanBot
 def CommonRegion(Bone, CommonFile, CommonFile_uCT):
 
     Mask = sitk.ReadImage(CommonFile)
@@ -1639,10 +1664,12 @@ def Generate_Mesh(Bone, FileNames, Config):
         Height = Spacing[2] * MeshShape[2]
         N_Elements = np.floor(Height / FEelSize[2]) + 1
 
-        print('Original coarse factor: %.6f' % (CoarseFactor))
+        print('Original coarse factor: %.3f' % (CoarseFactor))
         CoarseFactor = np.floor(MeshShape[2] / N_Elements * 1E6) / 1E6
-        print('New coarse factor: %.6f' % (CoarseFactor))
+        print('New coarse factor: %.3f' % (CoarseFactor))
         FEelSize = Spacing * CoarseFactor
+        print('Adjusted elements size: %.3f' % (FEelSize[2]))
+
         Bone['Spacing'] = Spacing 
         Bone['CoarseFactor'] = CoarseFactor 
 
@@ -1655,6 +1682,7 @@ def Generate_Mesh(Bone, FileNames, Config):
     Print_Memory_Usage()
     print('Spacing = ' + str(Spacing))
     print('FEelSize = ' + str(FEelSize))
+    print(FEelSize[0] / 0.082)
 
     # Write MESH to Abaqus input file
     print('\n\nGenerate full block mesh (Abaqus inp file)')
@@ -3904,39 +3932,42 @@ def Main(ConfigFile):
     Folder_IDs = Config['Folder_IDs']
 
 
-    Sample = GrayScale_FileNames[0]
-    # for Sample in GrayScale_FileNames:
+#    Sample = GrayScale_FileNames[0]
+    for Sample in GrayScale_FileNames:
 
-    print('\n\nStart FE Analysis of sample ' + Sample)
+        print('\n\nStart FE Analysis of sample ' + Sample)
 
-    # Set paths
-    Folder = Folder_IDs[Sample]
-    InputFileName = "{}_{}.inp".format(Sample, Version)
-    InputFile = str(Directories['FEA'] / Folder / InputFileName)
+        # Set paths
+        Folder = Folder_IDs[Sample]
+        InputFileName = "{}_{}.inp".format(Sample, Version)
+        InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
-    # Perform material mapping
-    Tic = time.time()
-    AIM2FE_SA_PSL(Config, Sample, Directories)
-    Toc1 = time.time()
+        # Perform material mapping
+        Tic = time.time()
+        AIM2FE_SA_PSL(Config, Sample, Directories)
+        Toc1 = time.time()
 
-    # Write load cases
-    UpDate_BCs_Files(Config, Directories)
-    Toc2 = time.time()
-    Create_Canonical_LoadCases(Config, InputFile, Directories)
-    Toc3 = time.time()
-    Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
-    Toc4 = time.time()
+        # Write load cases
+        UpDate_BCs_Files(Config, Directories)
+        Toc2 = time.time()
+        Create_Canonical_LoadCases(Config, InputFile, Directories)
+        Toc3 = time.time()
+        Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
+        Toc4 = time.time()
 
-    print('\nInput files written')
-    PrintTime(Tic,Toc4)
-    print('\tAIM2FE')
-    PrintTime(Tic, Toc1)
-    print('\tUpdate BCs')
-    PrintTime(Toc1, Toc2)
-    print('\tCreate canonical loadcases')
-    PrintTime(Toc2, Toc3)
-    print('\tCreate FZ max loadcase')
-    PrintTime(Toc3, Toc4)
+        print('\nInput files written')
+        PrintTime(Tic,Toc4)
+        print('\tAIM2FE')
+        PrintTime(Tic, Toc1)
+        print('\tUpdate BCs')
+        PrintTime(Toc1, Toc2)
+        print('\tCreate canonical loadcases')
+        PrintTime(Toc2, Toc3)
+        print('\tCreate FZ max loadcase')
+        PrintTime(Toc3, Toc4)
+        
+        print('Time for full sample analysis')
+        PrintTime(Tic, Toc4)
 
     return
 
