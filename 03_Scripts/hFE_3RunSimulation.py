@@ -25,26 +25,6 @@ import argparse
 from Utils import *
 
 
-#%% Functions
-# Define functions
-
-def AFunction(Argument):
-
-    return Something
-
-
-#%% Classes
-# Define classes
-
-class Arguments():
-
-    def __init__(self):
-        self.Folder = 'FRACTIB'
-        self.Sample = '432_L_77_F'
-        self.InputFile = 'C0001901_00_FZ_MAX.inp'
-        self.UMAT = 'UMAT.f'
-        self.nCPUs = 4
-
 #%% Main
 # Main code
 
@@ -62,7 +42,9 @@ def Main(Arguments):
     if hasattr(Arguments, 'InputFile'):
         InputFile = Arguments.InputFile
     else:
-        InputFile = Arguments.Sample + '_00_FZ_MAX.inp'
+        InputFiles = [F for F in os.listdir(str(FEADir)) if F.endswith('FZ_MAX.inp')]
+        InputFiles.sort()
+        InputFile = InputFiles[0]
 
     # Absolutely necessary to start abaqus job
     try:
@@ -72,9 +54,9 @@ def Main(Arguments):
 
     # Write script
     Script = '''
-             #!/bin/bash
-             abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete=OFF
-             '''
+#!/bin/bash
+abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete=OFF
+'''
     
     Context = {'Job':Arguments.Sample,
                'InputFile':InputFile,

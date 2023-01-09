@@ -1,6 +1,6 @@
 #! /usr/bin python
 
-from Registration import Main as Registration
+from hFE_4ReadDG import Main as hFE_4ReadDG
 
 Samples = ['432_L_77_F',
            '433_R_77_F',
@@ -31,17 +31,13 @@ Samples = ['432_L_77_F',
 class Arguments():
 
 	def __init__(self):
-		pass
+		self.Folder = 'FRACTIB'
 
 Arguments = Arguments()
 
 for Sample in Samples:
 
 	Arguments.Sample = Sample
-	Arguments.Folder = 'FRACTIB'
-	Arguments.Show = False
-	Arguments.Type = 'BSpline'
-	Arguments.Jac = True
 
-	Registration(Arguments)
+	hFE_4ReadDG(Arguments)
 

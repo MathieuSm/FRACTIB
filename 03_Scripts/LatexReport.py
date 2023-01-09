@@ -45,28 +45,29 @@ def Main(File):
     # Set directories
     WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
     ResultsDir = Results / '04_Registration'
+    hFEDir  = Results / '03_hFE'
     Report = Results / 'Report'
 
     # Start document
     SampleList = pd.read_csv(str(Data / 'SampleList.csv'))['Internal ID']
     Doc = Document(default_filepath=str(Report))
 
-    for Sample in SampleList[:2]:
+    for Sample in SampleList:
 
         Image1 = str(ResultsDir / Sample / 'RigidRegistration')
         Image2 = str(ResultsDir / Sample / 'BSplineRegistration')
         Image3 = str(ResultsDir / Sample / 'DetF')
         Image4 = str(ResultsDir / Sample / 'Ftilde')
-        Image5 = str(ResultsDir / Sample / 'RigidRegistration')
-        Image6 = str(ResultsDir / Sample / 'BSplineRegistration')
+        Image5 = str(hFEDir / Sample / 'DetF')
+        Image6 = str(hFEDir / Sample / 'FTilde')
         Images = [Image1, Image2, Image3, Image4, Image5, Image6]
 
         SubCaptions = ['Rigid',
-                    'B-spline',
-                    r'$\lvert \mathbf{F} \rvert$',
-                    r'$\tilde{\mathbf{F}$',
-                    r'$\lvert \mathbf{F} \rvert$',
-                    r'$\tilde{\mathbf{F}$']
+                       'B-spline',
+                       NoEscape(r'$|\mathbf{F}|$'),
+                       NoEscape(r'$\tilde{\mathbf{F}}$'),
+                       NoEscape(r'$|\mathbf{F}|$'),
+                       NoEscape(r'$\tilde{\mathbf{F}}$')]
 
         Captions = ['Registration results', 'Registration analysis', 'hFE analysis']
 
@@ -80,7 +81,7 @@ def Main(File):
                         SubFig = SubFigure(position='b', width=NoEscape(r'0.5\linewidth'))
                         with Doc.create(SubFig) as SF:
                             SF.add_image(Images[2*j+i],
-                                        width=NoEscape(r'\linewidth'))
+                                        width=NoEscape(r'0.9\linewidth'))
                             SF.add_caption(SubCaptions[2*j+i])
 
                     Fig.add_caption(NoEscape(Captions[j]))

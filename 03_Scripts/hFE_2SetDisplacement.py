@@ -36,7 +36,7 @@ def Main(Arguments):
 
     Data = pd.read_csv(str(DD / 'SampleList.csv'))
 
-    for Index in Data.index[:1]:
+    for Index in Data.index:
 
         Sample = Data.loc[Index, 'Internal ID']
         

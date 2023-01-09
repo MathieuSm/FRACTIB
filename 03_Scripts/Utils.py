@@ -481,6 +481,46 @@ class Show:
 
         return
 
+    def Signal(self, X, Y, Points=[], Normalize=False, Axes=[], Labels=[]):
+
+        Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
+
+        Figure, Axis = plt.subplots(1,1)
+
+        for i in range(len(X)):
+
+            if Normalize:
+                Xi = self.Normalize(X[i])
+                Yi = self.Normalize(Y[i])
+            else:
+                Xi, Yi = X[i], Y[i]
+            
+            if len(Labels) > 0:
+                Axis.plot(Xi, Yi, color=Colors[i], label=Labels[i])
+            else:
+                Axis.plot(Xi, Yi, color=Colors[i], label='Signal ' + str(i+1))
+
+            if len(Points) > 0:
+                Px, Py = Xi[Points[i]], Yi[Points[i]]
+                Axis.plot(Px, Py, marker='o', color=(0.7,0.7,0.7), fillstyle='none', linestyle='none')
+
+        if len(Axes) > 0:
+            Axis.set_xlabel(Axes[0])
+            Axis.set_ylabel(Axes[1])
+
+        Cols = i+1 if i < 3 else (1+i)//2
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5,1.12), ncol=Cols)
+
+        if (self.FName):
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0.02)
+
+        if self.ShowPlot:
+            plt.show()
+        else:
+            plt.close()
+
+        return
+
 Show = Show()
 #%% Reading functions
 class Read:
@@ -1376,6 +1416,56 @@ class Signal:
 
         return FilteredSignal
 
+#%% Abaqus functions
+class Abaqus:
+
+    def __init__(self):
+        pass
+
+    def ReadDAT(self, File):
+
+        with open(File) as F:
+            Text = F.read()
+
+            Values = []
+            Condition = Text.find('U1') + 1
+            Start = Text.find('U1')
+            while Condition:
+
+                for i in range(6):
+                    iStart = Start + 125 + 15*i
+                    iStop = iStart + 14
+                    Values.append(float(Text[iStart : iStop]))
+
+                    iStart += Text[Start:].find('RF1')
+                    iStop += Text[Start:].find('RF1')
+                    Values.append(float(Text[iStart : iStop]))
+
+                Start = iStop + Text[iStop:].find('U1')
+                Condition = Text[iStop:].find('U1') + 1
+
+            Values = np.array(Values)
+            Cols = 12
+            Rows = Values.size // Cols
+            Values = np.reshape(Values,(Rows,Cols))
+
+            Data = pd.DataFrame()
+            ColNames = []
+            for i in range(3):
+                for V in ['U', 'F']:
+                    ColNames.append(V + str(i+1))
+            for i in range(3):
+                for V in ['R', 'M']:
+                    ColNames.append(V + str(i+1))
+
+            for iName, Name in enumerate(ColNames):
+                Data[Name] = Values[:,iName]
+            
+            Data.columns = ['X', 'FX', 'Y', 'FY', 'Z', 'FZ', 'Phi', 'MX', 'Theta', 'MY', 'Psi', 'MZ']
+
+            return Data
+
+Abaqus = Abaqus()
 #%%
 if __name__ == '__main__':
 

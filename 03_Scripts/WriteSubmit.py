@@ -20,15 +20,21 @@ CWD, DD, SD, RD = SetDirectories('FRACTIB')
 
 Samples = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
 Scripts = [File for File in os.listdir(str(SD)) if File.endswith('.py')]
+for i, S in enumerate(Scripts):
+    print(str(i) + ' ' + S)
 
-SList = [Scripts[1]]
-Arguments = [{'Folder':'FRACTIB',
-              'Show':False,
-              'Type':'BSpline',
-              'Jac':True}]
 
+#%%
+SList = [Scripts[4]]
+Arguments = {
+             'hFERunSimulation':{'UMAT':'UMAT.f','nCPUs':12},
+             'Registration':{'Show':False,'Type':'BSpline','Jac':True},
+            }
+
+
+#%%
 File = str(SD / 'Submit.py')
-print('\n\nWrite submit file')
+print('\n\nWrite submit file:\n')
 with open(File, 'w') as F:
 
     F.write('#! /usr/bin python\n\n')
@@ -43,15 +49,19 @@ with open(File, 'w') as F:
     
     F.write('\nclass Arguments():\n')
     F.write('\n\tdef __init__(self):\n')
-    F.write('\t\tpass\n')
+    F.write('\t\tself.Folder = \'FRACTIB\'\n')
     F.write('\nArguments = Arguments()\n')
 
     F.write('\nfor Sample in Samples:\n')
     F.write('\n\tArguments.Sample = Sample\n')
 
-    for iScript, Script in enumerate(SList):
+    for Script in SList:
         
-        SArguments = Arguments[iScript]
+        if Script[:-3] in Arguments.keys():
+            SArguments = Arguments[Script[:-3]]
+        else:
+            SArguments = False
+
         if SArguments:
             
             for iKey, Key in enumerate(SArguments):
@@ -65,7 +75,7 @@ with open(File, 'w') as F:
 
         F.write('\n\t' + Script[:-3] + '(Arguments)\n\n')
 
-F.close()
-print('Done!')
+with open(File) as F:
+    print(F.read())
 
 # %%

@@ -1,7 +1,7 @@
 #%% Script initialization
 # Initialization
 
-Version = '01'
+Version = '03'
 
 Description = """
     Match data recorded by MTS with records of the ARAMIS device
@@ -9,6 +9,8 @@ Description = """
 
     Version Control:
         01 - Original script
+        02 - Adapt peak detection with empirical criteria
+        03 - Drop nan values in original measurement
 
     Author: Mathieu Simon
             ARTORG Center for Biomedical Engineering Research
@@ -25,6 +27,13 @@ import argparse
 
 from Utils import *
 
+#%%
+class Arguments():
+
+    def __init__(self):
+        self.Folder = 'FRACTIB'
+        self.Sample = '447_L_83_M'
+Arguments = Arguments()
 
 #%% Main
 # Main code
@@ -51,10 +60,13 @@ def Main(Arguments):
 
     ARAMISFile = str(DataDir / '2_ARAMIS' / (Arguments.Sample + '.csv'))
     ARAMISData = pd.read_csv(ARAMISFile, index_col=0, sep=';', header=1, parse_dates=['Time UTC'])
+    
+    # V03 - Drop nan data and re-index
+    ARAMISData.dropna(inplace=True)
+    ARAMISData.reset_index(drop=True, inplace=True)
 
     Toc = time.time()
     PrintTime(Tic, Toc)
-
 
     # Preprocessing of ARAMIS data
     print('\nSignals preprocessing')
@@ -86,13 +98,47 @@ def Main(Arguments):
     Toc = time.time()
     PrintTime(Tic, Toc)
 
+    # Trunkate ARAMIS signal for non-sense positive displacement
+    Last = FilteredARAMIS[FilteredARAMIS['D'] < 0].index[-1]
+
+    if Last > 0:
+        FilteredARAMIS = FilteredARAMIS.iloc[:Last]
 
     # Peaks detection (use prominence for stability)
     print('\nSignals alignment')
     Tic = time.time()
 
-    ARAMISPeaks, Properties = sig.find_peaks(-FilteredARAMIS['D'], prominence=0.02)
+    # V02 - Adapt prominence to match empirical criteria for peak detection
+    Prominence = 0.02
+    
+    ARAMISPeaks, Properties = sig.find_peaks(-FilteredARAMIS['D'], prominence=Prominence)
+    TruePeaks = ARAMISPeaks[FilteredARAMIS['D'][ARAMISPeaks] < 0.9*FilteredARAMIS['D'][ARAMISPeaks].min()]
+    
+    i = 0
+    Decrease = 0.05 * Prominence
+    if len(ARAMISPeaks) < 9:
+        while len(ARAMISPeaks) < 9 or sum(ARAMISPeaks < 18000) < 5:
+            P = Prominence - i*Decrease
+            ARAMISPeaks, Properties = sig.find_peaks(-FilteredARAMIS['D'], prominence=P)
+            i += 1
+
+    if len(ARAMISPeaks) > 9:
+        C1 = ARAMISPeaks[ARAMISPeaks < 18000][-5:]
+        ARAMISPeaks = np.concatenate([C1, TruePeaks])
+
     MTSPeaks, Properties = sig.find_peaks(-FilteredMTS['D'], prominence=0.02)
+    i = 0
+    Decrease = 0.05 * Prominence
+    while len(MTSPeaks) < 9:
+        P = Prominence - i*Decrease
+        MTSPeaks, Properties = sig.find_peaks(-FilteredMTS['D'], prominence=P)
+        i += 1
+
+    if len(MTSPeaks) > 9:
+        MTSPeaks = np.concatenate([MTSPeaks[:5], MTSPeaks[-4:]])
+
+    # Show.Signal([np.arange(len(FilteredMTS))], [FilteredMTS['D']], [MTSPeaks])
+    # Show.Signal([np.arange(len(FilteredARAMIS))], [FilteredARAMIS['D']], [ARAMISPeaks])
 
     # Signals alignment of protocol 1
     Protocol1_Shift = int(round(np.mean(ARAMISPeaks[:5] - MTSPeaks[:5])))
@@ -150,6 +196,7 @@ def Main(Arguments):
     Axis.plot(Matched['T'], Matched['FZ'] / Matched['FZ'].min(), color=(0,0,1), label='Force')
     Axis.set_xlabel('Time (s)')
     Axis.set_ylabel('Normalized signals (-)')
+    Axis.set_ylim([-0.025, 1.025])
     plt.legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.12))
     plt.subplots_adjust(top=0.9)
     plt.savefig(str(ResultsDir / 'Signals.png'))
