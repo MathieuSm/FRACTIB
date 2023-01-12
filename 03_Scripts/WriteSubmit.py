@@ -20,12 +20,13 @@ CWD, DD, SD, RD = SetDirectories('FRACTIB')
 
 Samples = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
 Scripts = [File for File in os.listdir(str(SD)) if File.endswith('.py')]
+Scripts.sort()
 for i, S in enumerate(Scripts):
     print(str(i) + ' ' + S)
 
 
 #%%
-SList = [Scripts[6]]
+SList = [Scripts[11]]
 Arguments = {
              'hFE_3RunLoading':{'UMAT':'UMAT.f','nCPUs':12},
              'hFE_5RunSimulation':{'UMAT':'UMAT.f','nCPUs':24},
