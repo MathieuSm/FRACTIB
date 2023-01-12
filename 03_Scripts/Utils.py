@@ -1424,46 +1424,64 @@ class Abaqus:
 
     def ReadDAT(self, File):
 
-        with open(File) as F:
-            Text = F.read()
+        try:
+            with open(File) as F:
+                Text = F.read()
 
-            Values = []
-            Condition = Text.find('U1') + 1
-            Start = Text.find('U1')
-            while Condition:
+                Values = []
+                Condition = Text.find('U1') + 1
+                Start = Text.find('U1')
+                Steps, Increments = [], []
+                Step, Increment = 1, 1
+                while Condition:
 
-                for i in range(6):
-                    iStart = Start + 125 + 15*i
-                    iStop = iStart + 14
-                    Values.append(float(Text[iStart : iStop]))
+                    Inc = int(Text[Start-349:Start-347])
+                    if Inc < Increment:
+                        Step += 1
+                    Increment = Inc
+                    Increments.append(Increment)
+                    Steps.append(Step)
 
-                    iStart += Text[Start:].find('RF1')
-                    iStop += Text[Start:].find('RF1')
-                    Values.append(float(Text[iStart : iStop]))
+                    for i in range(6):
+                        iStart = Start + 125 + 15*i
+                        iStop = iStart + 14
+                        Values.append(float(Text[iStart : iStop]))
 
-                Start = iStop + Text[iStop:].find('U1')
-                Condition = Text[iStop:].find('U1') + 1
+                        iStart += Text[Start:].find('RF1')
+                        iStop += Text[Start:].find('RF1')
+                        Values.append(float(Text[iStart : iStop]))
 
-            Values = np.array(Values)
-            Cols = 12
-            Rows = Values.size // Cols
-            Values = np.reshape(Values,(Rows,Cols))
+                    Start = iStop + Text[iStop:].find('U1')
+                    Condition = Text[iStop:].find('U1') + 1
 
-            Data = pd.DataFrame()
-            ColNames = []
-            for i in range(3):
-                for V in ['U', 'F']:
-                    ColNames.append(V + str(i+1))
-            for i in range(3):
-                for V in ['R', 'M']:
-                    ColNames.append(V + str(i+1))
+                Values = np.array(Values)
+                Cols = 12
+                Rows = Values.size // Cols
+                Values = np.reshape(Values,(Rows,Cols))
 
-            for iName, Name in enumerate(ColNames):
-                Data[Name] = Values[:,iName]
-            
-            Data.columns = ['X', 'FX', 'Y', 'FY', 'Z', 'FZ', 'Phi', 'MX', 'Theta', 'MY', 'Psi', 'MZ']
+                Data = pd.DataFrame()
+                ColNames = []
+                for i in range(3):
+                    for V in ['U', 'F']:
+                        ColNames.append(V + str(i+1))
+                for i in range(3):
+                    for V in ['R', 'M']:
+                        ColNames.append(V + str(i+1))
+
+                for iName, Name in enumerate(ColNames):
+                    Data[Name] = Values[:,iName]
+                
+                Data.columns = ['X', 'FX', 'Y', 'FY', 'Z', 'FZ', 'Phi', 'MX', 'Theta', 'MY', 'Psi', 'MZ']
+
+                Data['Step'] = Steps
+                Data['Increment'] = Increments
 
             return Data
+
+        except FileNotFoundError:
+            print('File' + File + 'does not exist')
+
+            return
 
 Abaqus = Abaqus()
 #%%

@@ -20,11 +20,80 @@ Description = """
 #%% Imports
 # Modules import
 
+import yaml
 import argparse
 import pandas as pd
 from pylatex import Document, Section, Figure, SubFigure, NoEscape, NewPage
 from pylatex.package import Package
 from Utils import *
+
+
+#%% Functions
+# Define functions
+def ReadConfigFile(Filename):
+
+    """ Read configuration file and store to dictionary """
+
+    print('\n\nReading configuration file', Filename)
+    with open(Filename, 'r') as File:
+        Configuration = yaml.load(File, Loader=yaml.FullLoader)
+
+    return Configuration
+def AdjustImageSize(Image, CoarseFactor, CropZ='Crop'):
+
+    """
+    Adapted from Denis's utils_SA.py
+    Images are adjusted according to CropType:
+    0 = CropType.expand     (Expand image by copying layers)
+    1 = CropType.crop       (Crop image)
+    2 = CropType.variable   (Either crop or expand, depending on what includes less layers)
+    """
+
+    # Get array
+    Array = sitk.GetArrayFromImage(Image)
+    Array = Array.transpose(2, 1, 0)
+
+    # Measure image shape
+    IMDimX = np.shape(Array)[0]
+    IMDimY = np.shape(Array)[1]
+    IMDimZ = np.shape(Array)[2]
+
+    AddDimX = CoarseFactor - (IMDimX % CoarseFactor)
+    AddDimY = CoarseFactor - (IMDimY % CoarseFactor)
+
+    # adjust in x and y direction
+    Shape_Diff = [AddDimX, AddDimY]
+    IMG_XY_Adjusted = np.lib.pad(Array,
+                                 ((0, Shape_Diff[0]), (0, Shape_Diff[1]), (0, 0)),
+                                 'constant', constant_values=(0),)
+
+    if CropZ == 'Crop':
+        Image_Adjusted = IMG_XY_Adjusted
+
+    if CropZ == 'Expand':
+        AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+        Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+        Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                    ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                    'edge')
+
+    if CropZ == 'Variable':
+        Limit = CoarseFactor / 2.0
+        if IMDimZ % CoarseFactor > Limit:
+            AddDimZ = CoarseFactor - (IMDimZ % CoarseFactor)
+            Shape_Diff = [AddDimX, AddDimY, AddDimZ]
+            Image_Adjusted = np.lib.pad(IMG_XY_Adjusted,
+                                        ((0, 0), (0, 0), (0, Shape_Diff[2])),
+                                        'edge')
+        if IMDimZ % CoarseFactor < Limit:
+            Image_Adjusted = IMG_XY_Adjusted
+
+    Image_Adjusted = sitk.GetImageFromArray(Image_Adjusted.transpose(2, 1, 0))
+    Image_Adjusted.SetSpacing(Image.GetSpacing())
+    Image_Adjusted.SetOrigin(Image.GetOrigin())
+    Image_Adjusted.SetDirection (Image.GetDirection())
+
+    return Image_Adjusted
 
 
 #%% Classes
@@ -44,7 +113,7 @@ def Main(File):
 
     # Set directories
     WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
-    ResultsDir = Results / '04_Registration'
+    RegDir = Results / '04_Registration'
     hFEDir  = Results / '03_hFE'
     Report = Results / 'Report'
 
@@ -54,10 +123,54 @@ def Main(File):
 
     for Sample in SampleList:
 
-        Image1 = str(ResultsDir / Sample / 'RigidRegistration')
-        Image2 = str(ResultsDir / Sample / 'BSplineRegistration')
-        Image3 = str(ResultsDir / Sample / 'DetF')
-        Image4 = str(ResultsDir / Sample / 'Ftilde')
+        # Generate images with same scales for hFE and registration
+        uCTDir = Data / '02_uCT' / Sample
+        Files = [File for File in os.listdir(uCTDir) if File.endswith('DOWNSCALED.AIM')]
+        Files.sort()
+
+        Image = Read.AIM(str(uCTDir / Files[0]))[0]
+        Spacing = Image.GetSpacing()
+
+        ConfigFile = str(Scripts / '3_hFE' / 'ConfigFile.yaml')
+        Config = ReadConfigFile(ConfigFile)
+        CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
+
+        PreI = AdjustImageSize(Image, CoarseFactor)
+
+        # Load decompositions
+        SCs, IDs = [], []
+        for Dir in [RegDir, hFEDir]:
+            SC = sitk.ReadImage(str(Dir / Sample / 'J.mhd'))
+            SC = Resample(SC, Spacing=PreI.GetSpacing())
+            SCs.append(SC)
+            
+            ID = sitk.ReadImage(str(Dir / Sample / 'F_Tilde.mhd'))
+            ID = Resample(ID, Spacing=PreI.GetSpacing())
+            IDs.append(ID)
+        
+        # Compute values ranges
+        SCLow = max([sitk.GetArrayFromImage(I).min() for I in SCs])
+        SCHigh = min([sitk.GetArrayFromImage(I).max() for I in SCs])
+        IDLow = max([sitk.GetArrayFromImage(I).min() for I in IDs])
+        IDHigh = min([sitk.GetArrayFromImage(I).max() for I in IDs])
+
+        # Plot
+        Show.IRange = [SCLow, SCHigh]
+        for iDir, Dir in enumerate([RegDir, hFEDir]):
+            Show.FName = str(Dir / Sample / 'DetF')
+            Show.Intensity(PreI, SCs[iDir], Axis='X')
+
+        Show.IRange = [IDLow, IDHigh]
+        for iDir, Dir in enumerate([RegDir, hFEDir]):
+            Show.FName = str(Dir / Sample / 'Ftilde')
+            Show.Intensity(PreI, ID, Axis='X')
+        Show.FName = None
+
+        # Generate report
+        Image1 = str(RegDir / Sample / 'RigidRegistration')
+        Image2 = str(RegDir / Sample / 'BSplineRegistration')
+        Image3 = str(RegDir / Sample / 'DetF')
+        Image4 = str(RegDir / Sample / 'Ftilde')
         Image5 = str(hFEDir / Sample / 'DetF')
         Image6 = str(hFEDir / Sample / 'FTilde')
         Images = [Image1, Image2, Image3, Image4, Image5, Image6]

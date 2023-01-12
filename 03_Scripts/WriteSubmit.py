@@ -25,9 +25,10 @@ for i, S in enumerate(Scripts):
 
 
 #%%
-SList = [Scripts[4]]
+SList = [Scripts[6]]
 Arguments = {
-             'hFERunSimulation':{'UMAT':'UMAT.f','nCPUs':12},
+             'hFE_3RunLoading':{'UMAT':'UMAT.f','nCPUs':12},
+             'hFE_5RunSimulation':{'UMAT':'UMAT.f','nCPUs':24},
              'Registration':{'Show':False,'Type':'BSpline','Jac':True},
             }
 

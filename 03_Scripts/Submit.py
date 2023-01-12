@@ -1,6 +1,6 @@
 #! /usr/bin python
 
-from hFE_4ReadDG import Main as hFE_4ReadDG
+from hFE_6ReadResults import Main as hFE_6ReadResults
 
 Samples = ['432_L_77_F',
            '433_R_77_F',
@@ -39,5 +39,5 @@ for Sample in Samples:
 
 	Arguments.Sample = Sample
 
-	hFE_4ReadDG(Arguments)
+	hFE_6ReadResults(Arguments)
 
