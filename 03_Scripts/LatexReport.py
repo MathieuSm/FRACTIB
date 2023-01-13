@@ -26,7 +26,7 @@ import pandas as pd
 from pylatex import Document, Section, Figure, SubFigure, NoEscape, NewPage
 from pylatex.package import Package
 from Utils import *
-
+Show.ShowPlot = False
 
 #%% Functions
 # Define functions
@@ -166,27 +166,21 @@ def Main(Arguments):
         IDs[0] = I1
         
         # Compute values ranges
-        SCLow, SCHigh = 0, 10
+        SCRange = []
         for SC in SCs:
             I = sitk.GetArrayFromImage(SC)
             S = I[:,:,I.shape[2] // 2]
+            SCRange.append([S[S > 0].min(), S[S > 0].max()])
+        SCLow = min([SCRange[0][0], SCRange[1][0]])
+        SCHigh = max([SCRange[0][1], SCRange[1][1]])
 
-            if S[S > 0].min() > SCLow:
-                SCLow = S[S > 0].min()
-
-            if S[S > 0].max() < SCHigh:
-                SCHigh = S[S > 0].max()
-
-        IDLow, IDHigh = 0, 10
+        IDRange = []
         for ID in IDs:
             I = sitk.GetArrayFromImage(ID)
             S = I[:,:,I.shape[2] // 2]
-            
-            if S[S > 0].min() > IDLow:
-                IDLow = S[S > 0].min()
-
-            if S[S > 0].max() < IDHigh:
-                IDHigh = S[S > 0].max()      
+            IDRange.append([S[S > 0].min(), S[S > 0].max()])
+        IDLow = min([IDRange[0][0], IDRange[1][0]])
+        IDHigh = max([IDRange[0][1], IDRange[1][1]])
 
         # Plot
         Show.IRange = [SCLow, SCHigh]
