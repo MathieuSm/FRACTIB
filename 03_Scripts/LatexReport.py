@@ -109,7 +109,7 @@ Arguments = Arguments()
 #%% Main
 # Main code
 
-def Main(File):
+def Main(Arguments):
 
     # Set directories
     WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
@@ -147,12 +147,52 @@ def Main(File):
             ID = sitk.ReadImage(str(Dir / Sample / 'F_Tilde.mhd'))
             ID = Resample(ID, Spacing=PreI.GetSpacing())
             IDs.append(ID)
+
+        # Use hFE as mask
+        I1 = sitk.GetArrayFromImage(SCs[0])
+        I2 = Resample(SCs[1], Size=SCs[0].GetSize())
+        I2 = sitk.GetArrayFromImage(I2)
+        I1[I2 == 0] = 0
+        I1 = sitk.GetImageFromArray(I1)
+        I1.SetSpacing(SCs[0].GetSpacing())
+        SCs[0] = I1
+
+        I1 = sitk.GetArrayFromImage(IDs[0])
+        I2 = Resample(IDs[1], Size=IDs[0].GetSize())
+        I2 = sitk.GetArrayFromImage(I2)
+        I1[I2 == 0] = 0
+        I1 = sitk.GetImageFromArray(I1)
+        I1.SetSpacing(IDs[0].GetSpacing())
+        IDs[0] = I1
         
         # Compute values ranges
-        SCLow = max([sitk.GetArrayFromImage(I).min() for I in SCs])
-        SCHigh = min([sitk.GetArrayFromImage(I).max() for I in SCs])
-        IDLow = max([sitk.GetArrayFromImage(I).min() for I in IDs])
-        IDHigh = min([sitk.GetArrayFromImage(I).max() for I in IDs])
+        SCLow = 0
+        for SC in SCs:
+            I = sitk.GetArrayFromImage(SC)
+            S = I[:,:,I.shape[2] // 2]
+            if S[S > 0].min() > SCLow:
+                SCLow = S[S > 0].min()
+
+        SCHigh = 10
+        for SC in SCs:
+            I = sitk.GetArrayFromImage(SC)
+            S = I[:,:,I.shape[2] // 2]
+            if S[S > 0].max() < SCHigh:
+                SCHigh = S[S > 0].max()
+
+        IDLow = 0
+        for ID in IDs:
+            I = sitk.GetArrayFromImage(ID)
+            S = I[:,:,I.shape[2] // 2]
+            if S[S > 0].min() > IDLow:
+                IDLow = S[S > 0].min()
+
+        IDHigh = 10
+        for ID in IDs:
+            I = sitk.GetArrayFromImage(ID)
+            S = I[:,:,I.shape[2] // 2]
+            if S[S > 0].max() < IDHigh:
+                IDHigh = S[S > 0].max()      
 
         # Plot
         Show.IRange = [SCLow, SCHigh]
@@ -163,7 +203,7 @@ def Main(File):
         Show.IRange = [IDLow, IDHigh]
         for iDir, Dir in enumerate([RegDir, hFEDir]):
             Show.FName = str(Dir / Sample / 'Ftilde')
-            Show.Intensity(PreI, ID, Axis='X')
+            Show.Intensity(PreI, IDs[iDir], Axis='X')
         Show.FName = None
 
         # Generate report

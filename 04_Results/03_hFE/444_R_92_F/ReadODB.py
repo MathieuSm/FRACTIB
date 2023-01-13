@@ -14,8 +14,7 @@ odb = openOdb(path=Directory + '444_R_92_F.odb')
 # Create a variable that refers to the
 # last frame of the first step.
 
-Steps = odb.steps.keys()
-LastFrame = odb.steps[Steps[-1]].frames[-1]
+LastFrame = odb.steps['Step-' + str(2)].frames[3]
 
 # Create a variable that refers to the displacement 'U'
 # in the last frame of the first step.
