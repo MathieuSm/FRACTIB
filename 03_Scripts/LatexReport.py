@@ -166,31 +166,25 @@ def Main(Arguments):
         IDs[0] = I1
         
         # Compute values ranges
-        SCLow = 0
+        SCLow, SCHigh = 0, 10
         for SC in SCs:
             I = sitk.GetArrayFromImage(SC)
             S = I[:,:,I.shape[2] // 2]
+
             if S[S > 0].min() > SCLow:
                 SCLow = S[S > 0].min()
 
-        SCHigh = 10
-        for SC in SCs:
-            I = sitk.GetArrayFromImage(SC)
-            S = I[:,:,I.shape[2] // 2]
             if S[S > 0].max() < SCHigh:
                 SCHigh = S[S > 0].max()
 
-        IDLow = 0
+        IDLow, IDHigh = 0, 10
         for ID in IDs:
             I = sitk.GetArrayFromImage(ID)
             S = I[:,:,I.shape[2] // 2]
+            
             if S[S > 0].min() > IDLow:
                 IDLow = S[S > 0].min()
 
-        IDHigh = 10
-        for ID in IDs:
-            I = sitk.GetArrayFromImage(ID)
-            S = I[:,:,I.shape[2] // 2]
             if S[S > 0].max() < IDHigh:
                 IDHigh = S[S > 0].max()      
 
