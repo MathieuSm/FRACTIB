@@ -355,8 +355,8 @@ class Show:
                 MovingArray = sitk.GetArrayFromImage(Moving_Bin)
                 MovingArray = (MovingArray == 2) * 1
 
-        FixedArray = self.Normalize(FixedArray)
-        MovingArray = self.Normalize(MovingArray)
+        FixedArray = self.Normalize(FixedArray.astype(float))
+        MovingArray = self.Normalize(MovingArray.astype(float))
 
 
         if Fixed.GetDimension() == 3:
@@ -451,7 +451,7 @@ class Show:
                         MaskArray = MaskArray[:,:,MaskArray.shape[2]//2]
 
         Structure = np.zeros((Array.shape[0], Array.shape[1], 4))
-        Structure[:,:,3] = self.Normalize(Array) / 255
+        Structure[:,:,3] = self.Normalize(Array.astype(float)) / 255
         
         if Mask:
             Values[~MaskArray] = np.nan

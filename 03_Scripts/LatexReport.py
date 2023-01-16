@@ -164,7 +164,16 @@ def Main(Arguments):
         I1 = sitk.GetImageFromArray(I1)
         I1.SetSpacing(IDs[0].GetSpacing())
         IDs[0] = I1
-        
+
+        I1 = sitk.GetArrayFromImage(PreI)
+        I2 = Resample(SCs[1], Size=PreI.GetSize())
+        I2 = sitk.GetArrayFromImage(I2)
+        I1[I2 == 0] = 0
+        I1 =sitk.GetImageFromArray(I1)
+        I1.SetSpacing(PreI.GetSpacing())
+        PreI = I1
+
+
         # Compute values ranges
         SCRange = []
         for SC in SCs:
