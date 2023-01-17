@@ -228,7 +228,7 @@ def Main(Arguments):
     ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
 
     # Compute min force location
-    MinForceIdx = FEAData['FZ'].abs().idxmin()
+    MinForceIdx = FEAData['FZ'][1:].abs().idxmin()
     Frame = FEAData.loc[MinForceIdx,'Increment']
     Step = FEAData.loc[MinForceIdx,'Step']
 
