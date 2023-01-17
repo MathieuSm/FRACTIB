@@ -53,10 +53,10 @@ def ComputeStiffness(Force, Displacement, RelativeRange=1/3, StepSize=None):
 #%% Main
 # Main code
 
-def Main():
+def Main(Arguments):
 
     # Set directories and read sample list
-    CWD, DD, SD, RD = SetDirectories('FRACTIB')
+    CWD, DD, SD, RD = SetDirectories(Arguments.Folder)
     SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
 
     # Set assessed variables
@@ -135,9 +135,9 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('File', help='File to process (required)', type=str)
+    Parser.add_argument('--Folder', help='Root folder of the project (required)', type=str, default='FRACTIB')
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments.File)
+    Main(Arguments)

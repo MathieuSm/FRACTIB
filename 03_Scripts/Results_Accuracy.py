@@ -4,8 +4,9 @@
 Version = '01'
 
 Description = """
-    This script uses pylatex to generate a report with the images
-    resulting from the hFE and registration analyses
+    Script used for the assessment of localization prediction accuracy.
+    This is done by performing ordinary least square regression on the
+    values (det(F) and |F~|) obtained with the registration vs the simulation
 
     Version Control:
         01 - Original script
@@ -14,7 +15,7 @@ Description = """
             ARTORG Center for Biomedical Engineering Research
             SITEM Insel, University of Bern
 
-    Date: December 2022
+    Date: January 2023
     """
 
 #%% Imports
@@ -22,8 +23,6 @@ Description = """
 
 import yaml
 import argparse
-from pylatex import Document, Section, Figure, SubFigure, NoEscape, NewPage
-from pylatex.package import Package
 from Utils import *
 Show.ShowPlot = False
 
@@ -111,19 +110,18 @@ Arguments = Arguments()
 def Main(Arguments):
 
     # Set directories
-    WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
-    RegDir = Results / '04_Registration'
-    hFEDir  = Results / '03_hFE'
-    Report = Results / 'Report'
+    WD, DD, SD, RD = SetDirectories(Arguments.Folder)
+    RegDir = RD / '04_Registration'
+    hFEDir  = RD / '03_hFE'
 
-    # Start document
-    SampleList = pd.read_csv(str(Data / 'SampleList.csv'))['Internal ID']
-    Doc = Document(default_filepath=str(Report))
+    # Read sample list
+    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
 
+    Data = pd.DataFrame(index=SampleList.values, columns=['SC','ID'])
     for Sample in SampleList:
 
         # Generate images with same scales for hFE and registration
-        uCTDir = Data / '02_uCT' / Sample
+        uCTDir = DD / '02_uCT' / Sample
         Files = [File for File in os.listdir(uCTDir) if File.endswith('DOWNSCALED.AIM')]
         Files.sort()
 
@@ -140,106 +138,30 @@ def Main(Arguments):
         SCs, IDs = [], []
         for Dir in [RegDir, hFEDir]:
             SC = sitk.ReadImage(str(Dir / Sample / 'J.mhd'))
-            SC = Resample(SC, Spacing=PreI.GetSpacing())
+            SC = sitk.GetArrayFromImage(SC)
             SCs.append(SC)
             
             ID = sitk.ReadImage(str(Dir / Sample / 'F_Tilde.mhd'))
-            ID = Resample(ID, Spacing=PreI.GetSpacing())
+            ID = sitk.GetArrayFromImage(ID)
             IDs.append(ID)
 
-        # Use hFE as mask
-        I1 = sitk.GetArrayFromImage(SCs[0])
-        I2 = Resample(SCs[1], Size=SCs[0].GetSize())
-        I2 = sitk.GetArrayFromImage(I2)
-        I1[I2 == 0] = 0
-        I1 = sitk.GetImageFromArray(I1)
-        I1.SetSpacing(SCs[0].GetSpacing())
-        SCs[0] = I1
+        # Plot correlations (use hFE as mask)
+        Show.ShowPlot = False
+        Mask = SCs[1] > 0
+        X = SCs[0][Mask].flatten()
+        Y = SCs[1][Mask].flatten()
+        SC_R = Show.OLS(X, Y)
 
-        I1 = sitk.GetArrayFromImage(IDs[0])
-        I2 = Resample(IDs[1], Size=IDs[0].GetSize())
-        I2 = sitk.GetArrayFromImage(I2)
-        I1[I2 == 0] = 0
-        I1 = sitk.GetImageFromArray(I1)
-        I1.SetSpacing(IDs[0].GetSpacing())
-        IDs[0] = I1
+        Mask = IDs[1] > 0
+        X = IDs[0][Mask].flatten()
+        Y = IDs[1][Mask].flatten()
+        ID_R = Show.OLS(X, Y)
 
-        I1 = sitk.GetArrayFromImage(PreI)
-        I2 = Resample(SCs[1], Size=PreI.GetSize())
-        I2 = sitk.GetArrayFromImage(I2)
-        I1[I2 == 0] = 0
-        I1 =sitk.GetImageFromArray(I1)
-        I1.SetSpacing(PreI.GetSpacing())
-        PreI = I1
+        # Add results to data frame
+        Data.loc[Index, 'SC'] = SC_R.rsquared
+        Data.loc[Index, 'ID'] = ID_R.rsquared
 
-
-        # Compute values ranges
-        SCRange = []
-        for SC in SCs:
-            I = sitk.GetArrayFromImage(SC)
-            S = I[:,:,I.shape[2] // 2]
-            SCRange.append([S[S > 0].min(), S[S > 0].max()])
-        SCLow = min([SCRange[0][0], SCRange[1][0]])
-        SCHigh = max([SCRange[0][1], SCRange[1][1]])
-
-        IDRange = []
-        for ID in IDs:
-            I = sitk.GetArrayFromImage(ID)
-            S = I[:,:,I.shape[2] // 2]
-            IDRange.append([S[S > 0].min(), S[S > 0].max()])
-        IDLow = min([IDRange[0][0], IDRange[1][0]])
-        IDHigh = max([IDRange[0][1], IDRange[1][1]])
-
-        # Plot
-        Show.IRange = [SCLow, SCHigh]
-        for iDir, Dir in enumerate([RegDir, hFEDir]):
-            Show.FName = str(Dir / Sample / 'DetF')
-            Show.Intensity(PreI, SCs[iDir], Axis='X')
-
-        Show.IRange = [IDLow, IDHigh]
-        for iDir, Dir in enumerate([RegDir, hFEDir]):
-            Show.FName = str(Dir / Sample / 'Ftilde')
-            Show.Intensity(PreI, IDs[iDir], Axis='X')
-        Show.FName = None
-
-        # Generate report
-        Image1 = str(RegDir / Sample / 'RigidRegistration')
-        Image2 = str(RegDir / Sample / 'BSplineRegistration')
-        Image3 = str(RegDir / Sample / 'DetF')
-        Image4 = str(RegDir / Sample / 'Ftilde')
-        Image5 = str(hFEDir / Sample / 'DetF')
-        Image6 = str(hFEDir / Sample / 'FTilde')
-        Images = [Image1, Image2, Image3, Image4, Image5, Image6]
-
-        SubCaptions = ['Rigid',
-                       'B-spline',
-                       NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$\tilde{\mathbf{F}}$'),
-                       NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$\tilde{\mathbf{F}}$')]
-
-        Captions = ['Registration results', 'Registration analysis', 'hFE analysis']
-
-        # Create section and add pictures
-        with Doc.create(Section(Sample, numbering=False)):
-
-            for j in range(3):
-                with Doc.create(Figure(position='h!')) as Fig:
-                    
-                    for i in range(2):
-                        SubFig = SubFigure(position='b', width=NoEscape(r'0.5\linewidth'))
-                        with Doc.create(SubFig) as SF:
-                            SF.add_image(Images[2*j+i],
-                                        width=NoEscape(r'0.9\linewidth'))
-                            SF.add_caption(SubCaptions[2*j+i])
-
-                    Fig.add_caption(NoEscape(Captions[j]))
-
-        Doc.append(NewPage())
-
-    Doc.packages.append(Package('subcaption', options='aboveskip=0pt'))
-            
-    Doc.generate_pdf(clean_tex=False)
+        ### Add boxplot function of bar plot function to show class
 
     return
 
@@ -254,7 +176,7 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('-F', '--Folder', help='Root folder name', type=str, default='FRACTIB')
+    Parser.add_argument('--Folder', help='Root folder of the project', type=str, default='FRACTIB')
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
