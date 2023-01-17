@@ -103,10 +103,24 @@ def Main():
     ProcessTiming(0)
 
     # Assess relationships (linear regression)
-    X = Data[Variables[0]]['Experiment'].values.astype(float)
-    Y = Data[Variables[0]]['hFE'].values.astype(float)
-    Labels = ['hFE (N/mm)', 'Experiment (N/mm)']
-    Results = Stats.LinearRegression(X, Y, Labels=Labels, Plot=True)
+    X = Data[Variables[0]]['Experiment'].values.astype(float) / 1E3
+    Y = Data[Variables[0]]['hFE'].values.astype(float) / 1E3
+    Labels = ['hFE (kN)', 'Experiment (kN)']
+    Show.FName = str(RD / 'UltimateForce')
+    Results = Show.OLS(X, Y, Labels=Labels)
+
+    X = Data[Variables[1]]['Experiment'].values.astype(float)
+    Y = Data[Variables[1]]['hFE'].values.astype(float)
+    Labels = ['hFE (mm)', 'Experiment (mm)']
+    Show.FName = str(RD / 'DispUtlForce')
+    Results = Show.OLS(X, Y, Labels=Labels)
+
+    X = Data[Variables[2]]['Experiment'].values.astype(float) / 1E3
+    Y = Data[Variables[2]]['hFE'].values.astype(float) / 1E3
+    Labels = ['hFE (kN/mm)', 'Experiment (kN/mm)']
+    Show.FName = str(RD / 'Stiffness')
+    Results = Show.OLS(X, Y, Labels=Labels)
+    Show.FName = None
 
     return
 
