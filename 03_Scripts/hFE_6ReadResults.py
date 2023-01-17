@@ -238,7 +238,7 @@ def Main(Arguments):
     Axes = ['Displacement (mm)', 'Force(N)']
     Labels = ['hFE', 'Experiment']
 
-    Show.FName = str(FEADir / 'ForceDisplacement.png')
+    Show.FName = str(RD / 'ForceVSDisplacement' / Arguments.Sample)
     Show.Signal(Xs, Ys, Axes=Axes, Labels=Labels, Points=[MinForceIdx,[]])
     Show.FName = None
 
