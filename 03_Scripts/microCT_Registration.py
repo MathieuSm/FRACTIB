@@ -473,7 +473,7 @@ def Main(Arguments):
         ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
 
         ## Perform jacobian unimodular decomposition
-        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
+        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(ResampledJacobian)
 
         ## Resample for plotting
         SC_R = Resample(SphericalCompression, Spacing=PreI.GetSpacing())
