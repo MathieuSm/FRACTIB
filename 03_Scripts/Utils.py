@@ -33,6 +33,8 @@ import SimpleITK as sitk
 from pathlib import Path
 import scipy.signal as sig
 import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
+from scipy.stats.distributions import t
 from vtk.util.numpy_support import vtk_to_numpy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -1459,7 +1461,6 @@ class Abaqus:
                 Rows = Values.size // Cols
                 Values = np.reshape(Values,(Rows,Cols))
 
-                Data = pd.DataFrame()
                 ColNames = []
                 for i in range(3):
                     for V in ['U', 'F']:
@@ -1468,13 +1469,14 @@ class Abaqus:
                     for V in ['R', 'M']:
                         ColNames.append(V + str(i+1))
 
+                Data = pd.DataFrame()
                 for iName, Name in enumerate(ColNames):
-                    Data[Name] = Values[:,iName]
+                    Data[Name] = np.concatenate([[0], Values[:,iName]])
                 
                 Data.columns = ['X', 'FX', 'Y', 'FY', 'Z', 'FZ', 'Phi', 'MX', 'Theta', 'MY', 'Psi', 'MZ']
 
-                Data['Step'] = Steps
-                Data['Increment'] = Increments
+                Data['Step'] = np.concatenate([[0],Steps])
+                Data['Increment'] = np.concatenate([[0],Increments])
 
             return Data
 
@@ -1484,6 +1486,84 @@ class Abaqus:
             return
 
 Abaqus = Abaqus()
+
+#%% Statistical functions
+class Stats:
+
+    def __init__(self):
+        self.Echo = True
+
+    def LinearRegression(self, X, Y, Labels=None, Plot=False, Alpha=0.95):
+
+        if Labels == None:
+            Labels = ['X', 'Y']
+        
+        # Perform linear regression
+        Array = np.array([X,Y])
+        if Array.shape[0] == 2:
+            Array = Array.T
+        Data = pd.DataFrame(Array,columns=['X','Y'])
+        FitResults = smf.ols('Y ~ X', data=Data).fit()
+        if self.Echo:
+            print(FitResults.summary())
+        Intercept = FitResults.params[0]
+        Slope = FitResults.params[1]
+
+        # Build arrays and matrices
+        Y_Obs = FitResults.model.endog
+        Y_Fit = FitResults.fittedvalues
+        N = int(FitResults.nobs)
+        C = np.matrix(FitResults.normalized_cov_params)
+        X = np.matrix(FitResults.model.exog)
+        X_Obs = np.sort(np.array(X[:,1]).reshape(len(X)))
+
+        ## Compute R2 and standard error of the estimate
+        E = Y_Obs - Y_Fit
+        RSS = np.sum(E ** 2)
+        SE = np.sqrt(RSS / FitResults.df_resid)
+        TSS = np.sum((FitResults.model.endog - FitResults.model.endog.mean()) ** 2)
+        RegSS = TSS - RSS
+        R2 = RegSS / TSS
+        R2adj = 1 - RSS/TSS * (N-1)/(N-X.shape[1]+1-1)
+
+
+
+        if Plot:
+            ## Compute CI lines
+            B_0 = np.sqrt(np.diag(np.abs(X * C * X.T)))
+            t_Alpha = t.interval(Alpha, N - X.shape[1] - 1)
+            CI_Line_u = Y_Fit + t_Alpha[0] * SE * B_0
+            CI_Line_o = Y_Fit + t_Alpha[1] * SE * B_0
+            Sorted_CI_u = CI_Line_u[np.argsort(FitResults.model.exog[:, 1])]
+            Sorted_CI_o = CI_Line_o[np.argsort(FitResults.model.exog[:, 1])]
+
+            ## Plots
+            DPI = 100
+            Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=DPI, sharey=True, sharex=True)
+            Axes.plot(X[:,1], Y_Fit, color=(1,0,0))
+
+            if Slope > 0:
+                Axes.fill_between(X_Obs, Sorted_CI_o, Sorted_CI_u, color=(0, 0, 0), alpha=0.2)
+                Axes.annotate(r'$N$  : ' + str(N), xy=(0.05, 0.875), xycoords='axes fraction')
+                Axes.annotate(r'$R^2$ : ' + format(round(R2, 2), '.2f'), xy=(0.05, 0.8), xycoords='axes fraction')
+                Axes.annotate(r'$SE$ : ' + format(round(SE, 2), '.2f'), xy=(0.05, 0.725), xycoords='axes fraction')
+
+            elif Slope < 0:
+                Axes.fill_between(X_Obs, Sorted_CI_o[::-1], Sorted_CI_u[::-1], color=(0, 0, 0), alpha=0.2)
+                Axes.annotate(r'$N$  : ' + str(N), xy=(0.05, 0.175), xycoords='axes fraction')
+                Axes.annotate(r'$R^2$ : ' + format(round(R2, 2), '.2f'), xy=(0.05, 0.1), xycoords='axes fraction')
+                Axes.annotate(r'$SE$ : ' + format(round(SE, 2), '.2f'), xy=(0.05, 0.025), xycoords='axes fraction')
+
+            Axes.plot(X[:,1], Y_Obs, linestyle='none', marker='o', color=(0,0,1), fillstyle='none')
+            Axes.set_xlabel(Labels[0])
+            Axes.set_ylabel(Labels[1])
+            plt.subplots_adjust(left=0.15, bottom=0.15)
+            plt.show()
+            plt.close(Figure)
+
+        return Intercept, Slope, R2, SE
+
+Stats = Stats()
 #%%
 if __name__ == '__main__':
 
