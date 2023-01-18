@@ -221,21 +221,6 @@ def DecomposeJacobian(JacobianImage):
     return SphericalCompression, IsovolumicDeformation
 
 
-
-# %% Classes
-# Define classes
-
-# class Arguments(): # for testing purpose
-
-#     def __init__(self):
-#         self.Sample = '432_L_77_F'
-#         self.Folder = 'FRACTIB'
-#         self.Show = True
-#         self.Type = 'BSpline'
-#         self.Jac = True
-
-# Arguments = Arguments()
-
 #%% Main
 # Main code
 
