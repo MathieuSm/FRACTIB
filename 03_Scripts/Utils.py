@@ -652,6 +652,39 @@ class Show:
 
         return FitResults
 
+    def BoxPlot(ArraysList, Labels=['', 'Y'], SetsLabels=None, Vertical=True):
+
+        Figure, Axis = plt.subplots(1,1)
+
+        for i, Array in ArraysList:
+            RandPos = np.random.normal(i,0.02,len(Array))
+
+            Axis.boxplot(Array, vert=Vertical, widths=0.35,
+                        showmeans=False,meanline=True,
+                        capprops=dict(color=(0,0,0)),
+                        boxprops=dict(color=(0,0,0)),
+                        whiskerprops=dict(color=(0,0,0),linestyle='--'),
+                        flierprops=dict(color=(0,0,0)),
+                        medianprops=dict(color=(0,0,1)),
+                        meanprops=dict(color=(0,1,0)))
+            Axis.plot(RandPos - RandPos.mean() + 1, Array, linestyle='none',
+                      marker='o',fillstyle='none', color=(1,0,0))
+        
+        Axis.plot([],linestyle='none',marker='o',fillstyle='none', color=(1,0,0), label='Data')
+        Axis.plot([],color=(0,0,1), label='Median')
+        Axis.set_xlabel(Labels[0])
+        Axis.set_ylabel(Labels[1])
+
+        if SetsLabels:
+            Axis.set_xticks(np.arange(len(SetsLabels)))
+            Axis.set_xticklabels(SetLabels, rotation=90)
+        else:
+            Axis.set_xticks([])
+        
+        plt.legend()
+        plt.subplots_adjust(left=0.25, right=0.75)
+        plt.show()
+
 Show = Show()
 #%% Reading functions
 class Read:

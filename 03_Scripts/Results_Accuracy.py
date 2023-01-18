@@ -25,6 +25,7 @@ import yaml
 import argparse
 from Utils import *
 Show.ShowPlot = False
+Read.Echo = False
 
 #%% Functions
 # Define functions
@@ -114,10 +115,14 @@ def Main(Arguments):
     RegDir = RD / '04_Registration'
     hFEDir  = RD / '03_hFE'
 
-    # Read sample list
+    # Read sample list and configuration file
     SampleList = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
+    ConfigFile = str(SD / '3_hFE' / 'ConfigFile.yaml')
+    Config = ReadConfigFile(ConfigFile)
+    CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
 
     Data = pd.DataFrame(index=SampleList.values, columns=['SC','ID'])
+    ProcessTiming(1,'Compute predictions accuracy')
     for Sample in SampleList:
 
         # Generate images with same scales for hFE and registration
@@ -127,10 +132,6 @@ def Main(Arguments):
 
         Image = Read.AIM(str(uCTDir / Files[0]))[0]
         Spacing = Image.GetSpacing()
-
-        ConfigFile = str(Scripts / '3_hFE' / 'ConfigFile.yaml')
-        Config = ReadConfigFile(ConfigFile)
-        CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
 
         PreI = AdjustImageSize(Image, CoarseFactor)
 
@@ -158,10 +159,15 @@ def Main(Arguments):
         ID_R = Show.OLS(X, Y)
 
         # Add results to data frame
+        Index = SampleList.index[SampleList == Sample][0]
         Data.loc[Index, 'SC'] = SC_R.rsquared
         Data.loc[Index, 'ID'] = ID_R.rsquared
 
-        ### Add boxplot function of bar plot function to show class
+        Progress = Index / len(SampleList) * 20
+        ProgressNext(Progress)
+    ProcessTiming(0)
+
+    ### Add boxplot function of bar plot function to show class
 
     return
 
