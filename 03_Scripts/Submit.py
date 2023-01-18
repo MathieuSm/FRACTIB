@@ -1,6 +1,6 @@
 #! /usr/bin python
 
-from hFE_6ReadResults import Main as hFE_6ReadResults
+from uCT_Registration import Main as uCT_Registration
 
 Samples = ['432_L_77_F',
            '433_R_77_F',
@@ -38,6 +38,9 @@ Arguments = Arguments()
 for Sample in Samples:
 
 	Arguments.Sample = Sample
+	Arguments.Show = False
+	Arguments.Type = 'BSpline'
+	Arguments.Jac = True
 
-	hFE_6ReadResults(Arguments)
+	uCT_Registration(Arguments)
 
