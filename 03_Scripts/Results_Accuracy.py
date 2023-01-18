@@ -119,7 +119,6 @@ def Main(Arguments):
     SampleList = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
     ConfigFile = str(SD / '3_hFE' / 'ConfigFile.yaml')
     Config = ReadConfigFile(ConfigFile)
-    CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
 
     Data = pd.DataFrame(index=SampleList.values, columns=['SC','ID'])
     ProcessTiming(1,'Compute predictions accuracy')
@@ -132,6 +131,7 @@ def Main(Arguments):
 
         Image = Read.AIM(str(uCTDir / Files[0]))[0]
         Spacing = Image.GetSpacing()
+        CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
 
         PreI = AdjustImageSize(Image, CoarseFactor)
 
