@@ -102,6 +102,7 @@ class Arguments():
 
     def __init__(self):
         self.Folder = 'FRACTIB'
+        self.Sample = '432_L_77_F'
 
 Arguments = Arguments()
 
