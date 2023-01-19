@@ -403,16 +403,13 @@ def Main(Arguments):
         Tic = time.time()
         Schedule = np.repeat([32, 16, 8, 4, 2],3)
         Dictionary = {'FixedImagePyramidSchedule':Schedule,
-                    'MovingImagePyramidSchedule':Schedule,
-                    'NewSamplesEveryIteration':['true'],
-                    'SP_a':['1']}
+                      'MovingImagePyramidSchedule':Schedule,
+                      'NewSamplesEveryIteration':['true'],
+                      'SP_a':['1']}
 
         ## Match b-spline interpolation with elements size
-        # JFile = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
-        # Dictionary['FinalGridSpacingInPhysicalUnits'] = [str(S) for S in JFile.GetSpacing()]
-        # Dictionary['FinalGridSpacingInPhysicalUnits'] = [str(S) for S in P_PreI.GetSpacing()]
-        # Dictionary['FinalGridSpacingInPhysicalUnits'] = ['2', '2', '2']
-        Dictionary['FinalGridSpacingInPhysicalUnits'] = ['1.2495', '1.2495', '1.2495']
+        hFE = sitk.ReadImage(str(Results / '03_hFE' / Arguments.Sample / 'J.mhd'))
+        Dictionary['FinalGridSpacingInPhysicalUnits'] = [str(v) for v in hFE.GetSpacing()]
         Dictionary['NumberOfResolutions'] = ['5']
         Dictionary['GridSpacingSchedule'] = ['16', '8', '4', '2', '1']
 
@@ -427,13 +424,6 @@ def Main(Arguments):
         
         Show.FName = str(ResultsDir / 'BSplineRegistration')
         Show.Overlay(PreI, BSplineP, AsBinary=True, Axis='X')
-
-        c = Otsu.Execute(P_PreI)
-        b = Otsu.Execute(BSplineI)
-        Measure.Execute(c,b)
-        Dice = Measure.GetDiceCoefficient()
-        print('Results')
-        print(Dice)
         PrintTime(Tic, time.time())
 
 
@@ -441,9 +431,9 @@ def Main(Arguments):
     if Arguments.Jac == True:
 
         ## Resample mask to match hFE element size and apply transform to compute jacobian
-        RigidR = Resample(RigidP, Factor=CoarseFactor)
-        TPM[0]['Size'] = [str(S) for S in RigidR.GetSize()]
-        TPM[0]['Spacing'] = [str(S) for S in RigidR.GetSpacing()]
+        RigidR = Resample(RigidP, Spacing=hFE.GetSpacing())
+        TPM[0]['Size'] = [str(S) for S in hFE.GetSize()]
+        TPM[0]['Spacing'] = [str(S) for S in hFE.GetSpacing()]
         BSplineR = Registration.Apply(RigidR, TPM, str(ResultsDir), Jacobian=True)
         Toc = time.time()
         PrintTime(Tic, Toc)
@@ -451,24 +441,10 @@ def Main(Arguments):
         ## Read Jacobian
         JacobianFile = str(ResultsDir / 'fullSpatialJacobian.nii')
         JacobianImage = sitk.ReadImage(JacobianFile)
-        JacobianImage.SetSpacing(RigidR.GetSpacing())
-
-        ## Resample Jacobian image
-        NewSpacing = np.array([1.2495, 1.2495, 1.2495])
-        ResampledJacobian = Resample(JacobianImage, Spacing=NewSpacing)
+        JacobianImage.SetSpacing(hFE.GetSpacing())
 
         ## Perform jacobian unimodular decomposition
-        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(ResampledJacobian)
-
-        ## Resample for plotting
-        SC_R = Resample(SphericalCompression, Spacing=PreI.GetSpacing())
-        VD_R = Resample(IsovolumicDeformation, Spacing=PreI.GetSpacing())
-        Show.IRange = [0.3, 1.7]
-        Show.FName = str(ResultsDir / 'DetF')
-        Show.Intensity(PreI, SC_R, Axis='X')
-        Show.IRange = [1.7, 2.0]
-        Show.FName = str(ResultsDir / 'Ftilde')
-        Show.Intensity(PreI, VD_R, Axis='X')
+        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(JacobianImage)
         
         ## Write results
         JFile = str(ResultsDir / 'J')
@@ -480,7 +456,7 @@ def Main(Arguments):
     print('Images registered')
     PrintTime(TIC,TOC)
 
-    return Dice
+    return
 
 #%% Execution part
 # Execution as main

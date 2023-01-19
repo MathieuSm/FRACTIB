@@ -221,7 +221,7 @@ def GetParameterMap(FileName):
 
     return ParameterMap
 
-def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
+def Resample(Image, Factor=None, Size=[None], Spacing=[None], Order=0):
 
     Dimension = Image.GetDimension()
     OriginalSpacing = np.array(Image.GetSpacing())
@@ -230,7 +230,6 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
 
     Origin = Image.GetOrigin()
     Direction = Image.GetDirection()
-    Center = OriginalSize * OriginalSpacing / 2
 
     if Factor:
         NewSize = [round(Size/Factor) for Size in Image.GetSize()] 
@@ -238,21 +237,22 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None]):
     
     elif Size[0]:
         NewSize = Size
-        NewSpacing = [PSize/(Size-1) for Size,PSize in zip(NewSize, PhysicalSize)]
+        NewSpacing = [PSize/Size for Size, PSize in zip(NewSize, PhysicalSize)]
     
     elif Spacing[0]:
         NewSpacing = Spacing
-        NewSize = [round(Size/Spacing) + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
-    
+        NewSize = [np.floor(Size/Spacing).astype('int') + 1 for Size,Spacing in zip(PhysicalSize, NewSpacing)]
+
     NewArray = np.zeros(NewSize[::-1],'int')
     NewImage = sitk.GetImageFromArray(NewArray)
-    NewImage.SetOrigin(Origin)
+    NewImage.SetOrigin(Origin - OriginalSpacing/2)
     NewImage.SetDirection(Direction)
     NewImage.SetSpacing(NewSpacing)
   
     Transform = sitk.TranslationTransform(Dimension)
+    Resampled = sitk.Resample(Image, NewImage, Transform, Order+1)
     
-    return sitk.Resample(Image, NewImage, Transform, sitk.sitkNearestNeighbor)
+    return Resampled
 
 def ProgressStart(Text):
     global CurrentProgress

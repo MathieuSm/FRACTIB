@@ -140,11 +140,11 @@ def Main(Arguments):
         SCs, IDs = [], []
         for Dir in [RegDir, hFEDir]:
             SC = sitk.ReadImage(str(Dir / Sample / 'J.mhd'))
-            SC = Resample(SC, Spacing=PreI.GetSpacing())
+            SC = Resample(SC, Size=PreI.GetSize())
             SCs.append(SC)
             
             ID = sitk.ReadImage(str(Dir / Sample / 'F_Tilde.mhd'))
-            ID = Resample(ID, Spacing=PreI.GetSpacing())
+            ID = Resample(ID, Size=PreI.GetSize())
             IDs.append(ID)
 
         # Use hFE as mask
