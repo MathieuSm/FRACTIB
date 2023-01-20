@@ -652,22 +652,22 @@ class Show:
 
         return FitResults
 
-    def BoxPlot(ArraysList, Labels=['', 'Y'], SetsLabels=None, Vertical=True):
+    def BoxPlot(self, ArraysList, Labels=['', 'Y'], SetsLabels=None, Vertical=True):
 
         Figure, Axis = plt.subplots(1,1)
 
-        for i, Array in ArraysList:
+        for i, Array in enumerate(ArraysList):
             RandPos = np.random.normal(i,0.02,len(Array))
 
             Axis.boxplot(Array, vert=Vertical, widths=0.35,
                         showmeans=False,meanline=True,
+                        showfliers=False, positions=[i],
                         capprops=dict(color=(0,0,0)),
                         boxprops=dict(color=(0,0,0)),
                         whiskerprops=dict(color=(0,0,0),linestyle='--'),
-                        flierprops=dict(color=(0,0,0)),
                         medianprops=dict(color=(0,0,1)),
                         meanprops=dict(color=(0,1,0)))
-            Axis.plot(RandPos - RandPos.mean() + 1, Array, linestyle='none',
+            Axis.plot(RandPos - RandPos.mean() + i, Array, linestyle='none',
                       marker='o',fillstyle='none', color=(1,0,0))
         
         Axis.plot([],linestyle='none',marker='o',fillstyle='none', color=(1,0,0), label='Data')
@@ -677,7 +677,7 @@ class Show:
 
         if SetsLabels:
             Axis.set_xticks(np.arange(len(SetsLabels)))
-            Axis.set_xticklabels(SetLabels, rotation=90)
+            Axis.set_xticklabels(SetsLabels, rotation=0)
         else:
             Axis.set_xticks([])
         
@@ -909,7 +909,8 @@ class Read:
         * lower right.
         """
 
-        print('\nRead ISQ file')
+        if self.Echo:
+            print('\nRead ISQ file')
         Tic = time.time()
 
         try:
@@ -920,16 +921,13 @@ class Read:
 
         for Index in np.arange(0, 200, 4):
             f.seek(Index)
-            print('Index %s :          %s' % (Index, struct.unpack('i', f.read(4))[0]))
+            #print('Index %s :          %s' % (Index, struct.unpack('i', f.read(4))[0]))
             f.seek(Index)
-            try:
-                print('Index %s :          %s' % (Index, struct.unpack('c', f.read(4))[0]))
-            except:
-                print('')
 
         f.seek(32)
         CT_ID = struct.unpack('i', f.read(4))[0]
-        print('scanner ID:                 ', CT_ID)
+        if self.Echo:
+            print('\tScanner ID:                 ', CT_ID)
 
         if CT_ID != 6020:
             print('!!! unknown muCT -> no Slope and Intercept known !!!')
@@ -939,48 +937,57 @@ class Read:
 
         f.seek(108)
         Scanning_time = struct.unpack('i', f.read(4))[0] / 1000
-        print('Scanning time in ms:         ', Scanning_time)
+        if self.Echo:
+            print('\tScanning time in ms:         ', Scanning_time)
 
         f.seek(168)
         Energy = struct.unpack('i', f.read(4))[0] / 1000.
-        print('Energy in keV:              ', Energy)
+        if self.Echo:
+            print('\tEnergy in keV:              ', Energy)
 
         f.seek(172)
         Current = struct.unpack('i', f.read(4))[0]
-        print('Current in muA:             ', Current)
+        if self.Echo:
+            print('\tCurrent in muA:             ', Current)
 
         f.seek(44)
         X_pixel = struct.unpack('i', f.read(4))[0]
-        print('Nb X pixel:                 ', X_pixel)
+        if Echo:
+            print('\tNb X pixel:                 ', X_pixel)
 
         f.seek(48)
         Y_pixel = struct.unpack('i', f.read(4))[0]
-        print('Nb Y pixel:                 ', Y_pixel)
+        if self.Echo:
+            print('\tNb Y pixel:                 ', Y_pixel)
 
         f.seek(52)
         Z_pixel = struct.unpack('i', f.read(4))[0]
-        print('Nb Z pixel:                 ', Z_pixel)
+        if self.Echo:
+            print('\tNb Z pixel:                 ', Z_pixel)
 
         f.seek(56)
         Res_General_X = struct.unpack('i', f.read(4))[0]
-        print('Resolution general X in mu: ', Res_General_X)
+        #print('Resolution general X in mu: ', Res_General_X)
 
         f.seek(60)
         Res_General_Y = struct.unpack('i', f.read(4))[0]
-        print('Resolution general Y in mu: ', Res_General_Y)
+        #print('Resolution general Y in mu: ', Res_General_Y)
 
         f.seek(64)
         Res_General_Z = struct.unpack('i', f.read(4))[0]
-        print('Resolution general Z in mu: ', Res_General_Z)
+        #print('Resolution general Z in mu: ', Res_General_Z)
 
         Res_X = Res_General_X / float(X_pixel)
-        print('Pixel resolution X in mu:    %.2f' % Res_X)
+        if self.Echo:
+            self.print('\tPixel resolution X in mu:    %.2f' % Res_X)
 
         Res_Y = Res_General_Y / float(Y_pixel)
-        print('Pixel resolution Y in mu:    %.2f' % Res_Y)
+        if self.Echo:
+            print('\tPixel resolution Y in mu:    %.2f' % Res_Y)
 
         Res_Z = Res_General_Z / float(Z_pixel)
-        print('Pixel resolution Z in mu:    %.2f' % Res_Z)
+        if self.Echo:
+            print('\tPixel resolution Z in mu:    %.2f' % Res_Z)
 
         Header_Txt = ['scanner ID:                 %s' % CT_ID,
                     'scaning time in ms:         %s' % Scanning_time,
@@ -1008,7 +1015,7 @@ class Read:
         Header = np.zeros(6)
         for i in range(0, 6):
             Header[i] = struct.unpack('i', f.read(4))[0]
-        print(Header)
+        #print(Header)
 
         ElementSpacing = [Header[3] / Header[0] / 1000, Header[4] / Header[1] / 1000, Header[5] / Header[2] / 1000]
         f.seek(508)
@@ -1035,11 +1042,11 @@ class Read:
                         'ElementType': 'int16',
                         'ElementDataFile': File}
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        #Toc = time.time()
+        #PrintTime(Tic, Toc)
 
-        print('\nReshape data')
-        Tic = time.time()
+        #print('\nReshape data')
+        #Tic = time.time()
 
         try:
             VoxelModel = VoxelModel.reshape((NDim[2], NDim[1], NDim[0]))
@@ -1054,9 +1061,10 @@ class Read:
             f.seek(0)
             VoxelModel = np.fromfile(f, dtype='i2')
 
-            print('len(VoxelModel) = ', len(VoxelModel))
-            print('Should be ', (NDim[2] * NDim[1] * NDim[0]))
-            print('Delta:', len(VoxelModel) - (NDim[2] * NDim[1] * NDim[0]))
+            if self.Echo:
+                print('len(VoxelModel) = ', len(VoxelModel))
+                print('Should be ', (NDim[2] * NDim[1] * NDim[0]))
+                print('Delta:', len(VoxelModel) - (NDim[2] * NDim[1] * NDim[0]))
 
             f.seek((len(VoxelModel) - (NDim[2] * NDim[1] * NDim[0])) * 2)
             VoxelModel = np.fromfile(f, dtype='i2')
@@ -1068,12 +1076,14 @@ class Read:
             VoxelModel = np.c_[VoxelModel[:, :, -Offset:], VoxelModel[:, :, :(VoxelModel.shape[2] - Offset)]]
 
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         if CT_ID == 6020 and BMD is True:
             # BE CAREFULL, THIS IS FOR BMD CONVERSION:
-            print('muCT 100 of ISTB detected, IS IT CORRECT?')
+            if self.Echo:
+                print('muCT 100 of ISTB detected, IS IT CORRECT?')
             Slope = 369.154  # ! ATTENTION, dependent on voltage, Current and time!!!
             Intercept = -191.56
             try:

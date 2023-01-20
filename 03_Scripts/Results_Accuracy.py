@@ -160,15 +160,17 @@ def Main(Arguments):
         ID_R = Show.OLS(X, Y)
 
         # Add results to data frame
-        Index = SampleList.index[SampleList == Sample][0]
-        Data.loc[Index, 'SC'] = SC_R.rsquared
-        Data.loc[Index, 'ID'] = ID_R.rsquared
+        Data.loc[Sample, 'SC'] = SC_R.rsquared
+        Data.loc[Sample, 'ID'] = ID_R.rsquared
 
+        Index = SampleList.index[SampleList == Sample][0]
         Progress = Index / len(SampleList) * 20
         ProgressNext(Progress)
     ProcessTiming(0)
 
     ### Add boxplot function of bar plot function to show class
+    Labels = [r'$|\mathbf{F}|$', r'$|\widetilde{\mathbf{F}}|$']
+    Show.BoxPlot([Data['SC'],Data['ID']], Labels=['', r'R$^2$'], SetsLabels=Labels)
 
     return
 

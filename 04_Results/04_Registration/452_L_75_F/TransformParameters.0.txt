@@ -1,6 +1,6 @@
 (Transform "EulerTransform")
 (NumberOfParameters 6)
-(TransformParameters -0.017332 0.048605 0.009857 0.833525 -1.712075 0.036770)
+(TransformParameters -0.016772 0.049709 0.005937 0.780467 -1.669610 0.045292)
 (InitialTransformParametersFileName "NoInitialTransform")
 (UseBinaryFormatForTransformationParameters "false")
 (HowToCombineTransforms "Compose")
@@ -13,12 +13,12 @@
 (Size 357 298 243)
 (Index 0 0 0)
 (Spacing 0.1474565217 0.1472794677 0.1477067308)
-(Origin -2.5067608696 -2.5037509506 -2.5110144231)
+(Origin -2.5435108696 -2.5405009506 -2.5477644231)
 (Direction 1.0000000000 0.0000000000 0.0000000000 0.0000000000 1.0000000000 0.0000000000 0.0000000000 0.0000000000 1.0000000000)
 (UseDirectionCosines "true")
 
 // EulerTransform specific
-(CenterOfRotationPoint 23.7405000000 19.3672500000 15.3615000000)
+(CenterOfRotationPoint 23.7037500000 19.3305000000 15.3247500000)
 (ComputeZYX "false")
 
 // ResampleInterpolator specific

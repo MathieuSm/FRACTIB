@@ -214,9 +214,9 @@ def Main(Arguments):
         SubCaptions = ['Rigid',
                        'B-spline',
                        NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$\tilde{\mathbf{F}}$'),
+                       NoEscape(r'$|\widetilde{\mathbf{F}}|$'),
                        NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$\tilde{\mathbf{F}}$')]
+                       NoEscape(r'$|\widetilde{\mathbf{F}}|$')]
 
         Captions = ['Registration results', 'Registration analysis', 'hFE analysis']
 
