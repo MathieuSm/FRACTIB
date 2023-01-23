@@ -301,9 +301,14 @@ class Show:
 
     def Slice(self, Image, Slice=None, Title=None, Axis='Z'):
 
-        Array = sitk.GetArrayFromImage(Image)
+        try:
+            Array = sitk.GetArrayFromImage(Image)
+            Dimension = Image.GetDimension()
+        except:
+            Array = Image
+            Dimension = len(Array.shape)
 
-        if Image.GetDimension() == 3:
+        if Dimension == 3:
             
             if Axis == 'Z':
                 if Slice:
@@ -683,7 +688,13 @@ class Show:
         
         plt.legend()
         plt.subplots_adjust(left=0.25, right=0.75)
-        plt.show()
+        
+        if (self.FName):
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0.02)
+        if self.ShowPlot:
+            plt.show()
+        else:
+            plt.close()
 
 Show = Show()
 #%% Reading functions
