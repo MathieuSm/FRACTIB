@@ -6,8 +6,9 @@ Version = '01'
 Description = """
     This script aims to provide utility functions to
     manipulate image (reading, ploting, registering,
-    and writing) or signal processing. Most functions
-    are taken from different sources and adapted here
+    and writing), signal processing, abaqus file read-
+    ing, and bone analysis. Most functions are taken
+    from different sources and adapted here
     
     Author: Mathieu Simon
             ARTORG Center for Biomedical Engineering Research
