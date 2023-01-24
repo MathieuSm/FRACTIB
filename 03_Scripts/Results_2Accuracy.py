@@ -221,6 +221,7 @@ def Main(Arguments):
         FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp'
         BVTV = ReadInputFile(str(hFEDir / Sample / FileName))
         Write.MHD(BVTV, str(hFEDir / Sample / 'BVTV'))
+        BVTV = sitk.GetArrayFromImage(BVTV)
         ProgressNext(1)
 
         # Load decompositions
@@ -235,18 +236,18 @@ def Main(Arguments):
             IDs.append(ID)
         ProgressNext(2)
 
-        # Plot correlations (use hFE as mask)
-        Mask = SCs[1] > 0
-        X = SCs[0][Mask].flatten()
-        Y = SCs[1][Mask].flatten()
-        Show.FName = str(ResultsDir / (Sample + 'SC'))
+        # Plot correlations (use BVTV as mask)
+        Mask = BVTV > 0
+        X = SCs[0][Mask]
+        Y = SCs[1][Mask]
+        Show.FName = str(ResultsDir / (Sample + '_SC'))
         SC_R = Show.OLS(X, Y)
         ProgressNext(3)
 
         Mask = IDs[1] > 0
         X = IDs[0][Mask].flatten()
         Y = IDs[1][Mask].flatten()
-        Show.FName = str(ResultsDir / (Sample + 'ID'))
+        Show.FName = str(ResultsDir / (Sample + '_ID'))
         ID_R = Show.OLS(X, Y)
         Show.FName = None
         ProgressNext(4)

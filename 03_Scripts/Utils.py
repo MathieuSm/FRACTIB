@@ -529,7 +529,7 @@ class Show:
 
         return
 
-    def OLS(self, X, Y, Labels=None, Alpha=0.95, Annotate=['N','R2','SE','Slope','Intercept']):
+    def OLS(self, X, Y, Cmap=np.array(None), Labels=None, Alpha=0.95, Annotate=['N','R2','SE','Slope','Intercept']):
 
         if Labels == None:
             Labels = ['X', 'Y']
@@ -548,7 +548,11 @@ class Show:
         N = int(FitResults.nobs)
         C = np.matrix(FitResults.normalized_cov_params)
         X = np.matrix(FitResults.model.exog)
+
+        # Sort X values and Y accordingly
         X_Obs = np.sort(np.array(X[:,1]).reshape(len(X)))
+        Y_Fit = Y_Fit[np.argsort(np.array(X[:,1]).reshape(len(X)))]
+        Y_Obs = Y_Obs[np.argsort(np.array(X[:,1]).reshape(len(X)))]
 
         ## Compute R2 and standard error of the estimate
         E = Y_Obs - Y_Fit
@@ -564,16 +568,19 @@ class Show:
         t_Alpha = t.interval(Alpha, N - X.shape[1] - 1)
         CI_Line_u = Y_Fit + t_Alpha[0] * SE * B_0
         CI_Line_o = Y_Fit + t_Alpha[1] * SE * B_0
-        Sorted_CI_u = CI_Line_u[np.argsort(FitResults.model.exog[:, 1])]
-        Sorted_CI_o = CI_Line_o[np.argsort(FitResults.model.exog[:, 1])]
 
         ## Plots
         DPI = 100
         Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=DPI, sharey=True, sharex=True)
-        Axes.plot(X[:,1], Y_Fit, color=(1,0,0))
+        if Cmap.any():
+            Axes.scatter(X_Obs, Y_Obs, c=Cmap, cmap='jet', marker='o')
+            Axes.plot(X_Obs, Y_Fit, color=(0,0,0))
+        else:
+            Axes.plot(X_Obs, Y_Obs, linestyle='none', marker='o', color=(0,0,1), fillstyle='none')
+            Axes.plot(X_Obs, Y_Fit, color=(1,0,0))
 
         if Slope > 0:
-            Axes.fill_between(X_Obs, Sorted_CI_o, Sorted_CI_u, color=(0, 0, 0), alpha=0.2)
+            Axes.fill_between(X_Obs, CI_Line_o, CI_Line_u, color=(0, 0, 0), alpha=0.2)
 
             YPos = 0.925
             if 'N' in Annotate:
@@ -609,7 +616,7 @@ class Show:
                 Axes.annotate(Text, xy=(0.425, YPos), xycoords='axes fraction')
 
         elif Slope < 0:
-            Axes.fill_between(X_Obs, Sorted_CI_o[::-1], Sorted_CI_u[::-1], color=(0, 0, 0), alpha=0.2)
+            Axes.fill_between(X_Obs, CI_Line_o[::-1], CI_Line_u[::-1], color=(0, 0, 0), alpha=0.2)
 
             YPos = 0.025
             if 'N' in Annotate:
@@ -644,7 +651,6 @@ class Show:
                 Text = r'Slope : ' + str(Slope) + ' (' + str(CI[0]) + ',' + str(CI[1]) + ')'
                 Axes.annotate(Text, xy=(0.425, YPos), xycoords='axes fraction')
         
-        Axes.plot(X[:,1], Y_Obs, linestyle='none', marker='o', color=(0,0,1), fillstyle='none')
         Axes.set_xlabel(Labels[0])
         Axes.set_ylabel(Labels[1])
         plt.subplots_adjust(left=0.15, bottom=0.15)
