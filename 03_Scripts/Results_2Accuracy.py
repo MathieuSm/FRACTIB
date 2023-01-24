@@ -118,12 +118,12 @@ def Main(Arguments):
     ResultsDir = RD / '05_Comparison'
 
     # Read sample list and configuration file
-    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))['Internal ID']
+    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
     ConfigFile = str(SD / '3_hFE' / 'ConfigFile.yaml')
     Config = ReadConfigFile(ConfigFile)
 
-    Data = pd.DataFrame(index=SampleList.values, columns=['SC','ID'])
-    for Index, Sample in enumerate(SampleList):
+    Data = pd.DataFrame(index=SampleList['Internal ID'].values, columns=['SC','ID'])
+    for Index, Sample in enumerate(SampleList['Internal ID']):
 
         Text = 'Compute accuracy for sample ' + str(Index+1) + '/' + str(len(SampleList))
         ProcessTiming(1,Text)
@@ -141,8 +141,99 @@ def Main(Arguments):
         PreI = AdjustImageSize(Image, CoarseFactor)
         Seg = AdjustImageSize(Seg, CoarseFactor)
         Seg = sitk.GetArrayFromImage(Seg)
-        Seg[Seg == 127] = 2
+        Seg[Seg == 127] = 1
         Seg[Seg == 126] = 1
+
+        # Read BVTV values from .inp file
+        FileName = SampleList.loc[Index, 'MicroCT pretest file number']
+        FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp' 
+        
+    
+
+    
+    with open(str(hFEDir / Sample / FileName)) as File:
+        Line = File.readline()
+        N = 0
+        while N < 2:
+            NextLineByte = File.tell()
+            File.seek(NextLineByte)
+            Line = File.readline()
+            if '*ELEMENT,' in Line:
+                N += 1
+
+        NextLineByte = File.tell()
+        File.seek(NextLineByte)
+        Lines = File.readlines(200)
+        print(Lines)
+
+        NextByte = File.tell()
+        print(NextByte)
+        File.seek(NextByte)
+        Line = File.readline()
+        NextByte = File.tell()
+        print(NextByte)
+
+        """
+        import multiprocessing as mp
+
+def process_wrapper(lineByte):
+    with open("input.txt") as f:
+        f.seek(lineByte)
+        line = f.readline()
+        process(line)
+
+#init objects
+pool = mp.Pool(cores)
+jobs = []
+
+#create jobs
+with open("input.txt") as f:
+    nextLineByte = f.tell()
+    for line in f:
+        jobs.append( pool.apply_async(process_wrapper,(nextLineByte)) )
+        nextLineByte = f.tell()
+
+#wait for all jobs to finish
+for job in jobs:
+    job.get()
+
+#clean up
+pool.close()
+        """
+        
+        Start = Text.find('*ELEMENT,')
+        Start = Start + Text[Start+len('*ELEMENT,'):].find('*ELEMENT,')
+        Stop = 0
+        Elements = pd.DataFrame()
+        i = 0
+        Max = Text.find('TOPNODES')
+        ProcessTiming(1)
+        while Start + 1:
+            Start += Stop
+            Start += Text[Start:].find('POSITION') + 14
+            Stop = Start + Text[Start:].find('\n')
+            Values = Text[Start:Stop].split()
+            Elements.loc[i,'X'] = float(Values[0])
+            Elements.loc[i,'Y'] = float(Values[3])
+            Elements.loc[i,'Z'] = float(Values[6])
+
+            Start = Stop + Text[Stop:].find('BVTV')
+            Start += Text[Start:].find('\n') + 1
+            Stop = Start + Text[Start:].find('\n')
+            Values = Text[Start:Stop].split()
+            Elements.loc[i,'Rho Cort'] = float(Values[0][:-1])
+            Elements.loc[i,'Rho Trab'] = float(Values[1][:-1])
+            Elements.loc[i,'Phi Cort'] = float(Values[2][:-1])
+            Elements.loc[i,'Phi Trab'] = float(Values[3][:-1])
+
+            ProgressNext(Start / Max * 20)
+
+            Start = Text[Stop:].find('*ELEMENT,')
+            i += 1
+        ProcessTiming(0)
+
+        
+
 
         ProgressNext(1)
 
