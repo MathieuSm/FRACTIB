@@ -1199,7 +1199,11 @@ class Write:
         elif PixelType == 'float' or PixelType == 'norm':
             outs.write('ElementType = %s\n' % 'MET_FLOAT')
 
-        outs.write('ElementDataFile = %s\n' % (FileName.split('/')[-1] + '.raw'))
+        if '\\' in FileName:
+            Fname = FileName.split('\\')[-1]
+        elif '/' in FileName:
+            Fname = FileName.split('/')[-1]
+        outs.write('ElementDataFile = %s\n' % (Fname + '.raw'))
         outs.close()
 
         self.Raw(Image, FileName + '.raw', PixelType)
