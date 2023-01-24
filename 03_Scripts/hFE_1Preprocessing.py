@@ -39,7 +39,6 @@ from vtk.numpy_interface import dataset_adapter as dsa
 from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 
 from Utils import *
-Show = Show()
 
 if os.name == 'posix':
     import resource
