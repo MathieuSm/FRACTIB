@@ -145,8 +145,11 @@ def ReadInputFile(File):
 
     # Create array
     X = Elements['X'].unique()
+    X.sort()
     Y = Elements['Y'].unique()
+    Y.sort()
     Z = Elements['Z'].unique()
+    Z.sort()
     Mesh = np.zeros((len(Z), len(Y), len(X)))
 
     for Index, Element in Elements.iterrows():
@@ -217,6 +220,7 @@ def Main(Arguments):
         FileName = SampleList.loc[Index, 'MicroCT pretest file number']
         FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp'
         BVTV = ReadInputFile(str(hFEDir / Sample / FileName))
+        Write.MHD(BVTV, str(hFEDir / Sample / 'BVTV'))
         ProgressNext(1)
 
         # Load decompositions
