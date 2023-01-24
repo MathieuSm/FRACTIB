@@ -510,7 +510,7 @@ class Show:
 
             if len(Points) > 0:
                 Px, Py = Xi[Points[i]], Yi[Points[i]]
-                Axis.plot(Px, Py, marker='o', color=(0.7,0.7,0.7), fillstyle='none', linestyle='none')
+                Axis.plot(Px, Py, marker='o', color=(0, 0, 0), fillstyle='none', linestyle='none')
 
         if len(Axes) > 0:
             Axis.set_xlabel(Axes[0])
