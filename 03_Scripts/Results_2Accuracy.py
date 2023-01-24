@@ -94,7 +94,76 @@ def AdjustImageSize(Image, CoarseFactor, CropZ='Crop'):
     Image_Adjusted.SetDirection (Image.GetDirection())
 
     return Image_Adjusted
+def ReadInputFile(File):
 
+    """
+    Writen in order to read the BV/TV values stored in the main
+    .inp file generated using 'hFE_1Preprocessing' and returning
+    it as an image where each voxel contain the computed BVTV value
+    """
+
+    # Store lines offsets, start and stop
+    N = 0
+    with open(File) as F:
+        Offset = 0
+        Offsets = [Offset]
+        for Line in F:
+            Offset += len(Line)
+            Offsets.append(Offset)
+            if '*ELEMENT,' in Line:
+                N += 1
+                if N == 2:
+                    Start = Offset
+
+            if 'TOPNODES' in Line:
+                Stop = Offset
+                break
+    
+    # Read and store elements data
+    Elements = []
+    Step = 29
+    iStart = Offsets.index(Start)
+    iStop = Offsets.index(Stop)
+    with open(File) as F:
+
+        for i in range(iStart, iStop, Step):
+            F.seek(Offsets[i + 1])
+            P = F.readline().split()
+
+            F.seek(Offsets[i + 9])
+            V = F.readline().split()
+
+            EData = [P[3], P[6], P[9]]
+            for Value in V[:4]:
+                EData.append(Value[:-1])
+            Elements.append(EData)
+    
+    # Compute BVTV
+    Columns = ['X', 'Y', 'Z', 'RC', 'RT', 'PC', 'PT']
+    Elements = pd.DataFrame(Elements, columns=Columns, dtype=float)
+    Elements['BVTV'] = Elements['RC'] * Elements['PC'] + Elements['RT'] * Elements['PT']
+
+    # Create array
+    X = Elements['X'].unique()
+    Y = Elements['Y'].unique()
+    Z = Elements['Z'].unique()
+    Mesh = np.zeros((len(Z), len(Y), len(X)))
+
+    for Index, Element in Elements.iterrows():
+        iX = np.argmin(abs(X - Element['X']))
+        iY = np.argmin(abs(Y - Element['Y']))
+        iZ = np.argmin(abs(Z - Element['Z']))
+        Mesh[iZ, iY, iX] = Element['BVTV']
+
+    # Create image
+    Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
+    Origin = np.array([X.min(), Y.min(), Z.min()])
+
+    BVTV = sitk.GetImageFromArray(Mesh)
+    BVTV.SetSpacing(Spacing)
+    BVTV.SetOrigin(Origin)
+
+    return BVTV
 
 #%% Classes
 # Define classes
@@ -146,95 +215,8 @@ def Main(Arguments):
 
         # Read BVTV values from .inp file
         FileName = SampleList.loc[Index, 'MicroCT pretest file number']
-        FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp' 
-        
-    
-
-    
-    with open(str(hFEDir / Sample / FileName)) as File:
-        Line = File.readline()
-        N = 0
-        while N < 2:
-            NextLineByte = File.tell()
-            File.seek(NextLineByte)
-            Line = File.readline()
-            if '*ELEMENT,' in Line:
-                N += 1
-
-        NextLineByte = File.tell()
-        File.seek(NextLineByte)
-        Lines = File.readlines(200)
-        print(Lines)
-
-        NextByte = File.tell()
-        print(NextByte)
-        File.seek(NextByte)
-        Line = File.readline()
-        NextByte = File.tell()
-        print(NextByte)
-
-        """
-        import multiprocessing as mp
-
-def process_wrapper(lineByte):
-    with open("input.txt") as f:
-        f.seek(lineByte)
-        line = f.readline()
-        process(line)
-
-#init objects
-pool = mp.Pool(cores)
-jobs = []
-
-#create jobs
-with open("input.txt") as f:
-    nextLineByte = f.tell()
-    for line in f:
-        jobs.append( pool.apply_async(process_wrapper,(nextLineByte)) )
-        nextLineByte = f.tell()
-
-#wait for all jobs to finish
-for job in jobs:
-    job.get()
-
-#clean up
-pool.close()
-        """
-        
-        Start = Text.find('*ELEMENT,')
-        Start = Start + Text[Start+len('*ELEMENT,'):].find('*ELEMENT,')
-        Stop = 0
-        Elements = pd.DataFrame()
-        i = 0
-        Max = Text.find('TOPNODES')
-        ProcessTiming(1)
-        while Start + 1:
-            Start += Stop
-            Start += Text[Start:].find('POSITION') + 14
-            Stop = Start + Text[Start:].find('\n')
-            Values = Text[Start:Stop].split()
-            Elements.loc[i,'X'] = float(Values[0])
-            Elements.loc[i,'Y'] = float(Values[3])
-            Elements.loc[i,'Z'] = float(Values[6])
-
-            Start = Stop + Text[Stop:].find('BVTV')
-            Start += Text[Start:].find('\n') + 1
-            Stop = Start + Text[Start:].find('\n')
-            Values = Text[Start:Stop].split()
-            Elements.loc[i,'Rho Cort'] = float(Values[0][:-1])
-            Elements.loc[i,'Rho Trab'] = float(Values[1][:-1])
-            Elements.loc[i,'Phi Cort'] = float(Values[2][:-1])
-            Elements.loc[i,'Phi Trab'] = float(Values[3][:-1])
-
-            ProgressNext(Start / Max * 20)
-
-            Start = Text[Stop:].find('*ELEMENT,')
-            i += 1
-        ProcessTiming(0)
-
-        
-
-
+        FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp'
+        BVTV = ReadInputFile(str(hFEDir / Sample / FileName))
         ProgressNext(1)
 
         # Load decompositions
