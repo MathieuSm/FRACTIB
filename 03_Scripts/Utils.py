@@ -39,6 +39,10 @@ from scipy.stats.distributions import t
 from vtk.util.numpy_support import vtk_to_numpy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from numba import njit
+from numba.core import types
+from numba.typed import Dict
+
 #%% Tuning
 # Tune diplay settings
 
@@ -732,6 +736,78 @@ class Show():
         else:
             plt.close()
 
+    def Fabric(self, eValues, eVectors, nPoints=32, Title=None):
+
+        # New coordinate system
+        Q = np.array(eVectors)
+
+        ## Build data for fabric plotting
+        u = np.arange(0, 2 * np.pi + 2 * np.pi / nPoints, 2 * np.pi / nPoints)
+        v = np.arange(0, np.pi + np.pi / nPoints, np.pi / nPoints)
+        X = eValues[0] * np.outer(np.cos(u), np.sin(v))
+        Y = eValues[1] * np.outer(np.sin(u), np.sin(v))
+        Z = eValues[2] * np.outer(np.ones_like(u), np.cos(v))
+        nNorm = np.zeros(X.shape)
+
+        for i in range(len(X)):
+            for j in range(len(X)):
+                [X[i, j], Y[i, j], Z[i, j]] = np.dot([X[i, j], Y[i, j], Z[i, j]], Q)
+                n = np.array([X[i, j], Y[i, j], Z[i, j]])
+                nNorm[i, j] = np.linalg.norm(n)
+
+        NormedColor = nNorm - nNorm.min()
+        NormedColor = NormedColor / NormedColor.max()
+
+        Figure = plt.figure(figsize=(5.5, 4))
+        Axe = Figure.add_subplot(111, projection='3d')
+        Axe.plot_surface(X, Y, Z, facecolors=plt.cm.jet(NormedColor), rstride=1, cstride=1, alpha=0.2, shade=False)
+        Axe.plot_wireframe(X, Y, Z, color='k', rstride=1, cstride=1, linewidth=0.1)
+        
+        # scaling hack
+        Bbox_min = np.min([X, Y, Z])
+        Bbox_max = np.max([X, Y, Z])
+        Axe.auto_scale_xyz([Bbox_min, Bbox_max], [Bbox_min, Bbox_max], [Bbox_min, Bbox_max])
+        
+        # make the panes transparent
+        Axe.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        Axe.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        Axe.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        
+        # make the grid lines transparent
+        Axe.xaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+        Axe.yaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+        Axe.zaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+        
+        # modify ticks
+        MinX, MaxX = -1, 1
+        MinY, MaxY = -1, 1
+        MinZ, MaxZ = -1, 1
+        Axe.set_xticks([MinX, 0, MaxX])
+        Axe.set_yticks([MinY, 0, MaxY])
+        Axe.set_zticks([MinZ, 0, MaxZ])
+        Axe.xaxis.set_ticklabels([MinX, 0, MaxX])
+        Axe.yaxis.set_ticklabels([MinY, 0, MaxY])
+        Axe.zaxis.set_ticklabels([MinZ, 0, MaxZ])
+
+        Axe.set_xlabel('X')
+        Axe.set_ylabel('Y')
+        Axe.set_zlabel('Z')
+
+        if (Title):
+            Axe.set_title(Title)
+
+        ColorMap = plt.cm.ScalarMappable(cmap=plt.cm.jet)
+        ColorMap.set_array(nNorm)
+        if not NormedColor.max() == 1:
+            ColorBar = plt.colorbar(ColorMap, ticks=[int(Color.mean() - 1), int(Color.mean()), int(Color.mean() + 1)])
+            plt.cm.ScalarMappable.set_clim(self=ColorMap, vmin=int(Color.mean() - 1), vmax=int(Color.mean() + 1))
+        ColorBar = plt.colorbar(ColorMap)
+        ColorBar.set_label('Vector norm (-)')
+
+        plt.tight_layout()
+        plt.show()
+        plt.close(Figure)
+
 Show = Show()
 #%% Reading functions
 class Read():
@@ -1153,9 +1229,10 @@ class Write():
 
     def __init__(self):
         self.Echo = True
+        self.FName = 'Image'
         pass
 
-    def Raw(self, Image, OutputFileName, PixelType):
+    def Raw(self, Image, PixelType):
 
         ImageArray = sitk.GetArrayFromImage(Image)
 
@@ -1184,7 +1261,7 @@ class Write():
         elif PixelType == 'float':
             CastedImageArray = ImageArray.astype('float32')
 
-        File = np.memmap(OutputFileName, dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='C')
+        File = np.memmap(self.FName + '.raw', dtype=CastedImageArray.dtype, mode='w+', shape=CastedImageArray.shape, order='C')
         File[:] = CastedImageArray[:]
         del File
 
@@ -1193,8 +1270,8 @@ class Write():
     def MHD(self, Image, FileName, PixelType='uint'):
 
         if self.Echo:
-            print('\nWrite MHD')
-            Tic = time.time()
+            Text = 'Write MHD'
+            Time.Process(1, Text)
 
         if PixelType == 'short' or PixelType == 'float':
             if Image.GetDimension() == 2:
@@ -1216,7 +1293,7 @@ class Write():
         CenterOfRotation = '0 0 0'
         AnatomicalOrientation = 'LPS'
 
-        outs = open(FileName + '.mhd', 'w')
+        outs = open(self.FName + '.mhd', 'w')
         outs.write('ObjectType = Image\n')
         outs.write('NDims = 3\n')
         outs.write('BinaryData = True\n')
@@ -1236,25 +1313,25 @@ class Write():
         elif PixelType == 'float' or PixelType == 'norm':
             outs.write('ElementType = %s\n' % 'MET_FLOAT')
 
-        if '\\' in FileName:
+        if '\\' in self.FName:
             Fname = FileName.split('\\')[-1]
-        elif '/' in FileName:
+        elif '/' in self.FName:
             Fname = FileName.split('/')[-1]
         outs.write('ElementDataFile = %s\n' % (Fname + '.raw'))
         outs.close()
 
-        self.Raw(Image, FileName + '.raw', PixelType)
+        self.Raw(Image, PixelType)
 
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0, Text)
 
         return
 
-    def VTK(self, VectorField,FilePath,FileName,SubSampling=1):
+    def VectorFieldVTK(self, VectorField, SubSampling=1):
 
-        print('\nWrite VTK')
-        Tic = time.time()
+        if self.Echo:
+            Text = 'Write VTK'
+            Time.Process(1, Text)
 
         # Determine 2D of 3D vector field
         Dimension = VectorField.shape[-1]
@@ -1276,7 +1353,9 @@ class Write():
         elif Dimension == 3:
 
             # Build Grid point
-            z, y, x = np.arange(0, Size[0], SubSampling), np.arange(0, Size[1], SubSampling), np.arange(0, Size[2], SubSampling)
+            z = np.arange(0, Size[0], SubSampling)
+            y = np.arange(0, Size[1], SubSampling)
+            x = np.arange(0, Size[2], SubSampling)
             NumberOfElements = len(x) * len(y) * len(z)
 
             # Build vector arrays
@@ -1284,7 +1363,7 @@ class Write():
             v = VectorField[:, :, :, 1]
             w = VectorField[:, :, :, 2]
 
-        File = open(os.path.join(FilePath,FileName + '.vtk'),'w')
+        File = open(self.FName + '.vtk','w')
 
         # ASCII file header
         File.write('# vtk DataFile Version 4.2\n')
@@ -1296,7 +1375,7 @@ class Write():
 
         # Append ascii x,y,z
         MaxLineWidth = Size[2]*Size[1]*Size[0]
-        File = open(os.path.join(FilePath,FileName + '.vtk'),'a')
+        File = open(self.FName + '.vtk','a')
         File.write('X_COORDINATES ' + str(len(x)) + ' int\n')
         File.write(np.array2string(x.astype('int'),
                                 max_line_width=MaxLineWidth,
@@ -1312,23 +1391,27 @@ class Write():
         File.close()
 
         # Append another subheader
-        File = open(os.path.join(FilePath,FileName + '.vtk'),'a')
+        File = open(self.FName + '.vtk','a')
         File.write('\nPOINT_DATA ' + str(NumberOfElements) + '\n\n')
         File.write('VECTORS Deformation float\n')
         File.close()
 
         # Append ascii u,v,w and build deformation magnitude array
         Magnitude = np.zeros(VectorField.shape[:-1])
-        File = open(os.path.join(FilePath,FileName + '.vtk'),'a')
+        File = open(self.FName + '.vtk','a')
 
         if Dimension == 2:
             for j in range(0,Size[1],SubSampling):
+                if self.Echo:
+                    Time.Update(j / Size[1], 'Write Vectors')
                 for i in range(0,Size[2],SubSampling):
                     Magnitude[j,i] = np.sqrt(u[j,i]**2 + v[j,i]**2 + w[j,i]**2)
                     File.write(str(u[j,i]) + ' ' + str(v[j,i]) + ' ' + str(w[j,i]) + ' ')
 
         elif Dimension == 3:
             for k in range(0,Size[0],SubSampling):
+                if self.Echo:
+                    Time.Update(k / Size[0], 'Write Vectors')
                 for j in range(0,Size[1],SubSampling):
                     for i in range(0,Size[2],SubSampling):
                         Magnitude[k,j,i] = np.sqrt(u[k,j,i] ** 2 + v[k,j,i] ** 2 + w[k,j,i] ** 2)
@@ -1337,25 +1420,133 @@ class Write():
         File.close()
 
         # Append another subheader
-        File = open(os.path.join(FilePath, FileName + '.vtk'), 'a')
+        File = open(self.FName + '.vtk', 'a')
         File.write('\n\nSCALARS Magnitude float\n')
         File.write('LOOKUP_TABLE default\n')
 
         if Dimension == 2:
             for j in range(0, Size[1], SubSampling):
+                if self.Echo:
+                    Time.Update(j / Size[1], 'Write Magnitudes')
                 for i in range(0, Size[2], SubSampling):
                     File.write(str(Magnitude[j,i]) + ' ')
 
         elif Dimension == 3:
             for k in range(0, Size[0], SubSampling):
+                if self.Echo:
+                    Time.Update(k / Size[0], 'Write Magnitudes')
                 for j in range(0, Size[1], SubSampling):
                     for i in range(0, Size[2], SubSampling):
                         File.write(str(Magnitude[k,j,i]) + ' ')
 
         File.close()
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Time.Process(0,Text)
+
+        return
+
+    def FabricVTK(self, eValues, eVectors, nPoints=32, Scale=1, Origin=(0,0,0)):
+
+        if self.Echo:
+            Text = 'Write Fabric VTK'
+            Time.Process(1, Text)
+
+        ## New coordinate system
+        Q = np.array(eVectors)
+
+        ## Build data for fabric plotting
+        u = np.arange(0, 2 * np.pi + 2 * np.pi / NPoints, 2 * np.pi / NPoints)
+        v = np.arange(0, np.pi + np.pi / NPoints, np.pi / NPoints)
+        X = eValues[0] * np.outer(np.cos(u), np.sin(v))
+        Y = eValues[1] * np.outer(np.sin(u), np.sin(v))
+        Z = eValues[2] * np.outer(np.ones_like(u), np.cos(v))
+        nNorm = np.zeros(X.shape)
+
+        for i in range(len(X)):
+            for j in range(len(X)):
+                [X[i, j], Y[i, j], Z[i, j]] = np.dot([X[i, j], Y[i, j], Z[i, j]], Q)
+                n = np.array([X[i, j], Y[i, j], Z[i, j]])
+                nNorm[i, j] = np.linalg.norm(n)
+
+        # Scale the arrays
+        X = Scale/2 * X
+        Y = Scale/2 * Y
+        Z = Scale/2 * Z
+
+        # Translate origin to the center of ROI
+        X = Origin[2] + X + Scale/2
+        Y = Origin[1] + Y + Scale/2
+        Z = Origin[0] + Z + Scale/2
+
+        # Write VTK file
+        VTKFile = open(self.FName + '.vtk', 'w')
+
+        # Write header
+        VTKFile.write('# vtk DataFile Version 4.2\n')
+        VTKFile.write('VTK from Python\n')
+        VTKFile.write('ASCII\n')
+        VTKFile.write('DATASET UNSTRUCTURED_GRID\n')
+
+        # Write points coordinates
+        Points = int(X.shape[0] * X.shape[1])
+        VTKFile.write('\nPOINTS ' + str(Points) + ' floats\n')
+        for i in range(Points):
+            if self.Echo:
+                Time.Update(i / len(Points), 'Write Points')
+            VTKFile.write(str(X.reshape(Points)[i].round(3)))
+            VTKFile.write(' ')
+            VTKFile.write(str(Y.reshape(Points)[i].round(3)))
+            VTKFile.write(' ')
+            VTKFile.write(str(Z.reshape(Points)[i].round(3)))
+            VTKFile.write('\n')
+
+        # Write cells connectivity
+        Cells = int(NPoints**2)
+        ListSize = int(Cells*5)
+        VTKFile.write('\nCELLS ' + str(Cells) + ' ' + str(ListSize) + '\n')
+
+        ## Add connectivity of each cell
+        Connectivity = np.array([0, 1])
+        Connectivity = np.append(Connectivity,[NPoints+2,NPoints+1])
+
+        for i in range(Cells):
+            if self.Echo:
+                Time.Update(i / len(Cells), 'Write Cells')
+
+            VTKFile.write('4')
+
+            if i > 0 and np.mod(i,NPoints) == 0:
+                Connectivity = Connectivity + 1
+
+            for j in Connectivity:
+                VTKFile.write(' ' + str(j))
+            VTKFile.write('\n')
+
+            ## Update connectivity
+            Connectivity = Connectivity+1
+
+        # Write cell types
+        VTKFile.write('\nCELL_TYPES ' + str(Cells) + '\n')
+        for i in range(Cells):
+            VTKFile.write('9\n')
+
+        # Write MIL values
+        VTKFile.write('\nPOINT_DATA ' + str(Points) + '\n')
+        VTKFile.write('SCALARS MIL float\n')
+        VTKFile.write('LOOKUP_TABLE default\n')
+
+        for i in range(NPoints+1):
+            if self.Echo:
+                Time.Update(i / len(NPoints+1), 'Write Values')
+            for j in range(NPoints+1):
+                VTKFile.write(str(nNorm.reshape(Points)[j + i * (NPoints+1)].round(3)))
+                VTKFile.write(' ')
+            VTKFile.write('\n')
+        VTKFile.close()
+
+        if self.Echo:
+            Time.Process(0, Text)
 
         return
 
@@ -1767,38 +1958,7 @@ class Morphometry():
         elif abs(int(Z / Precision)) == abs(int(Y / Precision)):
             Z += Precision
 
-        Array = []
-        Array.append(self.nX)
-        Array.append(self.nY)
-        Array.append(self.nZ)
-        nmax = max(Array)
-        for n in range(nmax):
-            if abs(int(x / prec)) == abs((n + 1) * int(y / prec)):
-                x += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-            elif abs(int(x / prec)) == abs((n + 1) * int(z / prec)):
-                x += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-            elif abs(int(z / prec)) == abs((n + 1) * int(y / prec)):
-                z += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-            elif abs((n + 1) * int(x / prec)) == abs(int(y / prec)):
-                x += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-            elif abs((n + 1) * int(x / prec)) == abs(int(z / prec)):
-                x += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-            elif abs((n + 1) * int(z / prec)) == abs(int(y / prec)):
-                z += prec
-                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
-                stdout.flush()
-
-        return (x, y, z)
+        return (X, Y, Z)
 
     def Project2UnitSphere(self, PointRS):
 
@@ -1909,9 +2069,9 @@ class Morphometry():
         NewTriangles4 = []
         for Triangle in Triangles:
             NewTriangles4.append(Triangle)
-            T1 = (tria[0][0], tria[0][1], -tria[0][2])
-            T2 = (tria[1][0], tria[1][1], -tria[1][2])
-            T3 = (tria[2][0], tria[2][1], -tria[2][2])
+            T1 = (Triangle[0][0], Triangle[0][1], -Triangle[0][2])
+            T2 = (Triangle[1][0], Triangle[1][1], -Triangle[1][2])
+            T3 = (Triangle[2][0], Triangle[2][1], -Triangle[2][2])
             NewTriangles4.append((T1, T2, T3))
 
         Triangles = NewTriangles4
@@ -1998,7 +2158,7 @@ class Morphometry():
                       - TYPE: int > 1
         :param Valid: Smallest valid intersection length.
                       - TYPE: float
-        :param  Echo: Flag for printing the  " ... Threshold Data" on stdout
+        :param Echo: Flag for printing the  " ... Threshold Data" on stdout
                       - TYPE: bool
                                      
         @return: MIL: Mean Intercept Length 
@@ -2012,35 +2172,224 @@ class Morphometry():
                  Area: Weight (Area of triange on unit sphere) for each direction 
                       - TYPE: same as for MIL          
         """
+
+        @njit
+        def NumbaSetupData(i, Dict2, nX, nY, nZ, MIL, SVD, SLD):
+            for n in Dict2:
+                i += 1
+                nL = 0
+                nNotValid0 = 0
+                nValid0 = 0
+                nNotValid1 = 0
+                nValid1 = 0
+                nNotValid3 = 0
+                nValid3 = 0
+                SumL[n] = np.array([0.0, 0.0, 0.0])
+                SumL2[n] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
+                SumL4[n] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
+                NewVoxelRay = Dict2[n]
+                nn = np.array([n[0], n[1], n[2]])
+                nb = np.array((0.0, 0.0, 1.0))
+                ng = np.cross(nn, nb)
+                ns = np.cross(ng, nn)
+                nr = np.cross(ns, nn)
+                ng = ng / np.linalg.norm(ng)
+                ns = ns / np.linalg.norm(ns)
+                nr = nr / np.linalg.norm(nr)
+                rmax = 0.0
+                rmin = 0.0
+                smax = 0.0
+                smin = 0.0
+                r1c = Corners[v]
+                for c in Corners:
+                    r0c = Corners[c]
+                    b = r0c - r1c
+                    a11 = nr[0]
+                    a12 = ns[0]
+                    a13 = -nn[0]
+                    a21 = nr[1]
+                    a22 = ns[1]
+                    a23 = -nn[1]
+                    a31 = nr[2]
+                    a32 = ns[2]
+                    a33 = -nn[2]
+                    DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+                    x = [0.0, 0.0, 0.0]
+                    x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+                    x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+                    if (x[0] > rmax):
+                        rmax = x[0]
+                    if x[0] < rmin:
+                        rmin = x[0]
+                    if x[1] > smax:
+                        smax = x[1]
+                    if x[1] < smin:
+                        smin = x[1]
+
+                for curR in range(int(rmin), int(rmax + 1), Step):
+                    for curS in range(int(smin), int(smax + 1), Step):
+                        Planes = EntryPlanes
+                        for Plane in Planes:
+                            CutPlane = ModelPlanes[Plane]
+                            r1 = Corners[BaseModel[Plane]]
+                            r0 = curR * nr + curS * ns + r1c
+                            at = nn
+                            br = np.array(CutPlane['r-dir'])
+                            cs = np.array(CutPlane['s-dir'])
+                            b = r0 - r1
+                            a11 = br[0]
+                            a12 = cs[0]
+                            a13 = -at[0]
+                            a21 = br[1]
+                            a22 = cs[1]
+                            a23 = -at[1]
+                            a31 = br[2]
+                            a32 = cs[2]
+                            a33 = -at[2]
+                            DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+                            x = [0.0, 0.0, 0.0]
+                            x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+                            x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+                            ipt = x[0] * br + x[1] * cs + r1
+                            C1 = ipt[0] >= 0.0
+                            C2 = ipt[1] >= 0.0
+                            C3 = ipt[2] >= 0.0
+                            C4 = ipt[0] <= nX
+                            C5 = ipt[1] <= nY
+                            C6 = ipt[2] <= nZ
+                            if C1 and C2 and C3 and C4 and C5 and C6:
+                                EntryVoxX = int(ipt[0] + 0.5)
+                                EntryVoxY = int(ipt[1] + 0.5)
+                                EntryVoxZ = int(ipt[2] + 0.5)
+                                if EntryVoxX == 0:
+                                    EntryVoxX = 1
+                                if EntryVoxY == 0:
+                                    EntryVoxY = 1
+                                if EntryVoxZ == 0:
+                                    EntryVoxZ = 1
+                                StartBone = (1, 1, 1)
+                                EndBone = (1, 1, 1)
+                                PreVox = (1, 1, 1)
+                                StartFlag = False
+                                for StartRayVox in NewVoxelRay:
+                                    VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
+                                    VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
+                                    VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
+                                    PrevVox = (VoxX, VoxY, VoxZ)
+                                    Xv = int(VoxX - 1)
+                                    Yv = int(VoxY - 1)
+                                    Zv = int(VoxZ - 1)
+                                    Cc1 = VoxX < 1
+                                    Cc2 = VoxY < 1
+                                    Cc3 = VoxZ < 1
+                                    Cc4 = VoxX > nX
+                                    Cc5 = VoxY > nY
+                                    Cc6 = VoxZ > nZ
+                                    if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
+                                        if StartFlag == True:
+                                            if VoxX > nX or VoxY > nY or VoxZ > nZ:
+                                                StartFlag = False
+                                                EndBone = PrevVox[0],PrevVox[1], PrevVox[2]
+                                                lx = StartBone[0] - EndBone[0]
+                                                ly = StartBone[1] - EndBone[1]
+                                                lz = StartBone[2] - EndBone[2]
+                                                L2 = lx * lx + ly * ly + lz * lz
+                                                if L2 > 0.0:
+                                                    nL += 1
+                                                    S = L2 ** 0.5
+                                                    N = SumL[n]
+                                                    SumL[n] = np.array([S[0]+N[0], S[1]+N[1], S[2]+N[2]])
+                                                    SumL2[n] += np.asarray([L2], dtype='f8')
+                                                    SumL4[n] += np.asarray([L2 * L2], dtype='f8')
+                                    elif Array[Zv, Yv, Xv] == 0:
+                                        if StartFlag == True:
+                                            StartFlag = False
+                                            EndBone = PrevVox[0], PrevVox[1], PrevVox[2]
+                                            lx = StartBone[0] - EndBone[0]
+                                            ly = StartBone[1] - EndBone[1]
+                                            lz = StartBone[2] - EndBone[2]
+                                            L2 = lx * lx + ly * ly + lz * lz
+                                            if L2 > 0.0:
+                                                nL += 1
+                                                SumL[n] += np.asarray([L2 ** 0.5], dtype='f8')
+                                                SumL2[n] += np.asarray([L2], dtype='f8')
+                                                SumL4[n] += np.asarray([L2 * L2], dtype='f8')
+                                    elif StartFlag == False:
+                                        StartBone = (VoxX, VoxY, VoxZ)
+                                        StartFlag = True
+
+                                break
+
+                n2 = (-n[0], -n[1], -n[2])
+                MIL[n] = SumL[n] / float(nL)
+                MIL[n2] = SumL[n] / float(nL)
+                SLD[n] = SumL2[n] / SumL[n]
+                SLD[n2] = SumL2[n] / SumL[n]
+                SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
+                SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
+
+            return i, MIL, SVD, SLD
+
         if Echo == True:
             Text = 'Original dist.'
             Time.Process(1, Text)
 
-        MIL = {}
-        SVD = {}
-        SLD = {}
+        MIL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        SVD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        SLD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
 
-        SumL = {}
-        SumL2 = {}
-        SumL4 = {}
+        SumL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        SumL2 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        SumL4 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
 
-        Corners = {}
-        Corners['swb'] = (0.0, 0.0, 0.0)
-        Corners['seb'] = (float(self.nX), 0.0, 0.0)
-        Corners['neb'] = (float(self.nX), float(self.nY), 0.0)
-        Corners['nwb'] = (0.0, float(self.nY), 0.0)
-        Corners['swt'] = (0.0, 0.0, float(self.nZ))
-        Corners['set'] = (float(self.nX), 0.0, float(self.nZ))
-        Corners['net'] = (float(self.nX), float(self.nY), float(self.nZ))
-        Corners['nwt'] = (0.0, float(self.nY), float(self.nZ))
+        Corners = Dict.empty(key_type=types.unicode_type, value_type=types.float64[:],)
+        Corners['swb'] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
+        Corners['seb'] = np.asarray([float(self.nX), 0.0, 0.0], dtype='f8')
+        Corners['neb'] = np.asarray([float(self.nX), float(self.nY), 0.0], dtype='f8')
+        Corners['nwb'] = np.asarray([0.0, float(self.nY), 0.0], dtype='f8')
+        Corners['swt'] = np.asarray([0.0, 0.0, float(self.nZ)], dtype='f8')
+        Corners['set'] = np.asarray([float(self.nX), 0.0, float(self.nZ)], dtype='f8')
+        Corners['net'] = np.asarray([float(self.nX), float(self.nY), float(self.nZ)], dtype='f8')
+        Corners['nwt'] = np.asarray([0.0, float(self.nY), float(self.nZ)], dtype='f8')
 
-        ModelPlanes = {}
-        ModelPlanes['s'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'swb')])
-        ModelPlanes['e'] = dict([('r-dir', (0.0, 1.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'seb')])
-        ModelPlanes['n'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'nwb')])
-        ModelPlanes['w'] = dict([('r-dir', (0.0, 1.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'swb')])
-        ModelPlanes['b'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 1.0, 0.0)), ('base', 'swb')])
-        ModelPlanes['t'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 1.0, 0.0)), ('base', 'swt')])
+
+        sDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        sDict['r-dir'] = (1.0, 0.0, 0.0)
+        sDict['s-dir'] = (0.0, 0.0, 1.0)
+        eDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        eDict['r-dir'] = (0.0, 1.0, 0.0)
+        eDict['s-dir'] = (0.0, 0.0, 1.0)
+        nDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        nDict['r-dir'] = (1.0, 0.0, 0.0)
+        nDict['s-dir'] = (0.0, 0.0, 1.0)
+        wDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        wDict['r-dir'] = (0.0, 1.0, 0.0)
+        wDict['s-dir'] = (0.0, 0.0, 1.0)
+        bDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        bDict['r-dir'] = (1.0, 0.0, 0.0)
+        bDict['s-dir'] = (0.0, 1.0, 0.0)
+        tDict = Dict.empty(key_type=types.unicode_type, value_type=types.UniTuple(types.float64, 3),)
+        tDict['r-dir'] = (1.0, 0.0, 0.0)
+        tDict['s-dir'] = (0.0, 1.0, 0.0)
+
+
+        InnerDict = types.DictType(types.unicode_type, types.UniTuple(types.float64, 3))
+        ModelPlanes = Dict.empty(key_type=types.unicode_type, value_type=InnerDict,)
+        ModelPlanes['s'] = sDict
+        ModelPlanes['e'] = eDict
+        ModelPlanes['n'] = nDict
+        ModelPlanes['w'] = wDict
+        ModelPlanes['b'] = bDict
+        ModelPlanes['t'] = tDict
+        
+        BaseModel = Dict.empty(key_type=types.unicode_type, value_type=types.unicode_type,)
+        BaseModel['s'] = 'swb'
+        BaseModel['e'] = 'seb'
+        BaseModel['n'] = 'nwb'
+        BaseModel['w'] = 'swb'
+        BaseModel['b'] = 'swb'
+        BaseModel['t'] = 'swt'
+        
         
         ViewerAt = {}
         ViewerAt['swb'] = (1.0, 1.0, 1.0)
@@ -2084,7 +2433,7 @@ class Morphometry():
                 PreVoxZ = 1
                 C1 = abs(VoxX) <= self.nX
                 C2 = abs(VoxY) <= self.nY
-                c3 = abs(VoxZ) <= self.nZ
+                C3 = abs(VoxZ) <= self.nZ
                 while C1 and C2 and C3:
                     TMaxX = VoxX / nX
                     TMaxY = VoxY / nY
@@ -2116,12 +2465,16 @@ class Morphometry():
                     PreVoxY = VoxY
                     PreVoxZ = VoxZ
 
+                    C1 = abs(VoxX) <= self.nX
+                    C2 = abs(VoxY) <= self.nY
+                    C3 = abs(VoxZ) <= self.nZ
+
                 Dict1[n] = VoxelRay
 
         i = 0
         Sum = len(ViewerAt) * 4.0 ** float(Power)
         for v in ViewerAt:
-            Dict2 = {}
+            Dict2 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:,:],)
             CornVoxX = int(Corners[v][0])
             CornVoxY = int(Corners[v][1])
             CornVoxZ = int(Corners[v][2])
@@ -2143,177 +2496,113 @@ class Morphometry():
                     VoxelZ = CornVoxZ + StepZ * Voxel[2] - StepZ
                     NewVoxelRay.append((VoxelX, VoxelY, VoxelZ))
 
-                D = n[0] * ViewerAt[v][0], n[1] * ViewerAt[vpt][1], n[2] * ViewerAt[v][2]
-                Dict2[D] = NewVoxelRay
+                D = n[0] * ViewerAt[v][0], n[1] * ViewerAt[v][1], n[2] * ViewerAt[v][2]
+                Dict2[tuple(D)] = np.asarray(NewVoxelRay, dtype='f8')
 
             EntryPlanes = [v[0], v[1], v[2]]
-            for n in Dict2:
-                if Echo:
-                    Time.Update(i/Sum, 'Setup Data')
-                nL = 0
-                nNotValid0 = 0
-                nValid0 = 0
-                nNotValid1 = 0
-                nValid1 = 0
-                nNotValid3 = 0
-                nValid3 = 0
-                sumL[n] = 0.0
-                sumL2[n] = 0.0
-                sumL4[n] = 0.0
-                i += 1
-                NewVoxelRay = Dict2[n]
-                nn = np.array([n[0], n[1], n[2]])
-                nb = np.array((0.0, 0.0, 1.0))
-                ng = dpTensor.UnitVector(np.cross(nn, nb))
-                ns = dpTensor.UnitVector(np.cross(ng, nn))
-                nr = dpTensor.UnitVector(np.cross(ns, nn))
-                rmax = 0.0
-                rmin = 0.0
-                smax = 0.0
-                smin = 0.0
-                r1c = np.array(Corners[v])
-                for c in Corners:
-                    r0c = np.array(Corners[c])
-                    b = r0c - r1c
-                    a11 = nr[0]
-                    a12 = ns[0]
-                    a13 = -nn[0]
-                    a21 = nr[1]
-                    a22 = ns[1]
-                    a23 = -nn[1]
-                    a31 = nr[2]
-                    a32 = ns[2]
-                    a33 = -nn[2]
-                    DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
-                    x = [0.0, 0.0, 0.0]
-                    x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
-                    x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
-                    if x[0] > rmax:
-                        rmax = x[0]
-                    if x[0] < rmin:
-                        rmin = x[0]
-                    if x[1] > smax:
-                        smax = x[1]
-                    if x[1] < smin:
-                        smin = x[1]
 
-                for curR in range(int(rmin), int(rmax + 1), step):
-                    for curS in range(int(smin), int(smax + 1), step):
-                        Planes = EntryPlanes
-                        Check = 0
-                        for Plane in Planes:
-                            CutPlane = ModelPlanes[Plane]
-                            r1 = np.array(Corners[CutPlane['base']])
-                            r0 = curR * nr + curS * ns + r1c
-                            at = nn
-                            br = np.array(CutPlane['r-dir'])
-                            cs = np.array(CutPlane['s-dir'])
-                            b = r0 - r1
-                            a11 = br[0]
-                            a12 = cs[0]
-                            a13 = -at[0]
-                            a21 = br[1]
-                            a22 = cs[1]
-                            a23 = -at[1]
-                            a31 = br[2]
-                            a32 = cs[2]
-                            a33 = -at[2]
-                            DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
-                            x = [0.0, 0.0, 0.0]
-                            x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
-                            x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
-                            ipt = x[0] * br + x[1] * cs + r1
-                            C1 = ipt[0] >= 0.0
-                            C2 = ipt[1] >= 0.0
-                            C3 = ipt[2] >= 0.0
-                            C4 = ipt[0] <= float(self.nX)
-                            C5 = ipt[1] <= float(self.nY)
-                            C6 = ipt[2] <= float(self.nZ)
-                            if C1 and C2 and C3 and C4 and C5 and C6:
-                                Check += 1
-                                EntryVoxX = int(ipt[0] + 0.5)
-                                EntryVoxY = int(ipt[1] + 0.5)
-                                EntryVoxZ = int(ipt[2] + 0.5)
-                                if EntryVoxX == 0:
-                                    EntryVoxX = 1
-                                if EntryVoxY == 0:
-                                    EntryVoxY = 1
-                                if EntryVoxZ == 0:
-                                    EntryVoxZ = 1
-                                StartBone = (1, 1, 1)
-                                EndBone = (1, 1, 1)
-                                PreVox = (1, 1, 1)
-                                Count = 0
-                                StartFlag = False
-                                for StartRayVox in NewVoxelRay:
-                                    VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
-                                    VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
-                                    VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
-                                    Count += 1
-                                    Cc1 = VoxX < 1
-                                    Cc2 = VoxY < 1
-                                    Cc3 = VoxZ < 1
-                                    Cc4 = VoxX > self.nX
-                                    Cc5 = VoxY > self.nY
-                                    Cc6 = VoxZ > self.nZ
-                                    if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
-                                        if StartFlag == True:
-                                            if VoxX > self.nX or VoxY > self.nY or VoxZ > self.nZ:
-                                                StartFlag = False
-                                                EndBone = (PrevVox[0], PrevVox[1], PrevVox[2])
-                                                lx = StartBone[0] - EndBone[0]
-                                                ly = StartBone[1] - EndBone[1]
-                                                lz = StartBone[2] - EndBone[2]
-                                                L2 = lx * lx + ly * ly + lz * lz
-                                                if L2 > 0.0:
-                                                    nL += 1
-                                                    SumL[n] += L2 ** 0.5
-                                                    SumL2[n] += L2
-                                                    SumL4[n] += L2 * L2
+            if Echo:
+                Time.Update(i/Sum, 'Setup Data')
 
-                                    elif Array[VoxZ - 1, VoxY - 1, VoxX - 1] == 0:
-                                        if StartFlag == True:
-                                            StartFlag = False
-                                            EndBone = (PrevVox[0], PrevVox[1], PrevVox[2])
-                                            lx = StartBone[0] - EndBone[0]
-                                            ly = StartBone[1] - EndBone[1]
-                                            lz = StartBone[2] - EndBone[2]
-                                            L2 = lx * lx + ly * ly + lz * lz
-                                            if L2 > 0.0:
-                                                nL += 1
-                                                SumL[n] += L2 ** 0.5
-                                                SumL2[n] += L2
-                                                SumL4[n] += L2 * L2
-                                    elif StartFlag == False:
-                                        StartBone = (VoxX, VoxY, VoxZ)
-                                        startFlag = True
-                                    PrevVox = (VoxX, VoxY, VoxZ)
-
-                                break
-
-                n2 = (-n[0], -n[1], -n[2])
-                MIL[n] = SumL[n] / float(nL)
-                MIL[n2] = SumL[n] / float(nL)
-                SLD[n] = SumL2[n] / SumL[n]
-                SLD[n2] = SumL2[n] / SumL[n]
-                SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
-                SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
+            i, MIL, SVD, SLD = NumbaSetupData(i, Dict2, self.nX, self.nY, self.nZ, MIL, SVD, SLD)
 
         if Echo == True:
             Time.Process(0, Text)
-        return (MIL, SVD, SLD, area)
+        return MIL, SVD, SLD, Area
 
-    def ComputeMIL(self, Image, Power2=4, Step=5, Power=2):
+    def FabricTensor(self, OrgMIL):
+
+        """ 
+        Used in ApproximalDistribution for MIL computation
+        Compute the fabric tensors using an ellipsoidal fit
+        
+         :param OrgMIL: Original distribution 
+                - TYPE: dict[ (nix, niy, niz) ] = value 
+                - float nix, niy, niz ... components of normal vector 
+                - float value         ... value for that direction             
+                      
+         :return: M: fabric tensor from ellipsoidal fit 
+                  - TYPE: float numpy.array[3,3]            
+        """
+
+        nDir = len(OrgMIL)
+        nHat = np.array(np.zeros((nDir, 6), float))
+        An = np.array(np.zeros(nDir, float))
+        H = np.array(np.zeros((3, 3), float))
+        d = 0
+        for n in OrgMIL:
+            nHat[d, 0] = n[0] * n[0]
+            nHat[d, 1] = n[1] * n[1]
+            nHat[d, 2] = n[2] * n[2]
+            nHat[d, 3] = np.sqrt(2.0) * n[1] * n[2]
+            nHat[d, 4] = np.sqrt(2.0) * n[2] * n[0]
+            nHat[d, 5] = np.sqrt(2.0) * n[0] * n[1]
+            An[d] = 1.0 / OrgMIL[n] * (1.0 / OrgMIL[n])
+            d += 1
+
+        N1 = np.dot(np.transpose(nHat), nHat)
+        N2 = np.dot(np.transpose(nHat), An)
+        VM = np.dot(np.linalg.inv(N1), N2)
+        H[(0, 0)] = VM[0]
+        H[(1, 1)] = VM[1]
+        H[(2, 2)] = VM[2]
+        H[(1, 2)] = VM[3] / np.sqrt(2.0)
+        H[(2, 0)] = VM[4] / np.sqrt(2.0)
+        H[(0, 1)] = VM[5] / np.sqrt(2.0)
+        H[(2, 1)] = VM[3] / np.sqrt(2.0)
+        H[(0, 2)] = VM[4] / np.sqrt(2.0)
+        H[(1, 0)] = VM[5] / np.sqrt(2.0)
+
+        return H
+
+    def EigenValuesAndVectors(self, orgMIL):
+        
+        """
+        Used in step 4 of MIL computation
+        computes the eigenvalueS and eigenvectors by fitting an ellipsoid 
+        
+        :param  orgMIL: Original distribution 
+                - TYPE: dict[ (nix, niy, niz) ] = value 
+                - float nix, niy, niz ... components of normal vector 
+                - float value         ... value for that direction             
+            
+        :return: evalue: Eigenvalues of fabric tensor 
+                 - TYPE: numpy.array[evalID] = eval
+                 - int evalID ... eigenvalues ID. 0,1, or 2
+                 - float eval ... current eigenvalue 
+                 evector : Eigenvectors of fabric tensor
+                 - TYPE: numpy.array[evectID, evalID] = evect
+                 - int evectID ... eigenvector ID. 0,1, or 2                         
+                 - int evalID  ... eigenvalue ID. 0,1, or 2
+                 - float evect ... component of eigenvectors, e.g. evector[0,2] = ev1_z
+        """
+
+        M = self.FabricTensor(orgMIL)
+        eValue, eVector = np.linalg.eig(M)
+        eValue[0] = 1.0 / np.sqrt(eValue[0])
+        eValue[1] = 1.0 / np.sqrt(eValue[1])
+        eValue[2] = 1.0 / np.sqrt(eValue[2])
+
+
+        Norm = (eValue[0] + eValue[1] + eValue[2]) / 3.0
+
+        eValue[0] = eValue[0] / Norm
+        eValue[1] = eValue[1] / Norm
+        eValue[2] = eValue[2] / Norm
+
+        return eValue, eVector
+
+    def MIL(self, Image, Power2=4, Step=5, Power=2):
 
         """
         Compute Mean Intercept Length of image
         Based on mia.py from medtool from D. H. Pahr
         """
 
-        if hasattr(Image, GetSize()):
+        if hasattr(Image, 'GetSize'):
             self.nX, self.nY, self.nZ = Image.GetSize()
             Array = sitk.GetArrayFromImage(Image)
-        elif hasattr(Image, shape):
+        elif hasattr(Image, 'shape'):
             self.nZ, self.nY, self.nX = Image.shape
             Array = Image
         else:
@@ -2323,7 +2612,12 @@ class Morphometry():
         Triangles = self.SphereTriangles(Power2)
 
         # Step 2: Compute original distribution
-        orgMIL, orgSVD, orgSLD, area = self.OriginalDistribution(Array, Step, Power)
+        OrgMIL, OrgSVD, OrgSLD, Area = self.OriginalDistribution(Array, Step, Power)
+
+        # Step 3: Compute eigen values and eigen vectors
+        eValMIL, eVectMIL = self.EigenValuesAndVectors(OrgMIL)
+
+        return eValMIL, eVectMIL
 
 Morphometry = Morphometry()
 #%% Tensor algebra function
