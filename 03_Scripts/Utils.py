@@ -65,24 +65,6 @@ def SetDirectories(Name):
 
     return WD, Data, Scripts, Results
 
-def PrintTime(Tic, Toc):
-
-    """
-    Print elapsed time in seconds to time in HH:MM:SS format
-    :param Tic: Actual time at the beginning of the process
-    :param Toc: Actual time at the end of the process
-    """
-
-    Delta = Toc - Tic
-
-    Hours = np.floor(Delta / 60 / 60)
-    Minutes = np.floor(Delta / 60) - 60 * Hours
-    Seconds = Delta - 60 * Minutes - 60 * 60 * Hours
-
-    print('Process executed in %02i:%02i:%02i (HH:MM:SS)' % (Hours, Minutes, Seconds))
-
-    return
-
 def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
 
     # Get image attributes
@@ -255,37 +237,77 @@ def Resample(Image, Factor=None, Size=[None], Spacing=[None], Order=0):
     
     return Resampled
 
-def ProgressStart(Text):
-    global CurrentProgress
-    sys.stdout.write(Text + '|')
-    CurrentProgress = 0
-    sys.stdout.flush()
-    return
-def ProgressNext(Progress):
-    global CurrentProgress
-    if Progress > CurrentProgress:
-        CurrentProgress += 1
-        sys.stdout.write('=')
-        sys.stdout.flush()
-    return
-def ProgressEnd():
-    sys.stdout.write('|\n')
-    sys.stdout.flush()
-    return
-def ProcessTiming(StartStop:bool, Process='Progress'):
 
-    if StartStop*1 == 1:
-        global Tic
-        Tic = time.time()
-        ProgressStart(Process)
-    elif StartStop*1 == 0:
-        ProgressEnd()
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+#%% Time functions
+class Time():
 
+    def __init__(self):
+        self.Width = 15
+        self.Length = 16
+        self.Text = 'Process'
+        self.Tic = time.time()
+        pass
 
+    def Print(self, Toc, Tic=None):
+
+        """
+        Print elapsed time in seconds to time in HH:MM:SS format
+        :param Tic: Actual time at the beginning of the process
+        :param Toc: Actual time at the end of the process
+        """
+
+        if Tic == None:
+            Tic = self.Tic
+
+        Delta = Toc - Tic
+
+        Hours = np.floor(Delta / 60 / 60)
+        Minutes = np.floor(Delta / 60) - 60 * Hours
+        Seconds = Delta - 60 * Minutes - 60 * 60 * Hours
+
+        print('\nProcess executed in %02i:%02i:%02i (HH:MM:SS)' % (Hours, Minutes, Seconds))
+
+        return
+
+    def Update(self, Progress, Text=''):
+
+        Percent = int(round(Progress * 100))
+        Np = self.Width * Percent // 100
+        Nb = self.Width - Np
+
+        if len(Text) == 0:
+            Text = self.Text
+        else:
+            self.Text = Text
+
+        Ns = self.Length - len(Text)
+        if Ns >= 0:
+            Text += Ns*' '
+        else:
+            Text = Text[:self.Length]
+        
+        Line = '\r' + Text + ' [' + Np*'=' + Nb*' ' + ']' + f' {Percent:.0f}%'
+        print(Line, sep='', end='', flush=True)
+
+    def Process(self, StartStop:bool, Text=''):
+
+        if len(Text) == 0:
+            Text = self.Text
+        else:
+            self.Text = Text
+
+        if StartStop*1 == 1:
+            self.Tic = time.time()
+            self.Update(0, Text)
+
+        elif StartStop*1 == 0:
+            Toc = time.time()
+            self.Update(1, Text)
+            self.Print(Toc)
+
+Time = Time()
 #%% Ploting functions
-class Show:
+class Show():
 
     def __init__(self):
         self.FName = None
@@ -489,11 +511,16 @@ class Show:
 
         return
 
-    def Signal(self, X, Y, Points=[], Normalize=False, Axes=[], Labels=[]):
+    def Signal(self, X, Y=[], Points=[], Normalize=False, Axes=[], Labels=[]):
 
         Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
 
         Figure, Axis = plt.subplots(1,1)
+
+        if len(Y) == 0:
+            for ix, x in enumerate(X):
+                Y.append(x)
+                X[ix] = np.arange(len(x))
 
         for i in range(len(X)):
 
@@ -550,9 +577,10 @@ class Show:
         X = np.matrix(FitResults.model.exog)
 
         # Sort X values and Y accordingly
+        Sort = np.argsort(np.array(X[:,1]).reshape(len(X)))
         X_Obs = np.sort(np.array(X[:,1]).reshape(len(X)))
-        Y_Fit = Y_Fit[np.argsort(np.array(X[:,1]).reshape(len(X)))]
-        Y_Obs = Y_Obs[np.argsort(np.array(X[:,1]).reshape(len(X)))]
+        Y_Fit = Y_Fit[Sort]
+        Y_Obs = Y_Obs[Sort]
 
         ## Compute R2 and standard error of the estimate
         E = Y_Obs - Y_Fit
@@ -566,21 +594,23 @@ class Show:
         ## Compute CI lines
         B_0 = np.sqrt(np.diag(np.abs(X * C * X.T)))
         t_Alpha = t.interval(Alpha, N - X.shape[1] - 1)
-        CI_Line_u = Y_Fit + t_Alpha[0] * SE * B_0
-        CI_Line_o = Y_Fit + t_Alpha[1] * SE * B_0
+        CI_Line_u = Y_Fit + t_Alpha[0] * SE * B_0[Sort]
+        CI_Line_o = Y_Fit + t_Alpha[1] * SE * B_0[Sort]
 
         ## Plots
         DPI = 100
         Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=DPI, sharey=True, sharex=True)
+
         if Cmap.any():
-            Axes.scatter(X_Obs, Y_Obs, c=Cmap, cmap='jet', marker='o')
-            Axes.plot(X_Obs, Y_Fit, color=(0,0,0))
+            Colors = plt.cm.winter((Cmap-min(Cmap))/(max(Cmap)-min(Cmap)))
+            Scatter = Axes.scatter(X_Obs, Y_Obs, facecolor='none', edgecolor=Colors, marker='o',)
         else:
             Axes.plot(X_Obs, Y_Obs, linestyle='none', marker='o', color=(0,0,1), fillstyle='none')
-            Axes.plot(X_Obs, Y_Fit, color=(1,0,0))
+
+        Axes.plot(X_Obs, Y_Fit, color=(1,0,0))
+        Axes.fill_between(X_Obs, CI_Line_o, CI_Line_u, color=(0, 0, 0), alpha=0.2)
 
         if Slope > 0:
-            Axes.fill_between(X_Obs, CI_Line_o, CI_Line_u, color=(0, 0, 0), alpha=0.2)
 
             YPos = 0.925
             if 'N' in Annotate:
@@ -616,7 +646,6 @@ class Show:
                 Axes.annotate(Text, xy=(0.425, YPos), xycoords='axes fraction')
 
         elif Slope < 0:
-            Axes.fill_between(X_Obs, CI_Line_o[::-1], CI_Line_u[::-1], color=(0, 0, 0), alpha=0.2)
 
             YPos = 0.025
             if 'N' in Annotate:
@@ -705,7 +734,7 @@ class Show:
 
 Show = Show()
 #%% Reading functions
-class Read:
+class Read():
 
     def __init__(self):
         self.Echo = True
@@ -1120,9 +1149,10 @@ class Read:
 
 Read = Read()
 #%% Writing functions
-class Write:
+class Write():
 
     def __init__(self):
+        self.Echo = True
         pass
 
     def Raw(self, Image, OutputFileName, PixelType):
@@ -1162,8 +1192,9 @@ class Write:
 
     def MHD(self, Image, FileName, PixelType='uint'):
 
-        print('\nWrite MHD')
-        Tic = time.time()
+        if self.Echo:
+            print('\nWrite MHD')
+            Tic = time.time()
 
         if PixelType == 'short' or PixelType == 'float':
             if Image.GetDimension() == 2:
@@ -1214,8 +1245,9 @@ class Write:
 
         self.Raw(Image, FileName + '.raw', PixelType)
 
-        Toc = time.time()
-        PrintTime(Tic, Toc)
+        if self.Echo:
+            Toc = time.time()
+            PrintTime(Tic, Toc)
 
         return
 
@@ -1329,7 +1361,7 @@ class Write:
 
 Write = Write()
 #%% Registration funtions
-class Registration:
+class Registration():
 
     def __init__(self):
         self.Echo = True
@@ -1538,7 +1570,7 @@ class Registration:
 
 Registration = Registration()
 #%% Signal treatment functions
-class Signal:
+class Signal():
 
     def FFT(Signal, Sampling, Show=False):
 
@@ -1613,7 +1645,7 @@ class Signal:
         return FilteredSignal
 
 #%% Abaqus functions
-class Abaqus:
+class Abaqus():
 
     def __init__(self):
         pass
@@ -1680,6 +1712,738 @@ class Abaqus:
             return
 
 Abaqus = Abaqus()
+#%% Morphometry functions
+class Morphometry():
+
+    def __init__(self):
+        pass
+
+    def SplitTriangle(self, Tri):
+
+        """ 
+        Used in SetupSphereTriangles for MIL computation
+        Splits one triange into four triangles. 
+        """
+
+        P1 = Tri[0]
+        P2 = Tri[1]
+        P3 = Tri[2]
+        P1x = P1[0]
+        P1y = P1[1]
+        P1z = P1[2]
+        P2x = P2[0]
+        P2y = P2[1]
+        P2z = P2[2]
+        P3x = P3[0]
+        P3y = P3[1]
+        P3z = P3[2]
+        P4 = ((P1x + P2x) / 2, (P1y + P2y) / 2, (P1z + P2z) / 2)
+        P5 = ((P3x + P2x) / 2, (P3y + P2y) / 2, (P3z + P2z) / 2)
+        P6 = ((P1x + P3x) / 2, (P1y + P3y) / 2, (P1z + P3z) / 2)
+        nTri1 = (P1, P4, P6)
+        nTri2 = (P4, P2, P5)
+        nTri3 = (P4, P5, P6)
+        nTri4 = (P5, P3, P6)
+        return nTri1, nTri2, nTri3, nTri4
+    
+    def CorrectValues(self, X, Y, Z, Precision=1e-06):
+
+        """
+        Used in Project2UnitSphere for MIL computation
+        Ensure that current direction do not go through corner or edge  
+        i.e. has an angle of 45 deg.
+        """
+
+        C1 = abs(int(X / Precision)) == abs(int(Y / Precision))
+        C2 = abs(int(X / Precision)) == abs(int(Z / Precision))
+
+        if C1 and C2:
+            X += Precision
+            Z += 2.0 * Precision
+        elif abs(int(X / Precision)) == abs(int(Y / Precision)):
+            X += Precision
+        elif abs(int(X / Precision)) == abs(int(Z / Precision)):
+            X += Precision
+        elif abs(int(Z / Precision)) == abs(int(Y / Precision)):
+            Z += Precision
+
+        Array = []
+        Array.append(self.nX)
+        Array.append(self.nY)
+        Array.append(self.nZ)
+        nmax = max(Array)
+        for n in range(nmax):
+            if abs(int(x / prec)) == abs((n + 1) * int(y / prec)):
+                x += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+            elif abs(int(x / prec)) == abs((n + 1) * int(z / prec)):
+                x += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+            elif abs(int(z / prec)) == abs((n + 1) * int(y / prec)):
+                z += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+            elif abs((n + 1) * int(x / prec)) == abs(int(y / prec)):
+                x += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+            elif abs((n + 1) * int(x / prec)) == abs(int(z / prec)):
+                x += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+            elif abs((n + 1) * int(z / prec)) == abs(int(y / prec)):
+                z += prec
+                stdout.write('\n **WARNING** projectionToUnitSphereM2(): line goes through edge - check!\n\n')
+                stdout.flush()
+
+        return (x, y, z)
+
+    def Project2UnitSphere(self, PointRS):
+
+        """
+        Used in SphereTriangles for MIL computation
+        Projects an equally sided triangle patch to a unit sphere
+        """
+
+        S45 = np.sin(np.pi / 4.0)
+        XYZ = [(0.0, 0.0, 0.0),
+               (1.0, 0.0, 0.0),
+               (0.0, 1.0, 0.0),
+               (0.0, 0.0, 1.0),
+               (0.5, 0.0, 0.0),
+               (S45, S45, 0.0),
+               (0.0, 0.5, 0.0),
+               (S45, 0.0, S45),
+               (0.0, S45, S45),
+               (0.0, 0.0, 0.5)]
+
+        R = PointRS[0]
+        S = PointRS[1]
+        T = PointRS[2]
+
+        N5 = 4.0 * R * (1.0 - R - S - T)
+        N6 = 4.0 * R * S
+        N7 = 4.0 * S * (1.0 - R - S - T)
+        N8 = 4.0 * R * T
+        N9 = 4.0 * S * T
+        N10 = 4.0 * T * (1.0 - R - S - T)
+
+        N1 = 1.0 - R - S - T - 0.5 * N5 - 0.5 * N7 - 0.5 * N10
+        N2 = R - 0.5 * N5 - 0.5 * N6 - 0.5 * N8
+        N3 = S - 0.5 * N6 - 0.5 * N7 - 0.5 * N9
+        N4 = T - 0.5 * N8 - 0.5 * N9 - 0.5 * N10
+
+        aN = [N1, N2, N3, N4, N5, N6, N7, N8, N9, N10]
+        X = 0.0
+        Y = 0.0
+        Z = 0.0
+        for Node in range(10):
+            X += XYZ[Node][0] * aN[Node]
+            Y += XYZ[Node][1] * aN[Node]
+            Z += XYZ[Node][2] * aN[Node]
+
+        X, Y, Z = self.CorrectValues(X, Y, Z)
+
+        Factor = 1.0 / np.sqrt(X * X + Y * Y + Z * Z)
+
+        return (Factor * X, Factor * Y, Factor * Z)
+
+    def SphereTriangles(self, nDirs):
+
+        """ 
+         Used in MIL computation to setup a mesh for a unit sphere. 
+         
+         :param nDirs: Parameter for number of triangles on unit sphere 
+                       (No of triangles = 8*4^power). 
+                       - TYPE: int          
+                      
+         :return: Triangles: List of triangles 
+                  - TYPE: list[ (x1,y1,z1), (x2,y2,z2), (x3,y3,z3) ]
+                  - float xi, yi, zi ... x,y,z coordinates of triangle corner point i                          
+        """
+
+        Triangles = []
+        Triangles.append(((1.0, 0.0, 0.0),
+                          (0.0, 1.0, 0.0),
+                          (0.0, 0.0, 1.0)))
+        for cDir in range(int(nDirs)):
+            NewTriangles = []
+            for Triangle in Triangles:
+                nTri1, nTri2, nTri3, nTri4 = self.SplitTriangle(Triangle)
+                NewTriangles.append(nTri1)
+                NewTriangles.append(nTri2)
+                NewTriangles.append(nTri3)
+                NewTriangles.append(nTri4)
+
+            Triangles = NewTriangles
+
+        NewTriangles = []
+        for Triangle in Triangles:
+            nP1 = self.Project2UnitSphere(Triangle[0])
+            nP2 = self.Project2UnitSphere(Triangle[1])
+            nP3 = self.Project2UnitSphere(Triangle[2])
+            nTr = (nP1, nP2, nP3)
+            NewTriangles.append(nTr)
+
+        Triangles = NewTriangles
+        NewTriangles2 = []
+        for Triangle in Triangles:
+            NewTriangles2.append(Triangle)
+            T1 = (Triangle[0][0], -Triangle[0][1], Triangle[0][2])
+            T2 = (Triangle[1][0], -Triangle[1][1], Triangle[1][2])
+            T3 = (Triangle[2][0], -Triangle[2][1], Triangle[2][2])
+            NewTriangles2.append((T1, T2, T3))
+
+        Triangles = NewTriangles2
+        NewTriangles3 = []
+        for Triangle in Triangles:
+            NewTriangles3.append(Triangle)
+            T1 = (-Triangle[0][0], Triangle[0][1], Triangle[0][2])
+            T2 = (-Triangle[1][0], Triangle[1][1], Triangle[1][2])
+            T3 = (-Triangle[2][0], Triangle[2][1], Triangle[2][2])
+            NewTriangles3.append((T1, T2, T3))
+
+        Triangles = NewTriangles3
+        NewTriangles4 = []
+        for Triangle in Triangles:
+            NewTriangles4.append(Triangle)
+            T1 = (tria[0][0], tria[0][1], -tria[0][2])
+            T2 = (tria[1][0], tria[1][1], -tria[1][2])
+            T3 = (tria[2][0], tria[2][1], -tria[2][2])
+            NewTriangles4.append((T1, T2, T3))
+
+        Triangles = NewTriangles4
+        return Triangles
+
+    def AreaAndCOG(self, Triangle):
+
+        """ 
+        Used in NormalAndArea for MIL computation
+        Computes area and center of gravity of a triangle
+        The length of the normal is "1". 
+        """
+        P1 = np.array(Triangle[0])
+        P2 = np.array(Triangle[1])
+        P3 = np.array(Triangle[2])
+
+        P21 = P2 - P1
+        P31 = P3 - P1
+
+        A = 0.5 * np.linalg.norm(np.cross(P21, P31))
+
+        X = (P1[0] + P2[0] + P3[0]) / 3.0
+        Y = (P1[1] + P2[1] + P3[1]) / 3.0
+        Z = (P1[2] + P2[2] + P3[2]) / 3.0
+
+        Factor = 1.0 / np.sqrt(X * X + Y * Y + Z * Z)
+
+        return (A, (Factor * X, Factor * Y, Factor * Z))
+
+    def NormalAndArea(self, Power):
+
+        """
+        Used in OriginalDistribution for MIL computation
+        Computes the normals at COG and area (weight) of 
+        a triangulated unit sphere.        
+        
+        :param Power: Parameter for number of triangles on unit sphere 
+                      (No of triangles = 8*4^power). 
+                      - TYPE: int
+                     
+        :return: Normals: normals from COG with unit length 
+                 - TYPE: list[ (nix, niy, niz) ]  
+                 - float nix, niy, niz ... components of normal vectors 
+                                  
+                 Area_n: area of triangles which build the surface of sphere    
+                 - TYPE: dict[ (nix, niy, niz) ] = value    
+                 - float nix, niy, niz ... components of normal vectors 
+                 - float value         ... Area for that direction                         
+        """
+        Triangles = self.SphereTriangles(Power)
+        Normals = []
+        Area_n = {}
+        ASum = 0.0
+        for Triangle in Triangles:
+            A, COG = self.AreaAndCOG(Triangle)
+            Normals.append(COG)
+            Area_n[COG] = A
+            ASum += A
+
+        k = 4.0 * np.pi / ASum
+        for n in Area_n:
+            Area_n[n] = Area_n[n] * k
+
+        return Normals, Area_n
+
+    def OriginalDistribution(self, Array, Step, Power, Echo=True):
+
+        """
+        Used in step 2 of MIL computation
+        Function computes MIL/SLD/SVD distributions for direction vectors "n" 
+        using a voxel ray field going trought the RVE. Normals n = tuple(nix,niy,niz) 
+        are the directions from the midpoint of a unit sphere to the COG of triangles 
+        which build the surface of the sphere. Very similar to 
+        self.computeOrigDistribution_STAR(). 
+        A segement voxel model with isotropic resolution is needed.   
+        
+        :param Array: Segmented voxel model
+                      - TYPE: numpy.array[kZ, jY, iX] = grayValue 
+                      - int iX, jY, kZ ... voxels number ID in x,y,z start a 0, x fastest.       
+                      - int grayValue  ... gray value of voxel, 0..255                  
+        :param Step: Step in the considered voxel 
+                      - TYPE: int > 0 
+        :param Power: Power for the number of star directions = 8*4^power
+                      - TYPE: int > 1
+        :param Valid: Smallest valid intersection length.
+                      - TYPE: float
+        :param  Echo: Flag for printing the  " ... Threshold Data" on stdout
+                      - TYPE: bool
+                                     
+        @return: MIL: Mean Intercept Length 
+                      - TYPE: dict[ (nix, niy, niz) ] = value 
+                      - float nix, niy, niz ... components of normal vectors 
+                      - float value         ... MIL for that direction          
+                 SLD: Star Length Distribution 
+                      - TYPE: same as for MIL 
+                 SVD: Star Volume Distribution 
+                      - TYPE: same as for MIL       
+                 Area: Weight (Area of triange on unit sphere) for each direction 
+                      - TYPE: same as for MIL          
+        """
+        if Echo == True:
+            Text = 'Original dist.'
+            Time.Process(1, Text)
+
+        MIL = {}
+        SVD = {}
+        SLD = {}
+
+        SumL = {}
+        SumL2 = {}
+        SumL4 = {}
+
+        Corners = {}
+        Corners['swb'] = (0.0, 0.0, 0.0)
+        Corners['seb'] = (float(self.nX), 0.0, 0.0)
+        Corners['neb'] = (float(self.nX), float(self.nY), 0.0)
+        Corners['nwb'] = (0.0, float(self.nY), 0.0)
+        Corners['swt'] = (0.0, 0.0, float(self.nZ))
+        Corners['set'] = (float(self.nX), 0.0, float(self.nZ))
+        Corners['net'] = (float(self.nX), float(self.nY), float(self.nZ))
+        Corners['nwt'] = (0.0, float(self.nY), float(self.nZ))
+
+        ModelPlanes = {}
+        ModelPlanes['s'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'swb')])
+        ModelPlanes['e'] = dict([('r-dir', (0.0, 1.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'seb')])
+        ModelPlanes['n'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'nwb')])
+        ModelPlanes['w'] = dict([('r-dir', (0.0, 1.0, 0.0)), ('s-dir', (0.0, 0.0, 1.0)), ('base', 'swb')])
+        ModelPlanes['b'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 1.0, 0.0)), ('base', 'swb')])
+        ModelPlanes['t'] = dict([('r-dir', (1.0, 0.0, 0.0)), ('s-dir', (0.0, 1.0, 0.0)), ('base', 'swt')])
+        
+        ViewerAt = {}
+        ViewerAt['swb'] = (1.0, 1.0, 1.0)
+        ViewerAt['seb'] = (-1.0, 1.0, 1.0)
+        ViewerAt['neb'] = (-1.0, -1.0, 1.0)
+        ViewerAt['nwb'] = (1.0, -1.0, 1.0)
+
+        ViewerTo = {}
+        ViewerTo['swb'] = 'net'
+        ViewerTo['seb'] = 'nwt'
+        ViewerTo['neb'] = 'swt'
+        ViewerTo['nwb'] = 'set'
+
+        Normals, Area = self.NormalAndArea(Power)
+        Dict1 = {}
+        Direction = ''
+        for n in Normals:
+            nX = n[0]
+            nY = n[1]
+            nZ = n[2]
+            if nX >= 0.0 and nY >= 0.0 and nZ >= 0.0:
+                VoxX = 1
+                VoxY = 1
+                VoxZ = 1
+                StepX = 1
+                StepY = 1
+                StepZ = 1
+                VoxelRay = []
+                VoxelRay.append((VoxX, VoxY, VoxZ))
+                if abs(nX) > abs(nY):
+                    if abs(nZ) > abs(nX):
+                        Direction = 'Z'
+                    else:
+                        Direction = 'X'
+                elif abs(nZ) > abs(nY):
+                    Direction = 'Z'
+                else:
+                    Direction = 'Y'
+                PreVoxX = 1
+                PreVoxY = 1
+                PreVoxZ = 1
+                C1 = abs(VoxX) <= self.nX
+                C2 = abs(VoxY) <= self.nY
+                c3 = abs(VoxZ) <= self.nZ
+                while C1 and C2 and C3:
+                    TMaxX = VoxX / nX
+                    TMaxY = VoxY / nY
+                    TMaxZ = VoxZ / nZ
+                    if abs(TMaxX) < abs(TMaxY):
+                        if abs(TMaxX) < abs(TMaxZ):
+                            VoxX = VoxX + StepX
+                        else:
+                            VoxZ = VoxZ + StepZ
+                    elif abs(TMaxY) < abs(TMaxZ):
+                        VoxY = VoxY + StepY
+                    else:
+                        VoxZ = VoxZ + StepZ
+
+                    Cc1 = abs(VoxX) <= self.nX
+                    Cc2 = abs(VoxY) <= self.nY
+                    Cc3 = abs(VoxZ) <= self.nZ
+                    if Cc1 and Cc2 and Cc3:
+                        if Direction == 'X':
+                            if VoxX > PreVoxX:
+                                VoxelRay.append((VoxX, VoxY, VoxZ))
+                        if Direction == 'Y':
+                            if VoxY > PreVoxY:
+                                VoxelRay.append((VoxX, VoxY, VoxZ))
+                        if Direction == 'Z':
+                            if VoxZ > PreVoxZ:
+                                VoxelRay.append((VoxX, VoxY, VoxZ))
+                    PreVoxX = VoxX
+                    PreVoxY = VoxY
+                    PreVoxZ = VoxZ
+
+                Dict1[n] = VoxelRay
+
+        i = 0
+        Sum = len(ViewerAt) * 4.0 ** float(Power)
+        for v in ViewerAt:
+            Dict2 = {}
+            CornVoxX = int(Corners[v][0])
+            CornVoxY = int(Corners[v][1])
+            CornVoxZ = int(Corners[v][2])
+            if CornVoxX == 0:
+                CornVoxX = 1
+            if CornVoxY == 0:
+                CornVoxY = 1
+            if CornVoxZ == 0:
+                CornVoxZ = 1
+            StepX = int(ViewerAt[v][0])
+            StepY = int(ViewerAt[v][1])
+            StepZ = int(ViewerAt[v][2])
+            for n in Dict1:
+                VoxelRay = Dict1[n]
+                NewVoxelRay = []
+                for Voxel in VoxelRay:
+                    VoxelX = CornVoxX + StepX * Voxel[0] - StepX
+                    VoxelY = CornVoxY + StepY * Voxel[1] - StepY
+                    VoxelZ = CornVoxZ + StepZ * Voxel[2] - StepZ
+                    NewVoxelRay.append((VoxelX, VoxelY, VoxelZ))
+
+                D = n[0] * ViewerAt[v][0], n[1] * ViewerAt[vpt][1], n[2] * ViewerAt[v][2]
+                Dict2[D] = NewVoxelRay
+
+            EntryPlanes = [v[0], v[1], v[2]]
+            for n in Dict2:
+                if Echo:
+                    Time.Update(i/Sum, 'Setup Data')
+                nL = 0
+                nNotValid0 = 0
+                nValid0 = 0
+                nNotValid1 = 0
+                nValid1 = 0
+                nNotValid3 = 0
+                nValid3 = 0
+                sumL[n] = 0.0
+                sumL2[n] = 0.0
+                sumL4[n] = 0.0
+                i += 1
+                NewVoxelRay = Dict2[n]
+                nn = np.array([n[0], n[1], n[2]])
+                nb = np.array((0.0, 0.0, 1.0))
+                ng = dpTensor.UnitVector(np.cross(nn, nb))
+                ns = dpTensor.UnitVector(np.cross(ng, nn))
+                nr = dpTensor.UnitVector(np.cross(ns, nn))
+                rmax = 0.0
+                rmin = 0.0
+                smax = 0.0
+                smin = 0.0
+                r1c = np.array(Corners[v])
+                for c in Corners:
+                    r0c = np.array(Corners[c])
+                    b = r0c - r1c
+                    a11 = nr[0]
+                    a12 = ns[0]
+                    a13 = -nn[0]
+                    a21 = nr[1]
+                    a22 = ns[1]
+                    a23 = -nn[1]
+                    a31 = nr[2]
+                    a32 = ns[2]
+                    a33 = -nn[2]
+                    DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+                    x = [0.0, 0.0, 0.0]
+                    x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+                    x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+                    if x[0] > rmax:
+                        rmax = x[0]
+                    if x[0] < rmin:
+                        rmin = x[0]
+                    if x[1] > smax:
+                        smax = x[1]
+                    if x[1] < smin:
+                        smin = x[1]
+
+                for curR in range(int(rmin), int(rmax + 1), step):
+                    for curS in range(int(smin), int(smax + 1), step):
+                        Planes = EntryPlanes
+                        Check = 0
+                        for Plane in Planes:
+                            CutPlane = ModelPlanes[Plane]
+                            r1 = np.array(Corners[CutPlane['base']])
+                            r0 = curR * nr + curS * ns + r1c
+                            at = nn
+                            br = np.array(CutPlane['r-dir'])
+                            cs = np.array(CutPlane['s-dir'])
+                            b = r0 - r1
+                            a11 = br[0]
+                            a12 = cs[0]
+                            a13 = -at[0]
+                            a21 = br[1]
+                            a22 = cs[1]
+                            a23 = -at[1]
+                            a31 = br[2]
+                            a32 = cs[2]
+                            a33 = -at[2]
+                            DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+                            x = [0.0, 0.0, 0.0]
+                            x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+                            x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+                            ipt = x[0] * br + x[1] * cs + r1
+                            C1 = ipt[0] >= 0.0
+                            C2 = ipt[1] >= 0.0
+                            C3 = ipt[2] >= 0.0
+                            C4 = ipt[0] <= float(self.nX)
+                            C5 = ipt[1] <= float(self.nY)
+                            C6 = ipt[2] <= float(self.nZ)
+                            if C1 and C2 and C3 and C4 and C5 and C6:
+                                Check += 1
+                                EntryVoxX = int(ipt[0] + 0.5)
+                                EntryVoxY = int(ipt[1] + 0.5)
+                                EntryVoxZ = int(ipt[2] + 0.5)
+                                if EntryVoxX == 0:
+                                    EntryVoxX = 1
+                                if EntryVoxY == 0:
+                                    EntryVoxY = 1
+                                if EntryVoxZ == 0:
+                                    EntryVoxZ = 1
+                                StartBone = (1, 1, 1)
+                                EndBone = (1, 1, 1)
+                                PreVox = (1, 1, 1)
+                                Count = 0
+                                StartFlag = False
+                                for StartRayVox in NewVoxelRay:
+                                    VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
+                                    VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
+                                    VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
+                                    Count += 1
+                                    Cc1 = VoxX < 1
+                                    Cc2 = VoxY < 1
+                                    Cc3 = VoxZ < 1
+                                    Cc4 = VoxX > self.nX
+                                    Cc5 = VoxY > self.nY
+                                    Cc6 = VoxZ > self.nZ
+                                    if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
+                                        if StartFlag == True:
+                                            if VoxX > self.nX or VoxY > self.nY or VoxZ > self.nZ:
+                                                StartFlag = False
+                                                EndBone = (PrevVox[0], PrevVox[1], PrevVox[2])
+                                                lx = StartBone[0] - EndBone[0]
+                                                ly = StartBone[1] - EndBone[1]
+                                                lz = StartBone[2] - EndBone[2]
+                                                L2 = lx * lx + ly * ly + lz * lz
+                                                if L2 > 0.0:
+                                                    nL += 1
+                                                    SumL[n] += L2 ** 0.5
+                                                    SumL2[n] += L2
+                                                    SumL4[n] += L2 * L2
+
+                                    elif Array[VoxZ - 1, VoxY - 1, VoxX - 1] == 0:
+                                        if StartFlag == True:
+                                            StartFlag = False
+                                            EndBone = (PrevVox[0], PrevVox[1], PrevVox[2])
+                                            lx = StartBone[0] - EndBone[0]
+                                            ly = StartBone[1] - EndBone[1]
+                                            lz = StartBone[2] - EndBone[2]
+                                            L2 = lx * lx + ly * ly + lz * lz
+                                            if L2 > 0.0:
+                                                nL += 1
+                                                SumL[n] += L2 ** 0.5
+                                                SumL2[n] += L2
+                                                SumL4[n] += L2 * L2
+                                    elif StartFlag == False:
+                                        StartBone = (VoxX, VoxY, VoxZ)
+                                        startFlag = True
+                                    PrevVox = (VoxX, VoxY, VoxZ)
+
+                                break
+
+                n2 = (-n[0], -n[1], -n[2])
+                MIL[n] = SumL[n] / float(nL)
+                MIL[n2] = SumL[n] / float(nL)
+                SLD[n] = SumL2[n] / SumL[n]
+                SLD[n2] = SumL2[n] / SumL[n]
+                SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
+                SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
+
+        if Echo == True:
+            Time.Process(0, Text)
+        return (MIL, SVD, SLD, area)
+
+    def ComputeMIL(self, Image, Power2=4, Step=5, Power=2):
+
+        """
+        Compute Mean Intercept Length of image
+        Based on mia.py from medtool from D. H. Pahr
+        """
+
+        if hasattr(Image, GetSize()):
+            self.nX, self.nY, self.nZ = Image.GetSize()
+            Array = sitk.GetArrayFromImage(Image)
+        elif hasattr(Image, shape):
+            self.nZ, self.nY, self.nX = Image.shape
+            Array = Image
+        else:
+            print('Image must be either numpy array or sitk image')
+
+        # Step 1: Setup sphere triangles
+        Triangles = self.SphereTriangles(Power2)
+
+        # Step 2: Compute original distribution
+        orgMIL, orgSVD, orgSLD, area = self.OriginalDistribution(Array, Step, Power)
+
+Morphometry = Morphometry()
+#%% Tensor algebra function
+class Tensor():
+
+    def __init__(self):
+        pass
+
+    def CheckPosition(self, A, B):
+        AShape = A.shape
+        BShape = B.shape
+        if AShape[len(AShape) - 1] < BShape[0]:
+            print('\nInconsistent Shape  A=', ash, ' B=', bsh)
+        return
+
+    def CheckShape(self, A):
+        Shape = A.shape
+        for Index in range(len(Shape)):
+            if Shape[Index] != 3:
+                print('\nOrder of Tensor is not correct: ', Shape, '\n')
+
+    def Length(self, a):
+        c = np.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
+        return c
+
+    def UnitVector(self, a):
+        l = self.Length(a)
+        c = a / l
+        return c
+
+    def UnitMatrix(self, n):
+        I = np.zeros((n, n), float)
+        for row in range(n):
+            for col in range(n):
+                if row == col:
+                    I[col, row] = 1.0
+
+        return I
+
+    def CrossProduct(self, a, b):
+        c1 = a[1] * b[2] - a[2] * b[1]
+        c2 = a[2] * b[0] - a[0] * b[2]
+        c3 = a[0] * b[1] - a[1] * b[0]
+        c = np.array([c1, c2, c3])
+        return c
+
+    def DyadicProduct(self, A, B):
+
+        self.CheckShape(A)
+        self.CheckShape(B)
+        self.CheckPosition(A, B)
+
+        type = 10 * len(A.shape) + len(B.shape)
+        C = np.array([])
+        if type == 11:
+            C = np.zeros((3, 3), float)
+            for i in range(3):
+                for j in range(3):
+                    C[i, j] = A[i] * B[j]
+
+        elif type == 21:
+            C = np.zeros((3, 3, 3), float)
+            for i in range(3):
+                for j in range(3):
+                    for k in range(3):
+                        C[i, j, k] = A[i, j] * B[k]
+
+        elif type == 22:
+            C = np.zeros((3, 3, 3, 3), float)
+            for i in range(3):
+                for j in range(3):
+                    for k in range(3):
+                        for l in range(3):
+                            C[i, j, k, l] = A[i, j] * B[k, l]
+
+        else:
+           print('Dyadic product not supported')
+
+        return C
+
+    def DoubleContraction(self, A, B):
+
+        self.CheckShape(A)
+        self.CheckShape(B)
+        self.CheckPosition(A, B)
+
+        type = 10 * len(A.shape) + len(B.shape)
+        C = np.array([])
+        if type == 22:
+            C = np.zeros((1, ), float)
+            for i in range(3):
+                for j in range(3):
+                    C[(0, )] = C[(0, )] + A[i, j] * B[i, j]
+
+        elif type == 42:
+            C = np.zeros((3, 3), float)
+            for i in range(3):
+                for j in range(3):
+                    for m in range(3):
+                        for n in range(3):
+                            C[i, j] = C[i, j] + A[i, j, m, n] * B[m, n]
+
+        elif type == 44:
+            C = np.zeros((1, ), float)
+            for i in range(3):
+                for j in range(3):
+                    for m in range(3):
+                        for n in range(3):
+                            C[(0, )] = C[(0, )] + A[i, j, m, n] * B[i, j, m, n]
+
+        else:
+            print('Double contraction not supported')
+
+        if C.shape[0] == 1:
+            return C[0]
+            
+        else:
+            return C
+
+Tensor = Tensor()
 #%%
 if __name__ == '__main__':
 
