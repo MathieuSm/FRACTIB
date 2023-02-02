@@ -1,0 +1,349 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Beamer Presentation
+% LaTeX Template
+% Version 1.0 (01/07/19)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------
+%	PACKAGES AND THEMES		-----------------------------------
+%----------------------------------------------------------------
+
+\documentclass[xcolor=table,11pt]{beamer}
+
+\mode<presentation> {
+	
+	\usetheme{Frankfurt}
+	\usecolortheme{dove}
+	\usefonttheme{serif}
+	
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{booktabs} 
+\usepackage{subfig}
+\usepackage{pgf}
+\usepackage{multirow}
+\usepackage{appendixnumberbeamer}
+\usepackage{bookmark}
+\usepackage{siunitx}
+\usepackage{animate}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{pifont}
+\usepackage{caption}
+\usepackage{array}
+\captionsetup{skip=0pt,belowskip=0pt}
+
+
+%----------------------------------------------------------------
+%	GENERAL OPTIONS 	-----------------------------------------
+%----------------------------------------------------------------
+
+% Set template options
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{frametitle}{\vspace*{1em}\insertframetitle}
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{section in head/foot}{fg=white, bg=black}
+
+% Headline
+\makeatletter
+\setbeamertemplate{headline}
+{%
+	\pgfuseshading{beamer@barshade}%
+	\vskip-5ex%
+	\begin{beamercolorbox}[ignorebg,ht=2.25ex,dp=3.75ex]{section in head/foot}
+		\insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}
+	\end{beamercolorbox}%
+	\ifbeamer@sb@subsection%
+	\begin{beamercolorbox}[ignorebg,ht=2.125ex,dp=1.125ex,%
+		leftskip=.3cm,rightskip=.3cm plus1fil]{subsection in head/foot}
+		\usebeamerfont{subsection in head/foot}\insertsubsectionhead
+	\end{beamercolorbox}%
+	\fi%
+}%
+\makeatother
+
+% Footline
+\makeatletter
+\setbeamertemplate{footline}
+{
+	\leavevmode%
+	\hbox{%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,left]{section in head/foot}%
+			\usebeamerfont{author in head/foot}\hspace{10pt}\insertshortauthor
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{section in head/foot}%
+			\usebeamerfont{title in head/foot}\insertshorttitle
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{section in head/foot}%
+			\usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}
+			\insertframenumber{}\hspace*{2em}
+	\end{beamercolorbox}}%
+	\vskip0pt%
+}
+\makeatother
+
+% Add logo
+\logo{\pgfputat{\pgfxy(0,7)}{\includegraphics[width=0.1\paperwidth]{Pictures/00_Unibe_Logo}}}
+
+% Table settings
+\renewcommand{\arraystretch}{2}
+\captionsetup{labelformat=empty,labelsep=none}
+\definecolor{Gray}{gray}{0.9}
+
+% Define highlitghing command
+\makeatletter
+\let\HL\hl
+\renewcommand\hl{%
+	\let\set@color\beamerorig@set@color
+	\let\reset@color\beamerorig@reset@color
+	\HL}
+\makeatother
+
+% Add overview at each begin of section
+%\AtBeginSection[]
+%{
+	%	\begin{frame}
+		%		\frametitle{Overview}
+		%		\tableofcontents[currentsection]
+		%	\end{frame}
+	%}
+
+
+\renewcommand{\arraystretch}{1.4}
+\newcommand{\ColWidth}{1}
+\newcommand{\TrimSize}{50}
+
+%----------------------------------------------------------------
+%	TITLE PAGE 	-------------------------------------------------
+%----------------------------------------------------------------
+
+\title[Bilateral Meeting]{
+	\uppercase{Bilateral Meeting}
+} 
+
+\author{Mathieu Simon}
+\medskip
+\date{January, 2023}
+
+\begin{document}
+	
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{uCT Projects}
+	
+	\begin{frame}
+		\frametitle{ZMK- Raw Image}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/FI_XY}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/FI_YZ}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{ZMK- Segmentation}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=0.9\linewidth]{Pictures/ISQ_YZ}
+			\column{0.45\linewidth}
+			\includegraphics[width=0.9\linewidth]{Pictures/SEG_YZ}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{ZMK- Alignment}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=0.9\linewidth]{Pictures/R_ISQ_YZ}
+			\column{0.45\linewidth}
+			\includegraphics[width=0.9\linewidth]{Pictures/R_SEG_YZ}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Balmer Lab - Raw Images}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/MidISQ}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/ProISQ}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Balmer Lab - Cortical Analysis}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/MidCrop}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/MidDist}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Balmer Lab - Trabecular Segmentation}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/ProCISQ}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/ProCrop}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Balmer Lab - Trabecular Analysis}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/ProEF}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/ProECrop}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Balmer Lab - Results}
+		
+		\begin{columns}
+			\column{0.45\linewidth}
+			\centering
+			\begin{tabular}{lc}
+				Cortical & \\\hline
+				Thickness (mm) & 0.231 \\
+				Inertia (mm$^4$) & 1834 \\
+				Diameter (mm) & 1.00\\
+			\end{tabular}
+		
+			\column{0.45\linewidth}
+			\centering
+			\begin{tabular}{lc}
+				Trabecular & \\\hline
+				BV/TV (-) & 0.232 \\
+				Thickness (mm) & 0.045 \\
+				Number (-) & 5.18\\
+				Spacing (mm) & 0.148\\
+			\end{tabular}
+		\end{columns}
+	
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Hearing Research Laboratory}
+		
+	\end{frame}
+	
+	
+	\section{FEXHIP}
+	\section{FRACTIB}
+	
+	\begin{frame}
+		\frametitle{Force - Displacement}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\begin{itemize}
+				\item Expected behavior\\
+				Similar to experiment\\
+				$\rightarrow$ 19 / 25\vspace{1em}
+				\item Able to simulate same compression\\
+				$\rightarrow$ 11 / 25
+			\end{itemize}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/446_R_75_F_FD}
+		\end{columns}
+	\end{frame}
+	
+	\begin{frame}
+		\frametitle{XY Displacement}
+		\begin{columns}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/446_R_75_F_XY}\\
+			\begin{tabular}{l|cc}
+				Ult. Force & Good & Bad \\\hline
+				Before & 4 & 2 \\
+				After & & 6 \\				
+			\end{tabular}
+			\column{0.45\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/AnglesCosts}
+		\end{columns}
+	\end{frame}
+	
+	\begin{frame}
+		\frametitle{Structural Results}
+		\begin{columns}
+			\column{0.3\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/Stiffness}
+			\column{0.3\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/UltimateForce}
+			\column{0.3\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/DispUltForce}
+		\end{columns}
+	\end{frame}
+	
+	\begin{frame}
+		\frametitle{Deformation Gradient}
+		\begin{columns}
+			\column{0.5\linewidth}
+			\begin{tabular}{lcccc}
+				 & <0.1 & <0.15 & 0.2 & >=0.2 \\\hline
+				$|\mathbf{F}|$ & 15 & 4 & 5 & 1 \\
+			\end{tabular}\vspace{1cm}
+			\begin{tabular}{lcccc}
+				& <0.1 & <0.015 & 0.02 & >= 0.02 \\\hline
+				$|\widetilde{\mathbf{F}}|$ & 7 & 11 & 2 & 5 \\
+			\end{tabular}
+			\column{0.4\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/RelDiff}
+		\end{columns}
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{}
+	\begin{frame}
+		Thank you for your attention !	
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	%\appendix
+	
+	%\section{References}
+	%\begin{frame}
+	%	\frametitle{Osteogenesis Imperfecta}
+	%	\footnotesize{
+		%		\begin{thebibliography}{99}
+			%			\setbeamertemplate{bibliography item}[triangle]
+			%			
+			%			\bibitem[Mortier et al. 2019]{p1} Mortier et al. (2019)
+			%			\newblock Nosology and classification of genetic skeletal disorders: 2019 revision
+			%			\newblock \textit{American Journal of Medical Genetics, Part A} (179), 2393-2419
+			%			
+			%			\bibitem[Tournis 2018]{p2} Tournis, S., Dede, A.D. (2018)
+			%			\newblock Osteogenesis imperfecta A clinical update
+			%			\newblock \textit{Metabolism: Clinical and Experimental} (80), 27-37
+			%			
+			%			\bibitem[Lim et al. 2017]{p3}  Lim, J., Grafe, I., Alexander, S., Lee, B. (2017)
+			%			\newblock Genetic causes and mechanisms of osteogenesis imperfecta
+			%			\newblock \textit{Bone} (102), 40-49
+			%			
+			%		\end{thebibliography}
+		%	}
+	%\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+\end{document} 

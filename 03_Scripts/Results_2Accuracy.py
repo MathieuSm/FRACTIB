@@ -26,6 +26,7 @@ import argparse
 from Utils import *
 Show.ShowPlot = False
 Read.Echo = False
+Write.Echo = False
 from skimage import morphology
 
 #%% Functions
@@ -194,11 +195,11 @@ def Main(Arguments):
     ConfigFile = str(SD / '3_hFE' / 'ConfigFile.yaml')
     Config = ReadConfigFile(ConfigFile)
 
-    Data = pd.DataFrame(index=SampleList['Internal ID'].values, columns=['SC','ID'])
+    Data = pd.DataFrame(index=SampleList['Internal ID'].values, columns=['SC','ID','Dice 1','Dice 2'])
     for Index, Sample in enumerate(SampleList['Internal ID']):
 
-        Text = 'Compute accuracy for sample ' + str(Index+1) + '/' + str(len(SampleList))
-        ProcessTiming(1,Text)
+        Text = 'Sample ' + str(Index+1) + '/' + str(len(SampleList))
+        Time.Process(1,Text)
 
         # Generate images with same scales for hFE and registration
         uCTDir = DD / '02_uCT' / Sample
@@ -206,25 +207,83 @@ def Main(Arguments):
         Files.sort()
 
         Image = Read.AIM(str(uCTDir / Files[0]))[0]
-        Seg = Read.AIM(str(uCTDir / (Files[0][:-4] + '_SEG.AIM')))[0]
         Spacing = Image.GetSpacing()
-        CoarseFactor = int(round(Config['ElementSize'] / Spacing[0]))
-
-        PreI = AdjustImageSize(Image, CoarseFactor)
-        Seg = AdjustImageSize(Seg, CoarseFactor)
-        Seg = sitk.GetArrayFromImage(Seg)
-        Seg[Seg == 127] = 1
-        Seg[Seg == 126] = 1
-
+        CF = int(round(Config['ElementSize'] / Spacing[0]))
+        PreI = AdjustImageSize(Image, CF)
+      
         # Read BVTV values from .inp file
         FileName = SampleList.loc[Index, 'MicroCT pretest file number']
         FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp'
         BVTV = ReadInputFile(str(hFEDir / Sample / FileName))
+        Spacing = BVTV.GetSpacing()
+        Origin = BVTV.GetOrigin()
         Write.MHD(BVTV, str(hFEDir / Sample / 'BVTV'))
         BVTV = sitk.GetArrayFromImage(BVTV)
-        ProgressNext(1)
+
+        # Read BSpline registration results (for local Dice computation)
+        Time.Update(1/6,'Compute Dice')
+        Reg = sitk.ReadImage(str(RegDir / Sample / 'NonRigid.mhd'))
+        Org = sitk.ReadImage(str(RegDir / Sample / 'Rigid.mhd'))
+        Otsu = sitk.OtsuMultipleThresholdsImageFilter()
+        Otsu.SetNumberOfThresholds(2)
+        BinReg = Otsu.Execute(Reg)
+        BinOrg = Otsu.Execute(Org)
+        BinIm = Otsu.Execute(PreI)
+
+        Binary = sitk.BinaryThresholdImageFilter()
+        Binary.SetUpperThreshold(1.5)
+        Binary.SetInsideValue(0)
+        Binary.SetOutsideValue(1)
+        BinReg = Binary.Execute(BinReg)
+        BinOrg = Binary.Execute(BinOrg)
+        BinIm = Binary.Execute(BinIm)
+
+        Measure = sitk.LabelOverlapMeasuresImageFilter()
+        Measure.Execute(BinIm, BinOrg)
+        Data.loc[Sample, 'Dice 1'] = Measure.GetDiceCoefficient()
+        Measure.Execute(BinIm, BinReg)
+        Data.loc[Sample, 'Dice 2'] = Measure.GetDiceCoefficient()
+
+        Dice = BinReg * BinIm
+        Dice = sitk.GetArrayFromImage(Dice)
+
+        # Pad or crop to adjust XY size
+        Time.Update(2/6,'Convolve Dice')
+        Delta = np.ceil(np.array(BVTV.shape) * CF - (np.array(Dice.shape))).astype(int)
+        bDelta = np.floor(Delta / 2).astype(int)
+        aDelta = np.ceil(Delta / 2).astype(int)
+        
+        bDelta = np.abs(bDelta)
+        if Delta[0] < 0:
+            Dice = Dice[bDelta[0]:aDelta[0],:,:]
+        elif Delta[0] > 0:
+            Dice = np.pad(Dice, ((bDelta[0], aDelta[0]), (0, 0), (0, 0)), 'reflect')
+        if Delta[1] < 0:
+            Dice = Dice[:,bDelta[1]:aDelta[1],:]
+        elif Delta[1] > 0:
+            Dice = np.pad(Dice, ((0, 0), (bDelta[1], aDelta[1]), (0, 0)), 'reflect')
+        if Delta[2] < 0:
+            Dice = Dice[:,:,bDelta[2]:aDelta[2]]
+        elif Delta[2] > 0:
+            Dice = np.pad(Dice, ((0, 0), (0, 0), (bDelta[2], aDelta[2])), 'reflect')
+        
+        Shape = (BVTV.shape[0], BVTV.shape[1], BVTV.shape[2], CF, CF, CF)
+        Convolve = np.ones(Shape) / CF**3
+
+        for i in range(BVTV.shape[0]):
+            for j in range(BVTV.shape[1]):
+                for k in range(BVTV.shape[2]):
+                    Convolve[i,j,k] = Convolve[i,j,k] * Dice[i*CF:(i+1)*CF,j*CF:(j+1)*CF,k*CF:(k+1)*CF]
+
+        Convolve = np.sum(Convolve, axis=(-1,-2,-3))
+        ImageConv = sitk.GetImageFromArray(Convolve)
+        ImageConv.SetSpacing(Spacing)
+        ImageConv.SetOrigin(Origin)
+        Write.MHD(ImageConv, str(RegDir / Sample / 'Dice'))
+        # Test = Show.OLS(BVTV[Mask], Convolve[Mask], Cmap=Y)
 
         # Load decompositions
+        Time.Update(3/6, 'Load gradients')
         SCs, IDs = [], []
         for Dir in [RegDir, hFEDir]:
             SC = sitk.ReadImage(str(Dir / Sample / 'J.mhd'))
@@ -234,35 +293,41 @@ def Main(Arguments):
             ID = sitk.ReadImage(str(Dir / Sample / 'F_Tilde.mhd'))
             ID = sitk.GetArrayFromImage(ID)
             IDs.append(ID)
-        ProgressNext(2)
 
         # Plot correlations (use BVTV as mask)
+        Time.Update(4/6, 'DetF analysis')
         Mask = BVTV > 0
         X = SCs[0][Mask]
         Y = SCs[1][Mask]
         Show.FName = str(ResultsDir / (Sample + '_SC'))
         SC_R = Show.OLS(X, Y)
-        ProgressNext(3)
+        X = np.cbrt(X)
+        Y = np.cbrt(Y)
+        SC_R = np.mean(np.abs(X - Y) / X)
 
-        Mask = IDs[1] > 0
-        X = IDs[0][Mask].flatten()
-        Y = IDs[1][Mask].flatten()
+        Time.Update(5/6, 'F~ analysis')
+        X = IDs[0][Mask]
+        Y = IDs[1][Mask]
+        # For sample 446
+        if 0 in X:
+            Y = Y[X > 0]
+            X = X[X > 0]
         Show.FName = str(ResultsDir / (Sample + '_ID'))
         ID_R = Show.OLS(X, Y)
+        ID_R = np.mean(np.abs(X - Y) / X)
         Show.FName = None
-        ProgressNext(4)
 
         # Add results to data frame
-        Data.loc[Sample, 'SC'] = SC_R.rsquared
-        Data.loc[Sample, 'ID'] = ID_R.rsquared
+        Data.loc[Sample, 'SC'] = SC_R
+        Data.loc[Sample, 'ID'] = ID_R
 
-        Index = SampleList.index[SampleList == Sample][0]
-        ProcessTiming(0)
+        Index = SampleList[SampleList == Sample].index[0]
+        Time.Process(0,Text)
 
     # Boxplot and save data
-    Labels = [r'$|\mathbf{F}|$', r'$|\widetilde{\mathbf{F}}|$']
+    Labels = [r'det($\mathbf{F})$', r'$||\widetilde{\mathbf{F}}||$']
     Show.FName = str(RD / 'AccuracySummary')
-    Show.BoxPlot([Data['SC'],Data['ID']], Labels=['', r'R$^2$'], SetsLabels=Labels)
+    Show.BoxPlot([Data['SC'], Data['ID']], Labels=['', 'Relative difference (-)'], SetsLabels=[Labels[0], Labels[1]])
     Data.to_csv(str(RD / 'Correlations.csv'))
 
     return
