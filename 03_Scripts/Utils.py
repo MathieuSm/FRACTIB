@@ -41,7 +41,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from numba import njit
 from numba.core import types
-from numba.typed import Dict
+from numba.typed import Dict, List
 
 #%% Tuning
 # Tune diplay settings
@@ -2173,172 +2173,8 @@ class Morphometry():
                       - TYPE: same as for MIL          
         """
 
-        @njit
-        def NumbaSetupData(i, Dict2, nX, nY, nZ, MIL, SVD, SLD, SumL, SumL2, SumL4, Corners, EntryPlanes, ModelPlanes, BaseModel):
-            for n in Dict2:
-                i += 1
-                nL = 0
-                nNotValid0 = 0
-                nValid0 = 0
-                nNotValid1 = 0
-                nValid1 = 0
-                nNotValid3 = 0
-                nValid3 = 0
-                SumL[n] = 0.0
-                SumL2[n] = 0.0
-                SumL4[n] = 0.0
-                NewVoxelRay = Dict2[n]
-                nn = np.array([n[0], n[1], n[2]])
-                nb = np.array((0.0, 0.0, 1.0))
-                ng = np.cross(nn, nb)
-                ns = np.cross(ng, nn)
-                nr = np.cross(ns, nn)
-                ng = ng / np.linalg.norm(ng)
-                ns = ns / np.linalg.norm(ns)
-                nr = nr / np.linalg.norm(nr)
-                rmax = 0.0
-                rmin = 0.0
-                smax = 0.0
-                smin = 0.0
-                r1c = Corners[v]
-                for c in Corners:
-                    r0c = Corners[c]
-                    b = r0c - r1c
-                    a11 = nr[0]
-                    a12 = ns[0]
-                    a13 = -nn[0]
-                    a21 = nr[1]
-                    a22 = ns[1]
-                    a23 = -nn[1]
-                    a31 = nr[2]
-                    a32 = ns[2]
-                    a33 = -nn[2]
-                    DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
-                    x = [0.0, 0.0, 0.0]
-                    x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
-                    x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
-                    if (x[0] > rmax):
-                        rmax = x[0]
-                    if x[0] < rmin:
-                        rmin = x[0]
-                    if x[1] > smax:
-                        smax = x[1]
-                    if x[1] < smin:
-                        smin = x[1]
-
-                for curR in range(int(rmin), int(rmax + 1), Step):
-                    for curS in range(int(smin), int(smax + 1), Step):
-                        for Plane in EntryPlanes:
-                            CutPlane = ModelPlanes[Plane]
-                            r1 = Corners[BaseModel[Plane]]
-                            r0 = curR * nr + curS * ns + r1c
-                            at = nn
-                            br = np.array(CutPlane['r-dir'])
-                            cs = np.array(CutPlane['s-dir'])
-                            b = r0 - r1
-                            a11 = br[0]
-                            a12 = cs[0]
-                            a13 = -at[0]
-                            a21 = br[1]
-                            a22 = cs[1]
-                            a23 = -at[1]
-                            a31 = br[2]
-                            a32 = cs[2]
-                            a33 = -at[2]
-                            DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
-                            x = [0.0, 0.0, 0.0]
-                            x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
-                            x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
-                            ipt = x[0] * br + x[1] * cs + r1
-                            C1 = ipt[0] >= 0.0
-                            C2 = ipt[1] >= 0.0
-                            C3 = ipt[2] >= 0.0
-                            C4 = ipt[0] <= nX
-                            C5 = ipt[1] <= nY
-                            C6 = ipt[2] <= nZ
-                            if C1 and C2 and C3 and C4 and C5 and C6:
-                                EntryVoxX = int(ipt[0] + 0.5)
-                                EntryVoxY = int(ipt[1] + 0.5)
-                                EntryVoxZ = int(ipt[2] + 0.5)
-                                if EntryVoxX == 0:
-                                    EntryVoxX = 1
-                                if EntryVoxY == 0:
-                                    EntryVoxY = 1
-                                if EntryVoxZ == 0:
-                                    EntryVoxZ = 1
-                                StartBone = (1, 1, 1)
-                                EndBone = (1, 1, 1)
-                                PrevVox = (1, 1, 1)
-                                StartFlag = False
-                                for StartRayVox in NewVoxelRay:
-                                    VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
-                                    VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
-                                    VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
-                                    Xv = int(VoxX - 1)
-                                    Yv = int(VoxY - 1)
-                                    Zv = int(VoxZ - 1)
-                                    Cc1 = VoxX < 1
-                                    Cc2 = VoxY < 1
-                                    Cc3 = VoxZ < 1
-                                    Cc4 = VoxX > nX
-                                    Cc5 = VoxY > nY
-                                    Cc6 = VoxZ > nZ
-                                    if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
-                                        if StartFlag == True:
-                                            Text = 'ok1'
-                                            if VoxX > nX or VoxY > nY or VoxZ > nZ:
-                                                StartFlag = False
-                                                EndBone = PrevVox[0],PrevVox[1], PrevVox[2]
-                                                lx = StartBone[0] - EndBone[0]
-                                                ly = StartBone[1] - EndBone[1]
-                                                lz = StartBone[2] - EndBone[2]
-                                                L2 = lx * lx + ly * ly + lz * lz
-                                                if L2 > 0.0:
-                                                    nL += 1
-                                                    SumL[n] += L2 ** 0.5
-                                                    SumL2[n] += L2
-                                                    SumL4[n] += L2 * L2
-                                    elif Array[Zv, Yv, Xv] == 0:
-                                        if StartFlag == True:
-                                            Text = 'ok2'
-                                            StartFlag = False
-                                            EndBone = PrevVox[0], PrevVox[1], PrevVox[2]
-                                            lx = StartBone[0] - EndBone[0]
-                                            ly = StartBone[1] - EndBone[1]
-                                            lz = StartBone[2] - EndBone[2]
-                                            L2 = lx * lx + ly * ly + lz * lz
-                                            Text2 = L2
-                                            if L2 > 0.0:
-                                                nL += 1
-                                                SumL[n] += L2 ** 0.5
-                                                SumL2[n] += L2
-                                                SumL4[n] += L2 * L2
-                                    elif StartFlag == False:
-                                        Text = 'ok3'
-                                        StartBone = (VoxX, VoxY, VoxZ)
-                                        StartFlag = True
-                                    PrevVox = (VoxX, VoxY, VoxZ)
-
-                                break
-
-                n2 = (-n[0], -n[1], -n[2])
-                try:
-                    MIL[n] = SumL[n] / float(nL)
-                except:
-                    print(nL)
-                    print(Text)
-                    # print(Text2)
-
-                # MIL[n2] = SumL[n] / float(nL)
-                # SLD[n] = SumL2[n] / SumL[n]
-                # SLD[n2] = SumL2[n] / SumL[n]
-                # SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
-                # SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
-
-            return i, MIL, SVD, SLD
-
         if Echo == True:
-            Text = 'Original dist.'
+            Text = 'Compute MIL'
             Time.Process(1, Text)
 
         MIL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
@@ -2505,12 +2341,19 @@ class Morphometry():
                 D = n[0] * ViewerAt[v][0], n[1] * ViewerAt[v][1], n[2] * ViewerAt[v][2]
                 Dict2[tuple(D)] = np.asarray(NewVoxelRay, dtype='f8')
 
-            EntryPlanes = [v[0], v[1], v[2]]
+            EntryPlanes = List([v[0], v[1], v[2]])
 
             if Echo:
                 Time.Update(i/Sum, 'Setup Data')
 
-            i, MIL, SVD, SLD = NumbaSetupData(i, Dict2, self.nX, self.nY, self.nZ, MIL, SVD, SLD, SumL, SumL2, SumL4, Corners, EntryPlanes, ModelPlanes, BaseModel)
+            CVx = List([CornVoxX, CornVoxY, CornVoxZ])
+            Ns = List([self.nX, self.nY, self.nZ])
+            Vars = List([MIL, SVD, SLD])
+            Sums = List([SumL, SumL2, SumL4])
+            i, MIL, SVD, SLD = NumbaSetupMILData(i, v, Step, Array,
+                                                 CVx, Ns, Vars, Sums,
+                                                 Dict2, Corners, EntryPlanes,
+                                                 ModelPlanes, BaseModel)
 
         if Echo == True:
             Time.Process(0, Text)
@@ -2627,6 +2470,172 @@ class Morphometry():
         return eValMIL, eVectMIL
 
 Morphometry = Morphometry()
+
+@njit
+def NumbaSetupMILData(i, v, Step, Array,
+                      CVx, Ns, Vars, Sums,
+                      Dict2, Corners, EntryPlanes,
+                      ModelPlanes, BaseModel):
+    
+    # Unpack variables
+    CornVoxX, CornVoxY, CornVoxZ = CVx
+    nX, nY, nZ = Ns
+    MIL, SVD, SLD = Vars
+    SumL, SumL2, SumL4 = Sums
+    
+    for n in Dict2:
+        i += 1
+        nL = 0
+        nNotValid0 = 0
+        nValid0 = 0
+        nNotValid1 = 0
+        nValid1 = 0
+        nNotValid3 = 0
+        nValid3 = 0
+        SumL[n] = 0.0
+        SumL2[n] = 0.0
+        SumL4[n] = 0.0
+        NewVoxelRay = Dict2[n]
+        nn = np.array([n[0], n[1], n[2]])
+        nb = np.array((0.0, 0.0, 1.0))
+        ng = np.cross(nn, nb)
+        ns = np.cross(ng, nn)
+        nr = np.cross(ns, nn)
+        ng = ng / np.linalg.norm(ng)
+        ns = ns / np.linalg.norm(ns)
+        nr = nr / np.linalg.norm(nr)
+        rmax = 0.0
+        rmin = 0.0
+        smax = 0.0
+        smin = 0.0
+        r1c = Corners[v]
+        for c in Corners:
+            r0c = Corners[c]
+            b = r0c - r1c
+            a11 = nr[0]
+            a12 = ns[0]
+            a13 = -nn[0]
+            a21 = nr[1]
+            a22 = ns[1]
+            a23 = -nn[1]
+            a31 = nr[2]
+            a32 = ns[2]
+            a33 = -nn[2]
+            DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+            x = [0.0, 0.0, 0.0]
+            x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+            x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+            if (x[0] > rmax):
+                rmax = x[0]
+            if x[0] < rmin:
+                rmin = x[0]
+            if x[1] > smax:
+                smax = x[1]
+            if x[1] < smin:
+                smin = x[1]
+
+        for curR in range(int(rmin), int(rmax + 1), Step):
+            for curS in range(int(smin), int(smax + 1), Step):
+                for Plane in EntryPlanes:
+                    CutPlane = ModelPlanes[Plane]
+                    r1 = Corners[BaseModel[Plane]]
+                    r0 = curR * nr + curS * ns + r1c
+                    at = nn
+                    br = np.array(CutPlane['r-dir'])
+                    cs = np.array(CutPlane['s-dir'])
+                    b = r0 - r1
+                    a11 = br[0]
+                    a12 = cs[0]
+                    a13 = -at[0]
+                    a21 = br[1]
+                    a22 = cs[1]
+                    a23 = -at[1]
+                    a31 = br[2]
+                    a32 = cs[2]
+                    a33 = -at[2]
+                    DET = a11 * (a33 * a22 - a32 * a23) - a21 * (a33 * a12 - a32 * a13) + a31 * (a23 * a12 - a22 * a13)
+                    x = [0.0, 0.0, 0.0]
+                    x[0] = 1.0 / DET * ((a33 * a22 - a32 * a23) * b[0] - (a33 * a12 - a32 * a13) * b[1] + (a23 * a12 - a22 * a13) * b[2])
+                    x[1] = 1.0 / DET * (-(a33 * a21 - a31 * a23) * b[0] + (a33 * a11 - a31 * a13) * b[1] - (a23 * a11 - a21 * a13) * b[2])
+                    ipt = x[0] * br + x[1] * cs + r1
+                    C1 = ipt[0] >= 0.0
+                    C2 = ipt[1] >= 0.0
+                    C3 = ipt[2] >= 0.0
+                    C4 = ipt[0] <= nX
+                    C5 = ipt[1] <= nY
+                    C6 = ipt[2] <= nZ
+                    if C1 and C2 and C3 and C4 and C5 and C6:
+                        EntryVoxX = int(ipt[0] + 0.5)
+                        EntryVoxY = int(ipt[1] + 0.5)
+                        EntryVoxZ = int(ipt[2] + 0.5)
+                        if EntryVoxX == 0:
+                            EntryVoxX = 1
+                        if EntryVoxY == 0:
+                            EntryVoxY = 1
+                        if EntryVoxZ == 0:
+                            EntryVoxZ = 1
+                        StartBone = (1, 1, 1)
+                        EndBone = (1, 1, 1)
+                        PrevVox = (1, 1, 1)
+                        StartFlag = False
+                        for StartRayVox in NewVoxelRay:
+                            VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
+                            VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
+                            VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
+                            Xv = int(VoxX - 1)
+                            Yv = int(VoxY - 1)
+                            Zv = int(VoxZ - 1)
+                            Cc1 = VoxX < 1
+                            Cc2 = VoxY < 1
+                            Cc3 = VoxZ < 1
+                            Cc4 = VoxX > nX
+                            Cc5 = VoxY > nY
+                            Cc6 = VoxZ > nZ
+                            if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
+                                if StartFlag == True:
+                                    if VoxX > nX or VoxY > nY or VoxZ > nZ:
+                                        StartFlag = False
+                                        EndBone = PrevVox[0],PrevVox[1], PrevVox[2]
+                                        lx = StartBone[0] - EndBone[0]
+                                        ly = StartBone[1] - EndBone[1]
+                                        lz = StartBone[2] - EndBone[2]
+                                        L2 = lx * lx + ly * ly + lz * lz
+                                        if L2 > 0.0:
+                                            nL += 1
+                                            SumL[n] += L2 ** 0.5
+                                            SumL2[n] += L2
+                                            SumL4[n] += L2 * L2
+                            elif Array[Zv, Yv, Xv] == 0:
+                                if StartFlag == True:
+                                    StartFlag = False
+                                    EndBone = PrevVox[0], PrevVox[1], PrevVox[2]
+                                    lx = StartBone[0] - EndBone[0]
+                                    ly = StartBone[1] - EndBone[1]
+                                    lz = StartBone[2] - EndBone[2]
+                                    L2 = lx * lx + ly * ly + lz * lz
+                                    Text2 = L2
+                                    if L2 > 0.0:
+                                        nL += 1
+                                        SumL[n] += L2 ** 0.5
+                                        SumL2[n] += L2
+                                        SumL4[n] += L2 * L2
+                            elif StartFlag == False:
+                                StartBone = (VoxX, VoxY, VoxZ)
+                                StartFlag = True
+                            PrevVox = (VoxX, VoxY, VoxZ)
+
+                        break
+
+        n2 = (-n[0], -n[1], -n[2])
+        MIL[n] = SumL[n] / float(nL)
+        MIL[n2] = SumL[n] / float(nL)
+        SLD[n] = SumL2[n] / SumL[n]
+        SLD[n2] = SumL2[n] / SumL[n]
+        SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
+        SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
+
+    return i, MIL, SVD, SLD
+
 #%% Tensor algebra function
 class Tensor():
 
