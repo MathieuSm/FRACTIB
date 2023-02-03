@@ -2174,7 +2174,7 @@ class Morphometry():
         """
 
         @njit
-        def NumbaSetupData(i, Dict2, nX, nY, nZ, MIL, SVD, SLD):
+        def NumbaSetupData(i, Dict2, nX, nY, nZ, MIL, SVD, SLD, SumL, SumL2, SumL4, Corners, EntryPlanes, ModelPlanes, BaseModel):
             for n in Dict2:
                 i += 1
                 nL = 0
@@ -2184,9 +2184,9 @@ class Morphometry():
                 nValid1 = 0
                 nNotValid3 = 0
                 nValid3 = 0
-                SumL[n] = np.array([0.0, 0.0, 0.0])
-                SumL2[n] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
-                SumL4[n] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
+                SumL[n] = 0.0
+                SumL2[n] = 0.0
+                SumL4[n] = 0.0
                 NewVoxelRay = Dict2[n]
                 nn = np.array([n[0], n[1], n[2]])
                 nb = np.array((0.0, 0.0, 1.0))
@@ -2228,8 +2228,7 @@ class Morphometry():
 
                 for curR in range(int(rmin), int(rmax + 1), Step):
                     for curS in range(int(smin), int(smax + 1), Step):
-                        Planes = EntryPlanes
-                        for Plane in Planes:
+                        for Plane in EntryPlanes:
                             CutPlane = ModelPlanes[Plane]
                             r1 = Corners[BaseModel[Plane]]
                             r0 = curR * nr + curS * ns + r1c
@@ -2269,13 +2268,12 @@ class Morphometry():
                                     EntryVoxZ = 1
                                 StartBone = (1, 1, 1)
                                 EndBone = (1, 1, 1)
-                                PreVox = (1, 1, 1)
+                                PrevVox = (1, 1, 1)
                                 StartFlag = False
                                 for StartRayVox in NewVoxelRay:
                                     VoxX = StartRayVox[0] - (CornVoxX - EntryVoxX)
                                     VoxY = StartRayVox[1] - (CornVoxY - EntryVoxY)
                                     VoxZ = StartRayVox[2] - (CornVoxZ - EntryVoxZ)
-                                    PrevVox = (VoxX, VoxY, VoxZ)
                                     Xv = int(VoxX - 1)
                                     Yv = int(VoxY - 1)
                                     Zv = int(VoxZ - 1)
@@ -2287,6 +2285,7 @@ class Morphometry():
                                     Cc6 = VoxZ > nZ
                                     if Cc1 or Cc2 or Cc3 or Cc4 or Cc5 or Cc6:
                                         if StartFlag == True:
+                                            Text = 'ok1'
                                             if VoxX > nX or VoxY > nY or VoxZ > nZ:
                                                 StartFlag = False
                                                 EndBone = PrevVox[0],PrevVox[1], PrevVox[2]
@@ -2296,37 +2295,45 @@ class Morphometry():
                                                 L2 = lx * lx + ly * ly + lz * lz
                                                 if L2 > 0.0:
                                                     nL += 1
-                                                    S = L2 ** 0.5
-                                                    N = SumL[n]
-                                                    SumL[n] = np.array([S[0]+N[0], S[1]+N[1], S[2]+N[2]])
-                                                    SumL2[n] += np.asarray([L2], dtype='f8')
-                                                    SumL4[n] += np.asarray([L2 * L2], dtype='f8')
+                                                    SumL[n] += L2 ** 0.5
+                                                    SumL2[n] += L2
+                                                    SumL4[n] += L2 * L2
                                     elif Array[Zv, Yv, Xv] == 0:
                                         if StartFlag == True:
+                                            Text = 'ok2'
                                             StartFlag = False
                                             EndBone = PrevVox[0], PrevVox[1], PrevVox[2]
                                             lx = StartBone[0] - EndBone[0]
                                             ly = StartBone[1] - EndBone[1]
                                             lz = StartBone[2] - EndBone[2]
                                             L2 = lx * lx + ly * ly + lz * lz
+                                            Text2 = L2
                                             if L2 > 0.0:
                                                 nL += 1
-                                                SumL[n] += np.asarray([L2 ** 0.5], dtype='f8')
-                                                SumL2[n] += np.asarray([L2], dtype='f8')
-                                                SumL4[n] += np.asarray([L2 * L2], dtype='f8')
+                                                SumL[n] += L2 ** 0.5
+                                                SumL2[n] += L2
+                                                SumL4[n] += L2 * L2
                                     elif StartFlag == False:
+                                        Text = 'ok3'
                                         StartBone = (VoxX, VoxY, VoxZ)
                                         StartFlag = True
+                                    PrevVox = (VoxX, VoxY, VoxZ)
 
                                 break
 
                 n2 = (-n[0], -n[1], -n[2])
-                MIL[n] = SumL[n] / float(nL)
-                MIL[n2] = SumL[n] / float(nL)
-                SLD[n] = SumL2[n] / SumL[n]
-                SLD[n2] = SumL2[n] / SumL[n]
-                SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
-                SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
+                try:
+                    MIL[n] = SumL[n] / float(nL)
+                except:
+                    print(nL)
+                    print(Text)
+                    # print(Text2)
+
+                # MIL[n2] = SumL[n] / float(nL)
+                # SLD[n] = SumL2[n] / SumL[n]
+                # SLD[n2] = SumL2[n] / SumL[n]
+                # SVD[n] = np.pi / 3.0 * SumL4[n] / SumL[n]
+                # SVD[n2] = np.pi / 3.0 * SumL4[n] / SumL[n]
 
             return i, MIL, SVD, SLD
 
@@ -2334,13 +2341,13 @@ class Morphometry():
             Text = 'Original dist.'
             Time.Process(1, Text)
 
-        MIL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
-        SVD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
-        SLD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        MIL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
+        SVD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
+        SLD = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
 
-        SumL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
-        SumL2 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
-        SumL4 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64[:],)
+        SumL = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
+        SumL2 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
+        SumL4 = Dict.empty(key_type=types.UniTuple(types.float64, 3), value_type=types.float64,)
 
         Corners = Dict.empty(key_type=types.unicode_type, value_type=types.float64[:],)
         Corners['swb'] = np.asarray([0.0, 0.0, 0.0], dtype='f8')
@@ -2389,7 +2396,6 @@ class Morphometry():
         BaseModel['w'] = 'swb'
         BaseModel['b'] = 'swb'
         BaseModel['t'] = 'swt'
-        
         
         ViewerAt = {}
         ViewerAt['swb'] = (1.0, 1.0, 1.0)
@@ -2504,7 +2510,7 @@ class Morphometry():
             if Echo:
                 Time.Update(i/Sum, 'Setup Data')
 
-            i, MIL, SVD, SLD = NumbaSetupData(i, Dict2, self.nX, self.nY, self.nZ, MIL, SVD, SLD)
+            i, MIL, SVD, SLD = NumbaSetupData(i, Dict2, self.nX, self.nY, self.nZ, MIL, SVD, SLD, SumL, SumL2, SumL4, Corners, EntryPlanes, ModelPlanes, BaseModel)
 
         if Echo == True:
             Time.Process(0, Text)
@@ -2537,7 +2543,8 @@ class Morphometry():
             nHat[d, 3] = np.sqrt(2.0) * n[1] * n[2]
             nHat[d, 4] = np.sqrt(2.0) * n[2] * n[0]
             nHat[d, 5] = np.sqrt(2.0) * n[0] * n[1]
-            An[d] = 1.0 / OrgMIL[n] * (1.0 / OrgMIL[n])
+            MILn = np.array(OrgMIL[n], dtype=float)
+            An[d] = 1.0 / MILn * (1.0 / MILn)
             d += 1
 
         N1 = np.dot(np.transpose(nHat), nHat)
