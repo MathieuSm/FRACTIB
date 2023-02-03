@@ -30,18 +30,20 @@ import argparse
 import numpy as np
 import sympy as sp
 import pandas as pd
+from numba import njit
 import SimpleITK as sitk
 from pathlib import Path
+from numba.core import types
 import scipy.signal as sig
 import matplotlib.pyplot as plt
+from numba.typed import Dict, List
 import statsmodels.formula.api as smf
 from scipy.stats.distributions import t
 from vtk.util.numpy_support import vtk_to_numpy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
+from pypore3d.p3dBlobPy import py_p3dMorphometricAnalysis as MA
 
-from numba import njit
-from numba.core import types
-from numba.typed import Dict, List
 
 #%% Tuning
 # Tune diplay settings
@@ -2468,6 +2470,184 @@ class Morphometry():
         eValMIL, eVectMIL = self.EigenValuesAndVectors(OrgMIL)
 
         return eValMIL, eVectMIL
+
+    def Trabecular(self, Image, Mask=None, DA=True):
+
+        """
+        Perform trabecular morphological analysis
+        :param Image: Segmented image of trabecular bone
+                      - Type: binary 0-255 sitkImage
+        :param Mask : Mask for region of interest selection
+                      - Type: binary 0-255 sitkImage
+        :param DA   : Compute or not the degree of anisotropy
+                      using mean intercept length
+        :return Data: Pandas data frame with computed parameters
+        """
+
+        Data = pd.DataFrame()
+
+        # Write temporary images to disk
+        dX, dY, dZ = Image.GetSize()
+        Spacing = Image.GetSpacing()
+        sitk.WriteImage(Image, 'TempROI.mhd')
+        sitk.WriteImage(Mask, 'TempMask.mhd')
+
+        # Perform morphometric analysis
+        ROI = ReadRaw8('TempROI.raw', dX, dY, dimz=dZ)
+        ROIMask = ReadRaw8('TempMask.raw', dX, dY, dimz=dZ)
+        MS = MA(ROI, ROIMask, dX, dY, dimz=dZ, resolution=Spacing)
+
+        # Remove temporary files and write data to disk
+        for F in ['TempROI','TempMask']:
+            os.remove(F + '.mhd')
+            os.remove(F + '.raw')
+
+        # Store data
+        Props = ['BV/TV (-)', 'Tb.Th. (mm)', 'Tb.N. (-)', 'Tb.Sp. (mm)']
+        Measures = [MS.BvTv, MS.TbTh, MS.TbN, MS.TbSp]
+        for Prop, Stat in zip(Props, Measures):
+            Data[Prop] = Stat
+
+        # Compute MIL for degree of anisotropy assessment
+        if DA:
+            Masked = sitk.Mask(Image, Mask)
+            eVal, eVect = MIL(Masked)
+            Data['DA'] = max(eVal) / min(eVal)
+
+        return Data
+
+    def Cortical(self, Image):
+
+        """
+        Compute morphology standard parameters for cortical bone
+        :param Image: Segmented image of trabecular bone
+                      - Type: binary sitkImage
+        :return Data: Pandas data frame with computed parameters
+        """
+
+        Data = pd.DataFrame()
+        Spacing = Image.GetSpacing()
+        Size = Image.GetSize()
+
+        T = []
+        I = []
+        D = []
+        Circle = measure.CircleModel()
+        for S in range(Size[2]):
+            Slice = sitk.Slice(Image, (0, 0, S), (Size[0], Size[1], S+1))
+            Pad = sitk.ConstantPad(Slice, (1, 1, 0), (1, 1, 0))
+            Array = sitk.GetArrayFromImage(Pad)
+
+            # Cortical thickness
+            Skeleton, Distance = morphology.medial_axis(Array, return_distance=True)
+            T.append(2 * np.mean(Distance[Skeleton]) * Spacing[0])
+
+            # Inertia
+            Properties = measure.regionprops(Array)[0]
+            I.append(Properties.inertia_tensor[0,0] * Properties.area * Spacing[0]**2)
+
+            # Fitted diameter
+            Circle.estimate(Properties.coords[:,1:])
+            D.append(Circle.params[2] * Spacing * 2)
+
+        
+        Props = ['C.Th (mm)', 'I (mm4)', 'D (mm)']
+        Measures = [np.mean(T), np.mean(I), np.mean(D)]
+        for Prop, Stat in zip(Props, Measures):
+            Data[Prop] = Stat
+        
+        return Data
+
+    def SegmentBone(Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=None):
+
+        """
+        Perform segmentation of bone form gray value image
+        Step 1: gaussian filter to smooth values
+        Step 2: multiple Otsu's algorithm for segmentation
+        Step 3: Crop image at bone limits to reduce memory
+        Step 4: Pad to avoid border contacts
+        Optional
+        Step 5: Close contour for further hole filling
+        Step 6: Mask generation by filling holes in consecutive z slices
+
+        :param Image: Gray value image
+                      - Type: sitkImage
+        :param Sigma: Filter width
+                      - Type: float
+        :param nThresholds: Number of Otsu's threshold
+                      - Type: int
+        :param Mask: Generate mask or not
+                      - Type: bool
+        :param CloseSize: Radius used to close the contour
+                      - Type: int
+
+        :return GrayCrop: Cropped gray value image
+                BinCrop: Cropped binary segmented image
+                Mask: Generated mask
+        """
+
+        # Filter image to reduce noise
+        Gauss = sitk.SmoothingRecursiveGaussianImageFilter()
+        Gauss.SetSigma(Sigma)
+        Smooth  = Gauss.Execute(Image)
+
+        # Segment image by thresholding using Otsu's method
+        Otsu = sitk.OtsuMultipleThresholdsImageFilter()
+        Otsu.SetNumberOfThresholds(nThresholds)
+        Seg = Otsu.Execute(Smooth)
+
+        # Binarize image to keep bone only
+        Binarize = sitk.BinaryThresholdImageFilter()
+        Binarize.SetUpperThreshold(1)
+        Binarize.SetOutsideValue(255)
+        Binarize.SetInsideValue(0)
+        Bin = Binarize.Execute(Seg)
+
+        # Crop image to bone
+        Array = sitk.GetArrayFromImage(Bin)
+        Z, Y, X = np.where(Array > 0)
+        X1, X2 = int(X.min()), int(X.max())
+        Y1, Y2 = int(Y.min()), int(Y.max())
+        Z1, Z2 = int(Z.min()), int(Z.max())
+        BinCrop = sitk.Slice(Bin, (X1, Y1, Z1), (X2, Y2, Z2))
+        GrayCrop = sitk.Slice(Image, (X1, Y1, Z1), (X2, Y2, Z2))
+
+        # Pad images to avoid contact with border
+        BinCrop = sitk.ConstantPad(BinCrop, (1,1,1), (1,1,1))
+        GrayCrop = sitk.ConstantPad(GrayCrop, (1,1,1), (1,1,1))
+
+        if Mask:
+            # Close contour
+            Close = sitk.BinaryMorphologicalClosingImageFilter()
+            Close.SetForegroundValue(255)
+            Close.SetKernelRadius(CloseSize)
+            Closed = Close.Execute(BinCrop)
+
+            # Generate mask slice by slice
+            Size = BinCrop.GetSize()
+            Mask = BinCrop
+            for Start in range(Size[2]):
+                Slice = sitk.Slice(Closed, (0, 0, Start), (Size[0], Size[1], Start+1))
+
+                # Pad slice in z direction to "close" holes
+                Pad = sitk.ConstantPad(Slice, (0,0,1), (0,0,1), 255)
+
+                # Fill holes
+                Fill = sitk.BinaryFillholeImageFilter()
+                Fill.SetForegroundValue(255)
+                Filled = Fill.Execute(Pad)
+
+                # Get center slice
+                Slice = sitk.Slice(Filled, (0, 0, 1), (Size[0], Size[1], 2))
+
+                # Paste slice into original image
+                Mask = sitk.Paste(Mask, Slice, Slice.GetSize(), destinationIndex=(0,0,Start+1))
+
+            return GrayCrop, BinCrop, Mask
+        
+        else:
+            return GrayCrop, BinCrop
+
 
 Morphometry = Morphometry()
 
