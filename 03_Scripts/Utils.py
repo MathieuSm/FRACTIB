@@ -304,6 +304,7 @@ class Time():
             self.Text = Text
 
         if StartStop*1 == 1:
+            print('')
             self.Tic = time.time()
             self.Update(0, Text)
 
@@ -1056,8 +1057,6 @@ class Read():
 
         f.seek(32)
         CT_ID = struct.unpack('i', f.read(4))[0]
-        if self.Echo:
-            print('\tScanner ID:                 ', CT_ID)
 
         if CT_ID != 6020:
             print('!!! unknown muCT -> no Slope and Intercept known !!!')
@@ -1067,33 +1066,21 @@ class Read():
 
         f.seek(108)
         Scanning_time = struct.unpack('i', f.read(4))[0] / 1000
-        if self.Echo:
-            print('\tScanning time in ms:         ', Scanning_time)
 
         f.seek(168)
         Energy = struct.unpack('i', f.read(4))[0] / 1000.
-        if self.Echo:
-            print('\tEnergy in keV:              ', Energy)
 
         f.seek(172)
         Current = struct.unpack('i', f.read(4))[0]
-        if self.Echo:
-            print('\tCurrent in muA:             ', Current)
 
         f.seek(44)
         X_pixel = struct.unpack('i', f.read(4))[0]
-        if self.Echo:
-            print('\tNb X pixel:                 ', X_pixel)
 
         f.seek(48)
         Y_pixel = struct.unpack('i', f.read(4))[0]
-        if self.Echo:
-            print('\tNb Y pixel:                 ', Y_pixel)
 
         f.seek(52)
         Z_pixel = struct.unpack('i', f.read(4))[0]
-        if self.Echo:
-            print('\tNb Z pixel:                 ', Z_pixel)
 
         f.seek(56)
         Res_General_X = struct.unpack('i', f.read(4))[0]
@@ -1108,16 +1095,8 @@ class Read():
         #print('Resolution general Z in mu: ', Res_General_Z)
 
         Res_X = Res_General_X / float(X_pixel)
-        if self.Echo:
-            self.print('\tPixel resolution X in mu:    %.2f' % Res_X)
-
         Res_Y = Res_General_Y / float(Y_pixel)
-        if self.Echo:
-            print('\tPixel resolution Y in mu:    %.2f' % Res_Y)
-
         Res_Z = Res_General_Z / float(Z_pixel)
-        if self.Echo:
-            print('\tPixel resolution Z in mu:    %.2f' % Res_Z)
 
         Header_Txt = ['scanner ID:                 %s' % CT_ID,
                     'scaning time in ms:         %s' % Scanning_time,
@@ -1172,9 +1151,6 @@ class Read():
                         'ElementType': 'int16',
                         'ElementDataFile': File}
 
-        #Toc = time.time()
-        #PrintTime(Tic, Toc)
-
         #print('\nReshape data')
         #Tic = time.time()
 
@@ -1208,6 +1184,17 @@ class Read():
 
         if self.Echo:
             Time.Process(0,Text)
+            print('\nScanner ID:                 ', CT_ID)
+            print('Scanning time in ms:         ', Scanning_time)
+            print('Energy in keV:              ', Energy)
+            print('Current in muA:             ', Current)
+            print('Nb X pixel:                 ', X_pixel)
+            print('Nb Y pixel:                 ', Y_pixel)
+            print('Nb Z pixel:                 ', Z_pixel)
+            print('Pixel resolution X in mu:    %.2f' % Res_X)
+            print('Pixel resolution Y in mu:    %.2f' % Res_Y)
+            print('Pixel resolution Z in mu:    %.2f' % Res_Z)
+
 
         if CT_ID == 6020 and BMD is True:
             # BE CAREFULL, THIS IS FOR BMD CONVERSION:
@@ -1273,7 +1260,7 @@ class Write():
 
         return
 
-    def MHD(self, Image, FileName, PixelType='uint'):
+    def MHD(self, Image, PixelType='uint'):
 
         if self.Echo:
             Text = 'Write MHD'
@@ -1320,10 +1307,17 @@ class Write():
             outs.write('ElementType = %s\n' % 'MET_FLOAT')
 
         if '\\' in self.FName:
-            Fname = FileName.split('\\')[-1]
+            Fname = self.FName.split('\\')[-1]
         elif '/' in self.FName:
-            Fname = FileName.split('/')[-1]
+            Fname = self.FName.split('/')[-1]
+        else:
+            Fname = self.FName
         outs.write('ElementDataFile = %s\n' % (Fname + '.raw'))
+
+        if PixelType == 'norm':
+            Array = sitk.GetArrayFromImage(Image)
+            outs.write('\n# Min Max = %i %i\n' % (Array.min(), Array.max()))
+
         outs.close()
 
         self.Raw(Image, PixelType)
