@@ -7,8 +7,8 @@ Description = """
     This script aims to provide utility functions to
     manipulate image (reading, ploting, registering,
     and writing), signal processing, abaqus file read-
-    ing, and bone analysis. Most functions are taken
-    from different sources and adapted here
+    ing, and bone analysis and tensor algebra. Most 
+    functions are taken from different sources and adapted here
     
     Author: Mathieu Simon
             ARTORG Center for Biomedical Engineering Research
@@ -33,12 +33,13 @@ import pandas as pd
 from numba import njit
 import SimpleITK as sitk
 from pathlib import Path
-from numba.core import types
 import scipy.signal as sig
+from numba.core import types
 import matplotlib.pyplot as plt
 from numba.typed import Dict, List
 import statsmodels.formula.api as smf
 from scipy.stats.distributions import t
+from skimage import measure, morphology
 from vtk.util.numpy_support import vtk_to_numpy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
@@ -801,8 +802,13 @@ class Show():
         ColorMap = plt.cm.ScalarMappable(cmap=plt.cm.jet)
         ColorMap.set_array(nNorm)
         if not NormedColor.max() == 1:
-            ColorBar = plt.colorbar(ColorMap, ticks=[int(Color.mean() - 1), int(Color.mean()), int(Color.mean() + 1)])
-            plt.cm.ScalarMappable.set_clim(self=ColorMap, vmin=int(Color.mean() - 1), vmax=int(Color.mean() + 1))
+            ColorBar = plt.colorbar(ColorMap, 
+                                    ticks=[int(NormedColor.mean() - 1),
+                                    int(NormedColor.mean()),
+                                    int(NormedColor.mean() + 1)])
+            plt.cm.ScalarMappable.set_clim(self=ColorMap,
+                                           vmin=int(NormedColor.mean() - 1),
+                                           vmax=int(NormedColor.mean() + 1))
         ColorBar = plt.colorbar(ColorMap)
         ColorBar.set_label('Vector norm (-)')
 
@@ -843,8 +849,8 @@ class Read():
         """
 
         if self.Echo:
-            print('\nRead AIM')
-            Tic = time.time()
+            Text = 'Read AIM'
+            Time.Process(1, Text)
 
         # read header
         with open(File, 'rb') as f:
@@ -967,8 +973,7 @@ class Read():
                         'Header':Header}
 
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0, Text)
 
         return Image, AdditionalData
 
@@ -1035,8 +1040,8 @@ class Read():
         """
 
         if self.Echo:
-            print('\nRead ISQ file')
-        Tic = time.time()
+            Text = 'Read ISQ'
+            Time.Process(1, Text)
 
         try:
             f = open(File, 'rb')
@@ -1077,7 +1082,7 @@ class Read():
 
         f.seek(44)
         X_pixel = struct.unpack('i', f.read(4))[0]
-        if Echo:
+        if self.Echo:
             print('\tNb X pixel:                 ', X_pixel)
 
         f.seek(48)
@@ -1202,8 +1207,7 @@ class Read():
 
 
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0,Text)
 
         if CT_ID == 6020 and BMD is True:
             # BE CAREFULL, THIS IS FOR BMD CONVERSION:
@@ -1458,8 +1462,8 @@ class Write():
         Q = np.array(eVectors)
 
         ## Build data for fabric plotting
-        u = np.arange(0, 2 * np.pi + 2 * np.pi / NPoints, 2 * np.pi / NPoints)
-        v = np.arange(0, np.pi + np.pi / NPoints, np.pi / NPoints)
+        u = np.arange(0, 2 * np.pi + 2 * np.pi / nPoints, 2 * np.pi / nPoints)
+        v = np.arange(0, np.pi + np.pi / nPoints, np.pi / nPoints)
         X = eValues[0] * np.outer(np.cos(u), np.sin(v))
         Y = eValues[1] * np.outer(np.sin(u), np.sin(v))
         Z = eValues[2] * np.outer(np.ones_like(u), np.cos(v))
@@ -1504,13 +1508,13 @@ class Write():
             VTKFile.write('\n')
 
         # Write cells connectivity
-        Cells = int(NPoints**2)
+        Cells = int(nPoints**2)
         ListSize = int(Cells*5)
         VTKFile.write('\nCELLS ' + str(Cells) + ' ' + str(ListSize) + '\n')
 
         ## Add connectivity of each cell
         Connectivity = np.array([0, 1])
-        Connectivity = np.append(Connectivity,[NPoints+2,NPoints+1])
+        Connectivity = np.append(Connectivity,[nPoints+2,nPoints+1])
 
         for i in range(Cells):
             if self.Echo:
@@ -1518,7 +1522,7 @@ class Write():
 
             VTKFile.write('4')
 
-            if i > 0 and np.mod(i,NPoints) == 0:
+            if i > 0 and np.mod(i,nPoints) == 0:
                 Connectivity = Connectivity + 1
 
             for j in Connectivity:
@@ -1538,11 +1542,11 @@ class Write():
         VTKFile.write('SCALARS MIL float\n')
         VTKFile.write('LOOKUP_TABLE default\n')
 
-        for i in range(NPoints+1):
+        for i in range(nPoints+1):
             if self.Echo:
-                Time.Update(i / len(NPoints+1), 'Write Values')
-            for j in range(NPoints+1):
-                VTKFile.write(str(nNorm.reshape(Points)[j + i * (NPoints+1)].round(3)))
+                Time.Update(i / len(nPoints+1), 'Write Values')
+            for j in range(nPoints+1):
+                VTKFile.write(str(nNorm.reshape(Points)[j + i * (nPoints+1)].round(3)))
                 VTKFile.write(' ')
             VTKFile.write('\n')
         VTKFile.close()
@@ -1562,8 +1566,8 @@ class Registration():
     def Register(self, FixedImage, MovingImage, Type, FixedMask=None, MovingMask=None, Path=None, Dictionary={}):
 
         if self.Echo:
-            print('\nPerform ' + Type + ' registration')
-            Tic = time.time()
+            Text = Type + ' reg.'
+            Time.Process(1, Text)
         PM = sitk.GetDefaultParameterMap(Type)
 
         # Set standard parameters if not specified otherwise
@@ -1606,9 +1610,6 @@ class Registration():
             EIF.LogToConsoleOff()
             EIF.LogToFileOn()
 
-        if os.name == 'posix':
-            EIF.SetNumberOfThreads(8)
-
         EIF.Execute()
 
         # Get results
@@ -1617,8 +1618,7 @@ class Registration():
 
         # Print elapsed time
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0, Text)
 
         return Result_Image, TransformParameters
         
@@ -1629,8 +1629,8 @@ class Registration():
         """
 
         if self.Echo:
-            print('\nCompute registration inverse transform')
-            Tic = time.time()
+            Text = 'Inverse reg.'
+            Time.Process(1, Text)
 
         # Set Elastix and perform registration
         EF = sitk.ElastixImageFilter()
@@ -1661,8 +1661,7 @@ class Registration():
 
         # Print elapsed time
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0, Text)
 
         return InvertedTransform
 
@@ -1673,8 +1672,8 @@ class Registration():
         """
 
         if self.Echo:
-            print('\nApply transform using Transformix')
-            Tic = time.time()
+            Text = 'Apply Transform'
+            Time.Process(1, Text)
 
         TIF = sitk.TransformixImageFilter()
         TIF.ComputeDeterminantOfSpatialJacobianOff()
@@ -1702,8 +1701,7 @@ class Registration():
 
         # Print elapsed time
         if self.Echo:
-            Toc = time.time()
-            PrintTime(Tic, Toc)
+            Time.Process(0, Text)
 
         return ResultImage
  
@@ -1712,6 +1710,10 @@ class Registration():
         """
         Apply costum parameter map to an image
         """
+
+        if self.Echo:
+            Text = 'Custom transform'
+            Time.Process(1, Text)
 
         # Get transform parameters
         D = np.array(TransformParameterMap['FixedImageDimension'], 'int')[0]
@@ -1729,6 +1731,9 @@ class Registration():
         T = sitk.TranslationTransform(int(D), -TP[3:])
         Image_T = sitk.Resample(Image_R, T)
 
+        if self.Echo:
+            Time.Process(0, Text)
+
         return Image_T
            
     def ApplyInverse(self, Image, TransformParameterMap):
@@ -1736,6 +1741,10 @@ class Registration():
         """
         Apply inverse rigid transform from transform parameter map
         """
+
+        if self.Echo:
+            Text = 'Inverse transform'
+            Time.Process(1, Text)
 
         # Get transform parameters
         D = np.array(TransformParameterMap['FixedImageDimension'], 'int')[0]
@@ -1758,6 +1767,9 @@ class Registration():
         # Translate again for center of rotation
         T = sitk.TranslationTransform(int(D), COR)
         Image_T = sitk.Resample(Image_R, T)
+
+        if self.Echo:
+            Time.Process(0, Text)
 
         return Image_T
 
@@ -1909,12 +1921,13 @@ Abaqus = Abaqus()
 class Morphometry():
 
     def __init__(self):
+        self.Echo = True
         pass
 
     def SplitTriangle(self, Tri):
 
         """ 
-        Used in SetupSphereTriangles for MIL computation
+        Used in SphereTriangles for MIL computation
         Splits one triange into four triangles. 
         """
 
@@ -2139,7 +2152,7 @@ class Morphometry():
 
         return Normals, Area_n
 
-    def OriginalDistribution(self, Array, Step, Power, Echo=True):
+    def OriginalDistribution(self, Array, Step, Power):
 
         """
         Used in step 2 of MIL computation
@@ -2175,7 +2188,7 @@ class Morphometry():
                       - TYPE: same as for MIL          
         """
 
-        if Echo == True:
+        if self.Echo:
             Text = 'Compute MIL'
             Time.Process(1, Text)
 
@@ -2345,7 +2358,7 @@ class Morphometry():
 
             EntryPlanes = List([v[0], v[1], v[2]])
 
-            if Echo:
+            if self.Echo:
                 Time.Update(i/Sum, 'Setup Data')
 
             CVx = List([CornVoxX, CornVoxY, CornVoxZ])
@@ -2357,8 +2370,9 @@ class Morphometry():
                                                  Dict2, Corners, EntryPlanes,
                                                  ModelPlanes, BaseModel)
 
-        if Echo == True:
+        if self.Echo:
             Time.Process(0, Text)
+        
         return MIL, SVD, SLD, Area
 
     def FabricTensor(self, OrgMIL):
@@ -2460,13 +2474,10 @@ class Morphometry():
         else:
             print('Image must be either numpy array or sitk image')
 
-        # Step 1: Setup sphere triangles
-        Triangles = self.SphereTriangles(Power2)
-
-        # Step 2: Compute original distribution
+        # Step 1: Compute original distribution
         OrgMIL, OrgSVD, OrgSLD, Area = self.OriginalDistribution(Array, Step, Power)
 
-        # Step 3: Compute eigen values and eigen vectors
+        # Step 2: Compute eigen values and eigen vectors
         eValMIL, eVectMIL = self.EigenValuesAndVectors(OrgMIL)
 
         return eValMIL, eVectMIL
@@ -2488,7 +2499,7 @@ class Morphometry():
 
         # Write temporary images to disk
         dX, dY, dZ = Image.GetSize()
-        Spacing = Image.GetSpacing()
+        Spacing = Image.GetSpacing()[0]
         sitk.WriteImage(Image, 'TempROI.mhd')
         sitk.WriteImage(Mask, 'TempMask.mhd')
 
@@ -2506,13 +2517,13 @@ class Morphometry():
         Props = ['BV/TV (-)', 'Tb.Th. (mm)', 'Tb.N. (-)', 'Tb.Sp. (mm)']
         Measures = [MS.BvTv, MS.TbTh, MS.TbN, MS.TbSp]
         for Prop, Stat in zip(Props, Measures):
-            Data[Prop] = Stat
+            Data.loc[0,Prop] = Stat
 
         # Compute MIL for degree of anisotropy assessment
         if DA:
             Masked = sitk.Mask(Image, Mask)
-            eVal, eVect = MIL(Masked)
-            Data['DA'] = max(eVal) / min(eVal)
+            eVal, eVect = self.MIL(Masked)
+            Data.loc[0,'DA'] = max(eVal) / min(eVal)
 
         return Data
 
@@ -2526,7 +2537,7 @@ class Morphometry():
         """
 
         Data = pd.DataFrame()
-        Spacing = Image.GetSpacing()
+        Spacing = Image.GetSpacing()[0]
         Size = Image.GetSize()
 
         T = []
@@ -2538,27 +2549,28 @@ class Morphometry():
             Pad = sitk.ConstantPad(Slice, (1, 1, 0), (1, 1, 0))
             Array = sitk.GetArrayFromImage(Pad)
 
-            # Cortical thickness
-            Skeleton, Distance = morphology.medial_axis(Array, return_distance=True)
-            T.append(2 * np.mean(Distance[Skeleton]) * Spacing[0])
+            if Array.sum() > 0:
+                # Cortical thickness
+                Skeleton, Distance = morphology.medial_axis(Array[0], return_distance=True)
+                T.append(2 * np.mean(Distance[Skeleton]) * Spacing)
 
-            # Inertia
-            Properties = measure.regionprops(Array)[0]
-            I.append(Properties.inertia_tensor[0,0] * Properties.area * Spacing[0]**2)
+                # Inertia
+                Properties = measure.regionprops(Array)[0]
+                I.append(Properties.inertia_tensor[0,0] * Properties.area * Spacing**2)
 
-            # Fitted diameter
-            Circle.estimate(Properties.coords[:,1:])
-            D.append(Circle.params[2] * Spacing * 2)
+                # Fitted diameter
+                Circle.estimate(Properties.coords[:,1:])
+                D.append(Circle.params[2] * Spacing * 2)
 
         
         Props = ['C.Th (mm)', 'I (mm4)', 'D (mm)']
-        Measures = [np.mean(T), np.mean(I), np.mean(D)]
+        Measures = [np.median(T), np.median(I), np.median(D)]
         for Prop, Stat in zip(Props, Measures):
-            Data[Prop] = Stat
+            Data.loc[0,Prop] = Stat
         
         return Data
 
-    def SegmentBone(Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=None):
+    def SegmentBone(self, Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=None):
 
         """
         Perform segmentation of bone form gray value image
@@ -2647,7 +2659,6 @@ class Morphometry():
         
         else:
             return GrayCrop, BinCrop
-
 
 Morphometry = Morphometry()
 
@@ -2826,7 +2837,7 @@ class Tensor():
         AShape = A.shape
         BShape = B.shape
         if AShape[len(AShape) - 1] < BShape[0]:
-            print('\nInconsistent Shape  A=', ash, ' B=', bsh)
+            print('\nInconsistent Shape  A=', AShape, ' B=', BShape)
         return
 
     def CheckShape(self, A):
