@@ -1005,8 +1005,8 @@ class Read():
         80   int     min_data_value;
         84   int     max_data_value;
         88   int     mu_scaling;             //p.skip(88);  /* p(x,y,z)/mu_scaling = value [1/cm]
-        92	int     nr_of_samples;
-        96	int     nr_of_projections;
+        92	 int     nr_of_samples;
+        96	 int     nr_of_projections;
         100  int     scandist_um;
         104  int     scanner_type;
         108  int     sampletime_us;
@@ -2564,7 +2564,7 @@ class Morphometry():
         
         return Data
 
-    def SegmentBone(self, Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=None):
+    def SegmentBone(self, Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=1):
 
         """
         Perform segmentation of bone form gray value image
