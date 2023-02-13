@@ -40,17 +40,14 @@ Arguments = Arguments()
 
 def Main(Arguments):
 
-    print('\nMatch ARAMIS and MTS signals')
-    TIC = time.time()
+    Text = 'Match ' + Arguments.Sample
+    Time.Process(1, Text)
 
     # Set directories and load data
     WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
     DataDir = Data / '03_Experiment'
     ResultsDir = Results / '02_Experiment' / Arguments.Sample
     os.makedirs(ResultsDir, exist_ok=True)
-
-    print('\nLoad data')
-    Tic = time.time()
 
     MTSFile = str(DataDir / '1_MTS' / 'AO_data_MTS.json')
     with open(MTSFile) as File:
@@ -60,17 +57,14 @@ def Main(Arguments):
 
     ARAMISFile = str(DataDir / '2_ARAMIS' / (Arguments.Sample + '.csv'))
     ARAMISData = pd.read_csv(ARAMISFile, index_col=0, sep=';', header=1, parse_dates=['Time UTC'])
-    
+
     # V03 - Drop nan data and re-index
     ARAMISData.dropna(inplace=True)
     ARAMISData.reset_index(drop=True, inplace=True)
 
-    Toc = time.time()
-    PrintTime(Tic, Toc)
 
     # Preprocessing of ARAMIS data
-    print('\nSignals preprocessing')
-    Tic = time.time()
+    Time.Update(1/5, 'Preprocessing')
 
     Variable = 'TopPlate_Csys→AnatomicalCsys.' 
     Z = Variable + 'LZ [mm]'
@@ -78,14 +72,13 @@ def Main(Arguments):
     ARAMISData['T'] = (ARAMISData['Time UTC'] - ARAMISData.loc[0,'Time UTC']).dt.total_seconds()
 
     # Interpolate signal for regular sampling frequency and match MTS frequency
-    print('\tARAMIS signal interpolation')
     Sampling = 1 / (MTSData.loc[1,'T'] - MTSData.loc[0,'T'])
     NPoints = int(round(ARAMISData['T'].max() * Sampling))
     Time = np.linspace(0, (NPoints-1) / Sampling, NPoints)
     Interpolated = np.interp(Time, ARAMISData['T'], ARAMISData['D'])
 
     # Signals filtering
-    print('\tFiltering')
+    Time.Update(2/5, 'Filtering')
     FilteredMTS = pd.DataFrame()
     CutOff = 2.5 # Cut-off frequency in Hz
     FilteredMTS['D'] = Signal.Filter(MTSData['D'], Sampling, CutOff)
@@ -95,9 +88,6 @@ def Main(Arguments):
     CutOff = 1 # Cut-off frequency in Hz
     FilteredARAMIS['D'] = Signal.Filter(Interpolated, Sampling, CutOff)
 
-    Toc = time.time()
-    PrintTime(Tic, Toc)
-
     # Trunkate ARAMIS signal for non-sense positive displacement
     Last = FilteredARAMIS[FilteredARAMIS['D'] < 0].index[-1]
 
@@ -105,8 +95,7 @@ def Main(Arguments):
         FilteredARAMIS = FilteredARAMIS.iloc[:Last]
 
     # Peaks detection (use prominence for stability)
-    print('\nSignals alignment')
-    Tic = time.time()
+    Time.Update(3/5, 'Signals alignment')
 
     # V02 - Adapt prominence to match empirical criteria for peak detection
     Prominence = 0.02
@@ -168,8 +157,7 @@ def Main(Arguments):
     Times = [MTSData['T'][:Junction], NewTimes, NewTimes[-1] + MTSData['T'][Junction+1:]]
     Times = np.concatenate(Times)
 
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+    Time.Update(4/5)
 
     # Interpolate and filter relevant signals and store in dataframe
     Variables = ['LX [mm]', 'LY [mm]', 'LZ [mm]', 'Phi(X) [°]', 'Theta(Y) [°]', 'Psi(Z) [°]']
@@ -202,9 +190,7 @@ def Main(Arguments):
     plt.savefig(str(ResultsDir / 'Signals.png'))
     plt.close((Figure))
 
-    print('\nSignals matched!')
-    TOC = time.time()
-    PrintTime(TIC, TOC)
+    Time.Process(0, Text)
 
     return
 
