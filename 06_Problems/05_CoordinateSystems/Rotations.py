@@ -24,6 +24,7 @@ import argparse
 import numpy as np
 import sympy as sp
 import pandas as pd
+from numba import njit
 from pathlib import Path
 import scipy.signal as sig
 import matplotlib.pyplot as plt
@@ -31,6 +32,7 @@ from scipy.optimize import minimize
 
 mpld3.enable_notebook()
 np.set_printoptions(linewidth=500,suppress=True,formatter={'float_kind':'{:3}'.format})
+# %matplotlib widget
 
 #%% Functions
 # Define functions
@@ -107,34 +109,54 @@ def ReadDAT(File):
 
         return
 
-def RotationMatrix(Phi=0, Theta=0, Psi=0, V=np.zeros(3), A=0):
+def RotationMatrix(Phi=0.0, Theta=0.0, Psi=0.0, V=np.zeros(3), A=0):
 
     if (V != 0).any():
         a = np.cos(A) * np.eye(3)
         b = np.sin(A) * np.array([[0, -V[2], V[1]],[V[2], 0, -V[0]],[-V[1], V[0], 0]])
-        c = (1-np.cos(Angle)) * np.outer(V, V)
+        c = (1-np.cos(A)) * np.outer(V, V)
         R = np.round(a + b + c, 15)
 
     else:
-        Rx = sp.Matrix([[1,             0,              0],
-                        [0, sp.cos(Phi), -sp.sin(Phi)],
-                        [0, sp.sin(Phi),  sp.cos(Phi)]])
 
-        Ry = sp.Matrix([[ sp.cos(Theta), 0, sp.sin(Theta)],
-                        [0,             1,              0],
-                        [-sp.sin(Theta), 0, sp.cos(Theta)]])
+        # if list of angles, use numpy for speed
+        try:
+            len(Phi)
+            Phi, Theta, Psi = np.array(Phi), np.array(Theta), np.array(Psi)
+            Rx = np.array([[np.ones(len(Phi)),  np.zeros(len(Phi)), np.zeros(len(Phi))],
+                           [np.zeros(len(Phi)),        np.cos(Phi),       -np.sin(Phi)],
+                           [np.zeros(len(Phi)),        np.sin(Phi),        np.cos(Phi)]])
 
-        Rz = sp.Matrix([[sp.cos(Psi), -sp.sin(Psi), 0],
-                        [sp.sin(Psi),  sp.cos(Psi), 0],
-                        [0,             0,              1]])
+            Ry = np.array([[ np.cos(Theta),      np.zeros(len(Theta)),        np.sin(Theta)],
+                           [np.zeros(len(Theta)), np.ones(len(Theta)), np.zeros(len(Theta))],
+                           [-np.sin(Theta),      np.zeros(len(Theta)),        np.cos(Theta)]])
 
-        R = Rz * Ry * Rx
+            Rz = np.array([[np.cos(Psi),              -np.sin(Psi), np.zeros(len(Psi))],
+                           [np.sin(Psi),               np.cos(Psi), np.zeros(len(Psi))],
+                           [np.zeros(len(Psi)), np.zeros(len(Psi)),  np.ones(len(Psi))]])
+
+            R = np.einsum('ijl,jkl->lik',Rz, np.einsum('ijl,jkl->ikl',Ry, Rx))
+
+        # if only float angles, use sympy for more accuracy
+        except:
+            Rx = sp.Matrix([[1,             0,              0],
+                            [0, sp.cos(Phi), -sp.sin(Phi)],
+                            [0, sp.sin(Phi),  sp.cos(Phi)]])
+
+            Ry = sp.Matrix([[ sp.cos(Theta), 0, sp.sin(Theta)],
+                            [0,             1,              0],
+                            [-sp.sin(Theta), 0, sp.cos(Theta)]])
+
+            Rz = sp.Matrix([[sp.cos(Psi), -sp.sin(Psi),     0],
+                            [sp.sin(Psi),  sp.cos(Psi),     0],
+                            [0,             0,              1]])
+
+            R = Rz * Ry * Rx
     
     return np.array(R, dtype='float')
 
 def Show3DSys(Sys, Vector=np.zeros(3)):
 
-    %matplotlib widget
     Figure = plt.figure(figsize=(5.5, 4))
     Axis = Figure.add_subplot(111, projection='3d')
     Axis.quiver(-1,0,0,2,0,0,color=(0,0,0, 0.5), linewidth=0.5, arrow_length_ratio=0)
@@ -183,7 +205,6 @@ def Show3DSys(Sys, Vector=np.zeros(3)):
 
 def Show3DPath(X, Y, Z, R):
 
-    %matplotlib widget
     Figure = plt.figure(figsize=(5.5, 4))
     Axis = Figure.add_subplot(111, projection='3d')
 
@@ -261,7 +282,6 @@ def Show3D(Paths):
 
     Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
 
-    %matplotlib widget
     Figure = plt.figure(figsize=(5.5, 4))
     Axis = Figure.add_subplot(111, projection='3d')
 
@@ -338,25 +358,47 @@ def GetAngles(R):
     # Assuming R = RxRyRz
     # Adapted from https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
 
-    # Special case
-    if R[0,2] == 1 or R[0,2] == -1:
-        E3 = 0 # Set arbitrarily
-        dlta = np.arctan2(R[0,1],R[0,2])
+    if len(R.shape) == 2:
+        # Special case
+        if R[0,2] == 1 or R[0,2] == -1:
+            E3 = 0 # Set arbitrarily
+            dlta = np.arctan2(R[0,1],R[0,2])
 
-        if R[0,2] == -1:
-            E2 = np.pi/2;
-            E1 = E3 + dlta
+            if R[0,2] == -1:
+                E2 = np.pi/2;
+                E1 = E3 + dlta
+
+            else:
+                E2 = -np.pi/2;
+                E1 = -E3 + dlta
 
         else:
-            E2 = -np.pi/2;
-            E1 = -E3 + dlta
-
+            E2 = - np.arcsin(R[0,2])
+            E1 = np.arctan2(R[1,2]/np.cos(E2), R[2,2]/np.cos(E2))
+            E3 = np.arctan2(R[0,1]/np.cos(E2), R[0,0]/np.cos(E2))
+    
     else:
-        E2 = - np.arcsin(R[0,2])
-        E1 = np.arctan2(R[1,2]/np.cos(E2), R[2,2]/np.cos(E2))
-        E3 = np.arctan2(R[0,1]/np.cos(E2), R[0,0]/np.cos(E2))
+        E1, E2, E3 = np.zeros(len(R)), np.zeros(len(R)), np.zeros(len(R))
+        
+        M1 = R[:,0,2] == 1
+        M2 = R[:,0,2] == -1
+        if sum(M1 + M2) > 0:
+            dlta = np.arctan2(R[:,0,1],R[:,0,2])
 
-    return [E1, E2, E3]
+            if sum(M2) > 0:
+                E2[M2] = np.pi/2
+                E1[M2] = E3 + dlta
+
+            else:
+                E2[M1] = -np.pi/2
+                E1[M1] = -E3 + dlta
+
+        else:
+            E2 = - np.arcsin(R[:,0,2])
+            E1 = np.arctan2(R[:,1,2]/np.cos(E2), R[:,2,2]/np.cos(E2))
+            E3 = np.arctan2(R[:,0,1]/np.cos(E2), R[:,0,0]/np.cos(E2))
+
+    return np.array([-E1, -E2, -E3]).T
 
 def ComputeCost(Angle, Paths):
     R = RotationMatrix(Psi=Angle[0])
@@ -426,7 +468,7 @@ def Main(Arguments):
 
     Time = -1
     Path = RefData[['X', 'Y', 'Z']].values[:Time,:]
-    Phi, Theta, Psi = RefData[['Phi', 'Theta', 'Psi']].values[Time]
+    Phi, Theta, Psi = RefData[['Phi', 'Theta', 'Psi']].values[Time] / 180 * np.pi
     Sys = RotationMatrix(Phi, Theta, Psi)
     Show3DPath(Path[:,0], Path[:,1], Path[:,2], Sys)
 
@@ -440,67 +482,18 @@ def Main(Arguments):
     RSys = np.dot(R, Paths[0].T).T
     Show3D([RSys,Paths[1]])
 
-    Ref = np.array([-InterpX, InterpY, RefData]).T
-    Sys = np.array(ExpData[['X','Y','Z']][Start:Stop])
+    # Try to rotate angles
+    PTP = RefData[['Phi', 'Theta', 'Psi']].values[:Time] / 180 * np.pi
+    Phi, Theta, Psi = PTP[:,0], PTP[:,1], PTP[:,2]
+    Rs = RotationMatrix(Phi, Theta, Psi)
+    Rs = np.einsum('ij,ljk->lik',R,Rs)
 
-    #     for Angle in range(36):
-    #         Angle = Angle * np.pi/18
-    #         RotatedSystem = np.dot(RotationMatrix(Gamma=Angle), Sys.T).T
-    #         Cost = np.linalg.norm(Ref - RotatedSystem, axis=0).sum()
-    #         Angle = int(round(Angle / np.pi * 180))
-    #         Angles.loc[Index, Angle] = Cost
+    # Compute angles
+    Angles = GetAngles(Rs)
 
-    #         # print(Angle)
+    # Show rotated system
+    Show3DSys(RotationMatrix(Angles[0,0], Angles[0,1], Angles[0,2]))
 
-    #         # Figure, Axis = plt.subplots(1,2, figsize=(11,4.5), sharex=False, sharey=True)
-    #         # Axis[0].plot(ExpData['X'][Start:Stop], -ExpData['Z'][Start:Stop], color=(0,0,1), label='Original')
-    #         # Axis[0].plot(RotatedSystem[:,0], -RotatedSystem[:,2], color=(0,0,0), label='Experiment')
-    #         # Axis[0].plot(FEAData['X'][:FEStop], -FEAData['Z'][:FEStop], color=(1,0,0), label='hFE')
-    #         # Axis[1].plot(ExpData['Y'][Start:Stop], -ExpData['Z'][Start:Stop], color=(0,0,1))
-    #         # Axis[1].plot(RotatedSystem[:,1], -RotatedSystem[:,2], color=(0,0,0))
-    #         # Axis[1].plot(FEAData['Y'][:FEStop], -FEAData['Z'][:FEStop], color=(1,0,0))
-    #         # Axis[0].set_xlabel('X (mm)')
-    #         # Axis[0].set_ylabel('Z (mm)')
-    #         # Axis[1].set_xlabel('Y (mm)')
-    #         # Figure.legend(loc='upper center', ncol=3)
-    #         # plt.show()
-
-    #     # Angles.loc[Index] -= Angles.loc[Index].max()
-    #     # Angles.loc[Index] = Angles.loc[Index].abs() / Angles.loc[Index].abs().max()
-    #     ProgressNext(Index / len(SampleList) * 10)
-    
-    # Angle = Angles.T.sum(axis=1).idxmin()/180 * np.pi
-    # # Angle = 230/180 * np.pi
-    # ProcessTiming(0)
-
-
-    #%% Settings
-
-    # Coordinate systems
-    Sys = np.eye(3)                            # Original system
-    Rsys = RotationMatrix(Psi=sp.pi/4)         # Rotation from original to new
-    Sys2 = np.dot(Rsys, Sys)                   # New system rotated
-
-    # Partial rotations
-    Rx = RotationMatrix(Phi=sp.pi/4)
-    Ry = RotationMatrix(Theta=-sp.pi/4)
-
-    # Combined rotations
-    R =RotationMatrix(Phi=sp.pi/4, Theta=-sp.pi/4)
-
-    # Eigen vector of rotation
-    Vector, Angle = GetVectorAndAngle(R)
-
-    # Check correct angle sign
-    RCheck = RotationMatrix(V=Vector, A=Angle)
-    print('Check angle sign')
-    print(np.round(R - RCheck,12))
-
-    #%% Partial rotations
-    %matplotlib widget
-
-    Show3DSys(np.dot(Rx, Sys))
-    Show3DSys(np.dot(Ry, np.dot(Rx, Sys)))
 
     return
 
