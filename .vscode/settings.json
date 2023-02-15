@@ -3,5 +3,6 @@
     
         "configurations": [],
         "compounds": []
-    }
+    },
+    "python.linting.enabled": true
 }
