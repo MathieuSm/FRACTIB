@@ -40,7 +40,7 @@ from numba.typed import Dict, List
 import statsmodels.formula.api as smf
 from scipy.stats.distributions import t
 from skimage import measure, morphology
-from vtk.util.numpy_support import vtk_to_numpy
+from vtk.util.numpy_support import vtk_to_numpy # type: ignore
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
 from pypore3d.p3dBlobPy import py_p3dMorphometricAnalysis as MA
@@ -162,24 +162,100 @@ def GetSlice(Image, Slice=None, Axis='Z', Slice2D=True):
         
     return Sliced
 
-def RotationMatrix(Alpha=0, Beta=0, Gamma=0):
+def RotationMatrix(Phi=0.0, Theta=0.0, Psi=0.0, V=np.zeros(3), A=0):
 
-    Rx = sp.Matrix([[1,             0,              0],
-                    [0, sp.cos(Alpha), -sp.sin(Alpha)],
-                    [0, sp.sin(Alpha),  sp.cos(Alpha)]])
+    if (V != 0).any():
+        a = np.cos(A) * np.eye(3)
+        b = np.sin(A) * np.array([[0, -V[2], V[1]],[V[2], 0, -V[0]],[-V[1], V[0], 0]])
+        c = (1-np.cos(A)) * np.outer(V, V)
+        R = np.round(a + b + c, 15)
 
-    Ry = sp.Matrix([[ sp.cos(Beta), 0, sp.sin(Beta)],
-                    [0,             1,              0],
-                    [-sp.sin(Beta), 0, sp.cos(Beta)]])
+    else:
 
-    Rz = sp.Matrix([[sp.cos(Gamma), -sp.sin(Gamma), 0],
-                    [sp.sin(Gamma),  sp.cos(Gamma), 0],
-                    [0,             0,              1]])
+        # if list of angles, use numpy for speed
+        try:
+            len(Phi)
+            Phi, Theta, Psi = np.array(Phi), np.array(Theta), np.array(Psi)
+            Rx = np.array([[np.ones(len(Phi)),  np.zeros(len(Phi)), np.zeros(len(Phi))],
+                           [np.zeros(len(Phi)),        np.cos(Phi),       -np.sin(Phi)],
+                           [np.zeros(len(Phi)),        np.sin(Phi),        np.cos(Phi)]])
 
-    R = Rz * Ry * Rx
+            Ry = np.array([[ np.cos(Theta),      np.zeros(len(Theta)),        np.sin(Theta)],
+                           [np.zeros(len(Theta)), np.ones(len(Theta)), np.zeros(len(Theta))],
+                           [-np.sin(Theta),      np.zeros(len(Theta)),        np.cos(Theta)]])
 
-    return np.array(R, dtype='float')
+            Rz = np.array([[np.cos(Psi),              -np.sin(Psi), np.zeros(len(Psi))],
+                           [np.sin(Psi),               np.cos(Psi), np.zeros(len(Psi))],
+                           [np.zeros(len(Psi)), np.zeros(len(Psi)),  np.ones(len(Psi))]])
+
+            R = np.einsum('ijl,jkl->lik',Rz, np.einsum('ijl,jkl->ikl',Ry, Rx))
+
+        # if only float angles, use sympy for more accuracy
+        except:
+            Rx = sp.Matrix([[1,             0,              0],
+                            [0, sp.cos(Phi), -sp.sin(Phi)],
+                            [0, sp.sin(Phi),  sp.cos(Phi)]])
+
+            Ry = sp.Matrix([[ sp.cos(Theta), 0, sp.sin(Theta)],
+                            [0,             1,              0],
+                            [-sp.sin(Theta), 0, sp.cos(Theta)]])
+
+            Rz = sp.Matrix([[sp.cos(Psi), -sp.sin(Psi),     0],
+                            [sp.sin(Psi),  sp.cos(Psi),     0],
+                            [0,             0,              1]])
+
+            R = Rz * Ry * Rx
     
+    return np.array(R, dtype='float')
+
+def GetAngles(R):
+
+    # Compute Euler angles from rotation matrix
+    # Assuming R = RxRyRz
+    # Adapted from https://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-rotation-matrix
+
+    if len(R.shape) == 2:
+        # Special case
+        if R[0,2] == 1 or R[0,2] == -1:
+            E3 = 0 # Set arbitrarily
+            dlta = np.arctan2(R[0,1],R[0,2])
+
+            if R[0,2] == -1:
+                E2 = np.pi/2;
+                E1 = E3 + dlta
+
+            else:
+                E2 = -np.pi/2;
+                E1 = -E3 + dlta
+
+        else:
+            E2 = - np.arcsin(R[0,2])
+            E1 = np.arctan2(R[1,2]/np.cos(E2), R[2,2]/np.cos(E2))
+            E3 = np.arctan2(R[0,1]/np.cos(E2), R[0,0]/np.cos(E2))
+    
+    else:
+        E1, E2, E3 = np.zeros(len(R)), np.zeros(len(R)), np.zeros(len(R))
+        
+        M1 = R[:,0,2] == 1
+        M2 = R[:,0,2] == -1
+        if sum(M1 + M2) > 0:
+            dlta = np.arctan2(R[:,0,1],R[:,0,2])
+
+            if sum(M2) > 0:
+                E2[M2] = np.pi/2
+                E1[M2] = E3 + dlta
+
+            else:
+                E2[M1] = -np.pi/2
+                E1[M1] = -E3 + dlta
+
+        else:
+            E2 = - np.arcsin(R[:,0,2])
+            E1 = np.arctan2(R[:,1,2]/np.cos(E2), R[:,2,2]/np.cos(E2))
+            E3 = np.arctan2(R[:,0,1]/np.cos(E2), R[:,0,0]/np.cos(E2))
+
+    return np.array([-E1, -E2, -E3]).T
+
 def GetParameterMap(FileName):
 
     """
