@@ -5,10 +5,13 @@ Version = '01'
 
 Description = """
     Modify the boundary conditions file to set the Z displacement
-    to the maximum displacement applied during experiment
+    to the displacement at maximum force during experiment. Then,
+    this will allow to match experiment coordinate system with
+    simulation.
 
     Version Control:
         01 - Original script
+        02 - Change imposed displacement up to maximum force
 
     Author: Mathieu Simon
             ARTORG Center for Biomedical Engineering Research
@@ -22,7 +25,7 @@ Description = """
 
 import argparse
 import pandas as pd
-from Utils import *
+from Utils import Time, SetDirectories
 
 
 #%% Main
@@ -30,7 +33,7 @@ from Utils import *
 
 def Main(Arguments):
 
-    ProcessTiming(1, 'Set loading')
+    Time.Process(1, 'Set loading')
 
     CWD, DD, SD, RD = SetDirectories(Arguments.Folder)
 
@@ -48,16 +51,17 @@ def Main(Arguments):
 
             Text = File.read()
             Line = Text.split('\n')[7]
-            
-        NewLine = Line[:16] + str(round(Experiment['Z'].max(),2))
+
+        MaxForce = Experiment['FZ'].idxmin()
+        NewLine = Line[:16] + str(round(Experiment.loc[MaxForce,'Z'],2))
         NewText = Text.replace(Line, NewLine)
 
         with open(FileName, 'w') as File:
             File.write(NewText)
 
-        ProgressNext(Index / len(Data) * 10)
+        Time.Update((Index + 1) / len(Data))
 
-    ProcessTiming(0)
+    Time.Process(0)
 
     return
 

@@ -35,8 +35,8 @@ from pathlib import Path
 from numba.typed import List
 import matplotlib.pyplot as plt
 from matplotlib import image as im
-from vtk.numpy_interface import dataset_adapter as dsa
-from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
+from vtk.numpy_interface import dataset_adapter as dsa # type: ignore
+from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk # type: ignore
 
 from Utils import *
 
@@ -3908,8 +3908,6 @@ def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase, Directories):
 
 #%%
 def Main(ConfigFile):
-    
-    TIC = time.time()
 
     # Read config and store to dictionary
     Config = ReadConfigFile(ConfigFile)
@@ -3934,9 +3932,10 @@ def Main(ConfigFile):
 
 
 #    Sample = GrayScale_FileNames[0]
-    for Sample in GrayScale_FileNames:
+    for iS, Sample in enumerate(GrayScale_FileNames):
 
-        print('\n\nStart FE Analysis of sample ' + Sample)
+        Text = 'Sample ' + str(iS) + '/' + str(len(GrayScale_FileNames))
+        Time.Process(1, Text)
 
         # Set paths
         Folder = Folder_IDs[Sample]
@@ -3944,31 +3943,14 @@ def Main(ConfigFile):
         InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
         # Perform material mapping
-        Tic = time.time()
         AIM2FE_SA_PSL(Config, Sample, Directories)
-        Toc1 = time.time()
 
         # Write load cases
         UpDate_BCs_Files(Config, Directories)
-        Toc2 = time.time()
         Create_Canonical_LoadCases(Config, InputFile, Directories)
-        Toc3 = time.time()
         Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
-        Toc4 = time.time()
-
-        print('\nInput files written')
-        PrintTime(Tic,Toc4)
-        print('\tAIM2FE')
-        PrintTime(Tic, Toc1)
-        print('\tUpdate BCs')
-        PrintTime(Toc1, Toc2)
-        print('\tCreate canonical loadcases')
-        PrintTime(Toc2, Toc3)
-        print('\tCreate FZ max loadcase')
-        PrintTime(Toc3, Toc4)
         
-    print('Time for full script')
-    PrintTime(TIC, time.time())
+        Time.Process(0, Text)
         
     return
 

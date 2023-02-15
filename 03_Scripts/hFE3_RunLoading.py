@@ -30,8 +30,8 @@ from Utils import *
 
 def Main(Arguments):
 
-    print('\n\nRun abaqus loading simulation')
-    Tic = time.time()
+    Text = 'Run abaqus'
+    Time.Process(1, Text)
 
     # Set working directory
     CWD, DD, SD, RD = SetDirectories(Arguments.Folder)
@@ -70,12 +70,21 @@ abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete
     # Run simulation with script
     try:
         sh.bash(str(FEADir / FileName))
+        Completed = True
     except:
-        pass
+        Completed = False
+
+    if Completed:
+        # Remove unnecessary files
+        os.remove(Arguments.Sample + '.com')
+        os.remove(Arguments.Sample + '.msg')
+        os.remove(Arguments.Sample + '.odb')
+        os.remove(Arguments.Sample + '.prt')
+        os.remove(Arguments.Sample + '.sim')
+        os.remove(Arguments.Sample + '.sta')
 
     # Print time
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+    Time.Process(0)
 
     return
 
