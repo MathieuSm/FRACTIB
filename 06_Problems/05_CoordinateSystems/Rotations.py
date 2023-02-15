@@ -32,7 +32,7 @@ from scipy.optimize import minimize
 
 mpld3.enable_notebook()
 np.set_printoptions(linewidth=500,suppress=True,formatter={'float_kind':'{:3}'.format})
-# %matplotlib widget
+%matplotlib widget # type: ignore
 
 #%% Functions
 # Define functions
