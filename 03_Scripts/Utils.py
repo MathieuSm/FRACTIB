@@ -1923,9 +1923,58 @@ class Signal():
 class Abaqus():
 
     def __init__(self):
-        pass
+
+        self.StepText = """
+**
+*STEP,AMPLITUDE=RAMP,UNSYMM=YES,INC=1000,NLGEOM=YES
+***********************************************************
+**               INCLUDE
+***********************************************************
+*INCLUDE, input={BCsFile}
+***********************************************************
+*OUTPUT,FIELD
+*ELEMENT OUTPUT, POSITION=CENTROIDAL
+SDV2,
+SDV15,
+SDV16,
+SDV17,
+SDV18,
+SDV22,
+SDV23,
+SDV24,
+SDV25,
+SDV26,
+SDV27,
+SDV28,
+SDV29,
+SDV30,
+SDV31,
+S,
+LE,
+COORD,
+*NODE OUTPUT
+U,
+RF,
+CF,
+**
+*OUTPUT, HISTORY
+*NODE OUTPUT, NSET=REF_NODE
+U,
+RF,
+*NODE PRINT, NSET=REF_NODE, FREQUENCY=1, SUMMARY=NO
+U,
+RF
+CF
+*END STEP
+"""
+
+        return
 
     def ReadDAT(self, File):
+
+        """
+        Read .dat file from abaqus and extract reference point data
+        """
 
         try:
             with open(File) as F:
@@ -1985,6 +2034,79 @@ class Abaqus():
             print('File' + File + 'does not exist')
 
             return
+
+    def WriteRefNodeBCs(self, FileName, DOFs, Values, BCType='DISPLACEMENT', Parameters=[0.05, 1, 5e-05, 0.05]):
+
+        """
+        Write boundary conditions for a reference node called REF_NODE
+        :param FileName: Name of the BCs file
+                         Type: str
+        :param DOFs: Degrees of freedom to constrain
+                     Type: List of ints
+        :param Values: Constrain value for each DOF listed
+                       Type: List of floats
+        :param BCType: Type of boundary condition
+                       Type: str
+                       Either 'DISPLACEMENT' (Dirichlet)
+                       or 'FORCE' (Neumann)
+        :param Parameters: Step parameters
+                           P1: Start step size
+                           P2: Time for displacement
+                           P3: Min step size
+                           P4: Max step size
+                           Type: List of floats
+
+        """
+
+        with open(FileName, 'w') as F:
+            F.write('*STATIC\n')
+
+            F.write(str(Parameters[0])+ ', ')
+            F.write(str(Parameters[1])+ ', ')
+            F.write(str(Parameters[2])+ ', ')
+            F.write(str(Parameters[3])+ '\n')
+
+            F.write('*BOUNDARY, TYPE=' + BCType + '\n')
+
+            for DOF, Value in zip(DOFs, Values):
+                Line = str(DOF) + ', ' + str(DOF) + ', ' + str(Value)
+                F.write('REF_NODE, ' + Line + '\n')
+
+        return
+
+    def AddStep(self, File, Step, DOFs, Values, BCType='DISPLACEMENT', Parameters=[0.05, 1, 5e-05, 0.05]):
+
+        self.WriteRefNodeBCs(Step, DOFs, Values, BCType, Parameters)
+
+        Context = {'BCsFile':Step}
+        Text = self.StepText.format(**Context)
+
+        with open(File, 'a') as F:
+            F.write(Text)
+
+        return
+
+    def RemoveStep(self, File, NSteps):
+
+        with open(File, 'r') as F:
+            Text = F.read()
+
+        if Text.find('*STEP') == -1:
+            print('\nNo step in file!')
+
+        else:
+            Start, Index = 0, 0
+            Indices = []
+            while bool(Index+1):
+                Index = Text.find('*STEP', Start)
+                Indices.append(Start + Index)
+                Start += Index + len('*STEP')
+
+            Index = np.array(Indices)[-NSteps]
+            with open(File, 'w') as F:
+                F.write(Text[:Index - len('*STEP') - 2])
+
+        return
 
 Abaqus = Abaqus()
 #%% Morphometry functions

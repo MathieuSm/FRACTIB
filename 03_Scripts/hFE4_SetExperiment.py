@@ -25,18 +25,11 @@ Description = """
 
 import argparse
 from Utils import *
+from matplotlib import cm
 from scipy.optimize import minimize
 
 #%% Functions
 # Define functions
-
-def ComputeCost(Angle, Paths):
-    R = RotationMatrix(Psi=Angle[0])
-    RSys = np.dot(R, Paths[0].T).T
-    Delta = np.abs(RSys - Paths[1])
-    Cost = Delta.sum()
-    return Cost
-
 
 #%% For testing purpose
 class Arguments:
@@ -57,10 +50,12 @@ def Main(Arguments):
 
     Data = pd.read_csv(str(DD / 'SampleList.csv'))
 
-    # Step 1: compute best rotation for each sample
-    MinData = pd.DataFrame(columns=['Angle','Cost'])
-    for Index in Data.index:
-        Sample = Data.loc[Index, 'Internal ID']
+    # Step 1: compute best rotation angle
+    Samples = Data['Internal ID']
+    Angles = np.arange(0, 360, 10)
+    Indices = pd.MultiIndex.from_product([Samples,['dX','dY']])
+    Costs = pd.DataFrame(index=Indices, columns=Angles)
+    for Sample in Samples:
         SamplePath = RD / '03_hFE' / Sample
         
         # Read data
@@ -84,46 +79,48 @@ def Main(Arguments):
             Interpolated = np.interp(Simulation['Z'], Coords, Values)
             InterpData[C] = Interpolated
 
-        # Compute rotation to minimize difference
-        Paths = [InterpData[['X','Y','Z']].values,
-                 Simulation[['X','Y','Z']].values]
+        # Compute cost after rotation
+        for A in Angles:
+            R = RotationMatrix(Psi=A/180*np.pi)
+            RSys = np.dot(R, InterpData[['X','Y','Z']].values.T).T
+            Costs.loc[(Sample,'dX'), A] = np.array(np.abs(RSys[:,0] - Simulation['X']))
+            Costs.loc[(Sample,'dY'), A] = np.array(np.abs(RSys[:,1] - Simulation['Y']))
 
-        # Compute best initial guess
-        C = 1E3
-        for A in np.arange(0, 2*np.pi, np.pi/5):
-            Ct = ComputeCost([A], Paths)
-            if Ct < C:
-                C = Ct
-                Guess = A
+    # Sum costs for each sample
+    Sums = pd.DataFrame(index=Indices, columns=Angles)
+    for I in Sums.index:
+        for C in Sums.columns:
+            Sums.loc[I,C] = sum(Costs.loc[I,C])
+    Sums = Sums.groupby(level=0).sum()
 
-        
-        Optim = minimize(ComputeCost, [Guess], args=(Paths), bounds=([0, 2*np.pi],))
-        
-        # Store results
-        MinData.loc[Index, 'Cost'] = Optim.fun
-        MinData.loc[Index, 'Angle'] = Optim.x[0] / np.pi * 180
+    # Plot results
+    Figure, Axis = plt.subplots(2,2, figsize=(12,10))
+    Axis[0,0].imshow(Sums.T, cmap='viridis_r', aspect='auto')
+    Axis[0,0].set_ylim([-0.5, len(Costs.columns)-0.5])
+    Axis[0,0].axis('off')
+    C = Sums.sum(axis=0).values
+    CNorm = (C-C.min()) / (C.max()-C.min())
+    Axis[0,1].barh(np.arange(len(Angles)), C, color=cm.viridis_r(CNorm), height=1)
+    Axis[0,1].set_yticks(np.arange(len(Angles))[::2],Costs.columns[::2])
+    Axis[0,1].set_xlim([C.min()*0.95, C.max()*1.025])
+    Axis[0,1].set_ylim([-0.5, len(C)-0.5])
+    Axis[0,1].set_xlabel('Cumulative Cost (mm)')
+    Axis[0,1].set_ylabel('Angle (°)')
+    Axis[0,1].yaxis.tick_right()
+    Axis[0,1].yaxis.set_label_position('right')
+    C = Sums.sum(axis=1).values
+    Axis[1,0].bar(Samples, C, color=cm.viridis_r(C/C.max()), width=1)
+    Axis[1,0].set_xlim([-0.5, len(C)-0.5])
+    Axis[1,0].set_xticks(Samples, Samples, rotation=90)
+    Axis[1,0].set_xlabel('Sample (-)')
+    Axis[1,0].set_ylabel('Cumulative Cost (mm)')
+    Axis[1,0].yaxis.tick_right()
+    Axis[1,0].yaxis.set_label_position('right')
+    plt.delaxes(Axis[1,1])
+    plt.savefig(str(RD / '05_Comparison' / 'Costs'))
+    plt.close()
 
-
-        # Plot results
-        R = RotationMatrix(Psi=Optim.x[0])
-        RSys = np.dot(R, Paths[0].T).T
-        
-        Figure, Axis = plt.subplots(1,2, sharex=True, sharey=True, figsize=(11,4.5))
-        Axis[0].plot(Simulation['X'], -Simulation['Z'],color=(0,0,0))
-        Axis[0].plot(InterpData['X'], -InterpData['Z'],color=(1,0,0))
-        Axis[0].plot(RSys[:,0], -RSys[:,2],color=(0,0,1))
-        Axis[0].set_xlabel('X (mm)')
-        Axis[0].set_ylabel('Z (mm)')
-        Axis[1].plot(Simulation['Y'], -Simulation['Z'],color=(0,0,0),label='hFE')
-        Axis[1].plot(InterpData['Y'], -InterpData['Z'],color=(1,0,0), label='Experiment')
-        Axis[1].plot(RSys[:,1], -RSys[:,2],color=(0,0,1), label='Rotated')
-        Axis[1].set_xlabel('Y (mm)')
-        Figure.legend(loc='upper center', ncol=3)
-        plt.savefig(str(RD / '05_Comparison' / (Sample + '_XY')))
-        plt.close()
-
-    # Step 2: compute general best rotation angle
-
+    BestAngle = Sums.sum(axis=0).idxmin()
 
 
     for Index in Data.index:
@@ -131,10 +128,36 @@ def Main(Arguments):
         Sample = Data.loc[Index, 'Internal ID']
         SamplePath = RD / '03_hFE' / Sample
         
-        # Read max displacement reached
+        # Read data
         FileName = str(SamplePath / (Sample + '.dat'))
         Simulation = Abaqus.ReadDAT(FileName)
-        MaxDisp = Simulation.loc[Simulation['Z'].idxmax(),'Z']
+
+        FileName = str(RD / '02_Experiment' / Sample / 'MatchedSignals.csv')
+        Experiment = pd.read_csv(FileName)
+
+        # Truncate experiment
+        Peaks, Properties = sig.find_peaks(Experiment['FZ'], prominence=100)
+        Start = Peaks[4]
+        Stop = Peaks[5]
+        Experiment = Experiment[Start:Stop].reset_index(drop=True)
+
+        # Rotate coordinate system
+        R = RotationMatrix(Psi=BestAngle/180*np.pi)
+        XYZ = np.dot(R, Experiment[['X','Y','Z']].values.T).T
+        PTP = Experiment[['Phi', 'Theta', 'Psi']].values / 180 * np.pi
+        Phi, Theta, Psi = PTP[:,0], PTP[:,1], PTP[:,2]
+        Rs = RotationMatrix(Phi, Theta, Psi)
+        rPTP = np.einsum('ij,ljk->lik',R,Rs)
+        PTP = GetAngles(rPTP)
+
+        # Modify abaqus input file
+        uCTFile = 'C000' + str(Data.loc[Index, 'MicroCT pretest file number']) + '_DOWNSCALED_00_FZ_MAX.inp'
+        FileName = str(SamplePath / uCTFile)
+        Abaqus.RemoveStep(FileName,2)
+        Abaqus.AddStep(FileName,str(SamplePath / 'TestStep.inp'),[1,2],[0.1,0.2])
+
+
+        ## Solve multiple steps problem!!
 
         # Replace in original loading BCs file
         FileName = str(SamplePath / 'boundary_conditions_FZ_MAX.inp')
