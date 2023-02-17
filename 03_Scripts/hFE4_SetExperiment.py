@@ -153,47 +153,17 @@ def Main(Arguments):
         # Modify abaqus input file
         uCTFile = 'C000' + str(Data.loc[Index, 'MicroCT pretest file number']) + '_DOWNSCALED_00_FZ_MAX.inp'
         FileName = str(SamplePath / uCTFile)
-        Abaqus.RemoveStep(FileName,2)
-        Abaqus.AddStep(FileName,str(SamplePath / 'TestStep.inp'),[1,2],[0.1,0.2])
+        Abaqus.RemoveSteps(FileName,1)
 
-
-        ## Solve multiple steps problem!!
-
-        # Replace in original loading BCs file
-        FileName = str(SamplePath / 'boundary_conditions_FZ_MAX.inp')
-        with open(FileName) as File:
-
-            Text = File.read()
-            Line = Text.split('\n')[7]
-            
-        NewLine = Line[:16] + str(round(MaxDisp - 0.005,2))
-        NewText = Text.replace(Line, NewLine)
-
-        with open(FileName, 'w') as File:
-            File.write(NewText)
-
-        # Write new BCs file for unloading
-        FileName = str(SamplePath / 'boundary_conditions_FZ_MIN.inp')
-            
-        NewLine = Line[:16] + str(-round(MaxDisp - 0.005,2))
-        NewText = Text.replace(Line, NewLine)
-
-        with open(FileName, 'w') as File:
-            File.write(NewText)
-
-        # Add unloading step to simulation input file
-        uCTFile = 'C000' + str(Data.loc[Index, 'MicroCT pretest file number']) + '_DOWNSCALED_00_FZ_MAX.inp'
-        SimFile = str(SamplePath / uCTFile)
-
-        with open(SimFile) as File:
-            Text = File.read()
-            Start = Text.find('*STEP')
-            NewText = Text[Start:]
-        
-        NewText = '**\n' + NewText
-        NewText = NewText.replace('boundary_conditions_FZ_MAX.inp',FileName[-30:])
-        with open(SimFile,'a') as File:
-            File.write(NewText)
+        NSteps = 20
+        StepSize = len(XYZ) / NSteps
+        DOFs = np.arange(6)+1
+        for i in range(NSteps):
+            StepName = str(SamplePath / ('Step-%02i.inp'%(i+1)))
+            Values = [v for v in XYZ[int(StepSize * (i+1))]]
+            for j in range(3):
+                Values.append(PTP[int(StepSize * (i+1)),j])
+            Abaqus.AddStep(FileName,StepName,DOFs,Values)
 
 
         ProgressNext(Index / len(Data) * 10)

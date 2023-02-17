@@ -1965,8 +1965,7 @@ RF,
 U,
 RF
 CF
-*END STEP
-"""
+*END STEP"""
 
         return
 
@@ -2086,7 +2085,7 @@ CF
 
         return
 
-    def RemoveStep(self, File, NSteps):
+    def RemoveSteps(self, File, NSteps=1):
 
         with open(File, 'r') as F:
             Text = F.read()
@@ -2095,16 +2094,17 @@ CF
             print('\nNo step in file!')
 
         else:
-            Start, Index = 0, 0
+            Start = 0
+            Index = Text.find('*STEP', Start)
             Indices = []
             while bool(Index+1):
-                Index = Text.find('*STEP', Start)
-                Indices.append(Start + Index)
+                Indices.append(Index)
                 Start += Index + len('*STEP')
+                Index = Text.find('*STEP', Start)
 
             Index = np.array(Indices)[-NSteps]
             with open(File, 'w') as F:
-                F.write(Text[:Index - len('*STEP') - 2])
+                F.write(Text[:Index - len('*STEP')])
 
         return
 
