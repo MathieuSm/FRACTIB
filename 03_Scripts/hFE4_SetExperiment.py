@@ -165,8 +165,10 @@ def Main(Arguments):
             StepName = str(SamplePath / 'Steps' / ('Step%02i.inp'%(i+1)))
             NewValues = np.concatenate([XYZ[int(StepSize * (i+1)-1)],
                                         PTP[int(StepSize * (i+1)-1)]])
-            Values = NewValues - Values
-            Abaqus.AddStep(FileName,StepName,DOFs,np.round(Values,3))
+            Delta = NewValues - Values
+            Abaqus.AddStep(FileName,StepName,DOFs,np.round(Delta,3))
+            Values = NewValues
+
 
     Time.Process(0)
 

@@ -602,9 +602,12 @@ class Show():
         Figure, Axis = plt.subplots(1,1)
 
         if len(Y) == 0:
+            self.Y = []
             for ix, x in enumerate(X):
-                Y.append(x)
+                self.Y.append(x)
                 X[ix] = np.arange(len(x))
+            Y = self.Y
+            delattr(self, 'Y')
 
         for i in range(len(X)):
 
