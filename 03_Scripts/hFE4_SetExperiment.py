@@ -28,9 +28,6 @@ from Utils import *
 from matplotlib import cm
 from scipy.optimize import minimize
 
-#%% Functions
-# Define functions
-
 #%% For testing purpose
 class Arguments:
 
@@ -127,6 +124,9 @@ def Main(Arguments):
 
         Sample = Data.loc[Index, 'Internal ID']
         SamplePath = RD / '03_hFE' / Sample
+
+        Text = 'Sample #' + str(Sample[:3])
+        Time.Update(Index / len(Data), Text)
         
         # Read data
         FileName = str(SamplePath / (Sample + '.dat'))
@@ -149,6 +149,7 @@ def Main(Arguments):
         Rs = RotationMatrix(Phi, Theta, Psi)
         rPTP = np.einsum('ij,ljk->lik',R,Rs)
         PTP = GetAngles(rPTP)
+        PTP[:,2] -= PTP[0,2]
 
         # Modify abaqus input file
         uCTFile = 'C000' + str(Data.loc[Index, 'MicroCT pretest file number']) + '_DOWNSCALED_00_FZ_MAX.inp'
@@ -158,17 +159,16 @@ def Main(Arguments):
         NSteps = 20
         StepSize = len(XYZ) / NSteps
         DOFs = np.arange(6)+1
+        Values = np.zeros(6)
+        os.makedirs(str(SamplePath / 'Steps' ), exist_ok=True)
         for i in range(NSteps):
-            StepName = str(SamplePath / ('Step-%02i.inp'%(i+1)))
-            Values = [v for v in XYZ[int(StepSize * (i+1))]]
-            for j in range(3):
-                Values.append(PTP[int(StepSize * (i+1)),j])
-            Abaqus.AddStep(FileName,StepName,DOFs,Values)
+            StepName = str(SamplePath / 'Steps' / ('Step%02i.inp'%(i+1)))
+            NewValues = np.concatenate([XYZ[int(StepSize * (i+1)-1)],
+                                        PTP[int(StepSize * (i+1)-1)]])
+            Values = NewValues - Values
+            Abaqus.AddStep(FileName,StepName,DOFs,np.round(Values,3))
 
-
-        ProgressNext(Index / len(Data) * 10)
-
-    ProcessTiming(0)
+    Time.Process(0)
 
     return
 

@@ -2099,12 +2099,12 @@ CF
             Indices = []
             while bool(Index+1):
                 Indices.append(Index)
-                Start += Index + len('*STEP')
+                Start = Index + len('*STEP')
                 Index = Text.find('*STEP', Start)
 
             Index = np.array(Indices)[-NSteps]
             with open(File, 'w') as F:
-                F.write(Text[:Index - len('*STEP')])
+                F.write(Text[:Index - len('*STEP') + 1])
 
         return
 
