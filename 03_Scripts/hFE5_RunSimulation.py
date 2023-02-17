@@ -75,7 +75,7 @@ abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete
 
     # Print time
     Toc = time.time()
-    PrintTime(Tic, Toc)
+    Time.Print(Tic, Toc)
 
     return
 
