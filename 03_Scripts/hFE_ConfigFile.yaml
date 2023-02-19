@@ -7,8 +7,7 @@
 # No padding
 #
 
-# Run/hFE version (for file names)
-Version: '00'
+Echo: False
 
 # State if properties must be computed using transform or in original configuration
 Registration: False
@@ -40,22 +39,9 @@ Isotropic_Cortex: False  # Cortex fabric isotropic, or projected on surface
 All_Mask: True
 
 # Simulation parameters
-nlgeom: on # affects NLGEOM parameter in abaqus simulation (on/off)
+nlgeom: 'YES' # affects NLGEOM parameter in abaqus simulation (on/off)
 Max_Increments: 1000  # int number [1-1000]
-Control: Displacement # [Force/Displacement] discribes the loading boundary conditions
-BCs_Mode: 5           # 0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
-Fz_Max_Factor: 1.0    # Displacement in FZ direction for no psl FZ_MAX
-BCs_Load: [[1.0, 0, 0, 0, 0, 0],
-           [0, 1.0, 0, 0, 0, 0],
-           [0, 0, 1.0, 0, 0, 0],
-           [0, 0, 0, 1.0, 0, 0],
-           [0, 0, 0, 0, 1.0, 0],
-           [0, 0, 0, 0, 0, 1.0]]
-
-# Relative directories
-BCs: 'BCs/boundary_conditions_basic.inp'
-PSL_LoadCases_BCs_Folder: 'BCs/'
-
+Control: DISPLACEMENT # [Force/Displacement] discribes the loading boundary conditions
 
 # File name post fixes
 Postfix_CortMask: '_CORT_MASK.AIM'

@@ -1927,9 +1927,12 @@ class Abaqus():
 
     def __init__(self):
 
+        self.NLGEOM = 'YES'
+        self.MaxINC = 1000
+
         self.StepText = """
 **
-*STEP,AMPLITUDE=RAMP,UNSYMM=YES,INC=1000,NLGEOM=YES
+*STEP,AMPLITUDE=RAMP,UNSYMM=YES,INC={MAXINC},NLGEOM={NL}
 ***********************************************************
 **               INCLUDE
 ***********************************************************
@@ -2080,7 +2083,9 @@ CF
 
         self.WriteRefNodeBCs(Step, DOFs, Values, BCType, Parameters)
 
-        Context = {'BCsFile':Step}
+        Context = {'MAXINC':self.MaxINC,
+                   'NL':self.NLGEOM,
+                   'BCsFile':Step}
         Text = self.StepText.format(**Context)
 
         with open(File, 'a') as F:

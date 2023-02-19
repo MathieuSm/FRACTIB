@@ -26,10 +26,10 @@ for i, S in enumerate(Scripts):
 
 
 #%%
-SList = [Scripts[14]]
+SList = [Scripts[11]]
 Arguments = {
-             'hFE_3RunLoading':{'UMAT':'UMAT.f','nCPUs':12},
-             'hFE_5RunSimulation':{'UMAT':'UMAT.f','nCPUs':24},
+             'hFE2_RunLoading':{'UMAT':'UMAT.f','nCPUs':42},
+             'hFE4_RunSimulation':{'UMAT':'UMAT.f','nCPUs':42},
              'uCT_Registration':{'Show':False,'Type':'BSpline','Jac':True},
             }
 
@@ -76,6 +76,8 @@ with open(File, 'w') as F:
                 F.write(Line)
 
         F.write('\n\t' + Script[:-3] + '(Arguments)\n\n')
+
+    F.write('print(\'' +r'\n' + 'Batch done!' + r'\n' + '\')')
 
 with open(File) as F:
     print(F.read())
