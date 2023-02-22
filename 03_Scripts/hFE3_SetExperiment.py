@@ -83,6 +83,9 @@ def Main(Arguments):
             Costs.loc[(Sample,'dX'), A] = np.array(np.abs(RSys[:,0] - Simulation['X']))
             Costs.loc[(Sample,'dY'), A] = np.array(np.abs(RSys[:,1] - Simulation['Y']))
 
+        # Plot costs
+        Show.Signal([Costs.loc[Sample,A]['dX'] for A in Angles])
+
     # Sum costs for each sample
     Sums = pd.DataFrame(index=Indices, columns=Angles)
     for I in Sums.index:
@@ -117,8 +120,9 @@ def Main(Arguments):
     Axis[1,0].yaxis.tick_right()
     Axis[1,0].yaxis.set_label_position('right')
     plt.delaxes(Axis[1,1])
-    plt.savefig(str(RD / '05_Comparison' / 'Costs'))
-    plt.close()
+    # plt.savefig(str(RD / '05_Comparison' / 'Costs'))
+    # plt.close()
+    plt.show()
 
 
     for Index in Data.index:

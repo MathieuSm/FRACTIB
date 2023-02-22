@@ -224,8 +224,22 @@ def Main(Arguments):
 
     # Read files
     print('\tPlot force-displacement hFE vs experiment')
-    FEAData = Abaqus.ReadDAT(str(FEADir / (Arguments.Sample + '.dat')))
+    FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
     ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
+
+    # Truncate experiment to monotonic loading part
+    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=100)
+    Start = Peaks[4]
+    Stop = Peaks[5]
+    ExpData = ExpData[Start:Stop].reset_index(drop=True)
+
+    # # Rotate experimental data back
+    # R = RotationMatrix(Psi=-60/180*np.pi)
+    # XYZ = np.dot(R, ExpData[['X','Y','Z']].values.T).T
+
+    # Sum up fea steps results
+    Indices = FEAData.groupby('Step')['Increment'].idxmax()
+    FEA = FEAData.loc[Indices].cumsum()
 
     # Compute min force location
     MinForceIdx = FEAData['FZ'][1:].abs().idxmin()

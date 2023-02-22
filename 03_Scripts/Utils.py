@@ -45,6 +45,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
 from pypore3d.p3dBlobPy import py_p3dMorphometricAnalysis as MA
 
+from matplotlib import ListedColormap
+
 
 #%% Tuning
 # Tune diplay settings
@@ -607,7 +609,15 @@ class Show():
 
     def Signal(self, X, Y=[], Points=[], Normalize=False, Axes=[], Labels=[]):
 
-        Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
+        if len(X) > 6:
+            N = len(X)
+            Values = np.ones((N, 4))
+            Values[:, 0] = np.linspace(1, 0, N)
+            Values[:, 1] = np.linspace(0, 0, N)
+            Values[:, 2] = np.linspace(0, 1, N)
+            Colors = ListedColormap(Values)[np.linspace(0,1,N)]
+        else:
+            Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
 
         Figure, Axis = plt.subplots(1,1)
 
