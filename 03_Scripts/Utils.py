@@ -330,8 +330,15 @@ class Time():
         self.Text = 'Process'
         self.Tic = time.time()
         pass
+    
+    def Set(self, Tic=None):
+        
+        if Tic == None:
+            self.Tic = time.time()
+        else:
+            self.Tic = Tic
 
-    def Print(self, Toc, Tic=None):
+    def Print(self, Tic=None,  Toc=None):
 
         """
         Print elapsed time in seconds to time in HH:MM:SS format
@@ -341,6 +348,10 @@ class Time():
 
         if Tic == None:
             Tic = self.Tic
+            
+        if Toc == None:
+            Toc = time.time()
+
 
         Delta = Toc - Tic
 
@@ -385,9 +396,8 @@ class Time():
             self.Update(0, Text)
 
         elif StartStop*1 == 0:
-            Toc = time.time()
             self.Update(1, Text)
-            self.Print(Toc)
+            self.Print()
 
 Time = Time()
 #%% Ploting functions
