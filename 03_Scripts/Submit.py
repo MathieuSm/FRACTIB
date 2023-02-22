@@ -1,6 +1,6 @@
 #! /usr/bin python
 
-from uCT_Registration import Main as uCT_Registration
+from hFE4_RunSimulation import Main as hFE4_RunSimulation
 
 Samples = ['432_L_77_F',
            '433_R_77_F',
@@ -38,9 +38,9 @@ Arguments = Arguments()
 for Sample in Samples:
 
 	Arguments.Sample = Sample
-	Arguments.Show = False
-	Arguments.Type = 'BSpline'
-	Arguments.Jac = True
+	Arguments.UMAT = 'UMAT.f'
+	Arguments.nCPUs = 42
 
-	uCT_Registration(Arguments)
+	hFE4_RunSimulation(Arguments)
 
+print('\nBatch done!\n')

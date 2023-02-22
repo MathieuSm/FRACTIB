@@ -51,7 +51,6 @@ def ReadConfigFile(Filename):
 
     """ Read configuration file and store to dictionary """
 
-    print('\n\nReading initialization file', Filename)
     with open(Filename, 'r') as File:
         Configuration = yaml.load(File, Loader=yaml.FullLoader)
 
@@ -74,7 +73,6 @@ def Set_FileNames(Config, Sample, Directories):
     """
 
     # Always, not depending on phase (accurate or fast)
-    Version = Config['Version']
     Folder_IDs = Config['Folder_IDs']
     Folder = Folder_IDs[Sample]
 
@@ -101,14 +99,15 @@ def Set_FileNames(Config, Sample, Directories):
     FileName['SEGname'] = str(Directories['AIM'] / Folder / FileName['FILESEG'])
 
     # FEA filenames
-    print(FileName['BMDname'])
-    New_FileName = "{}_{}.inp".format(Sample, Version)
+    if Config['Echo'] == True:
+        print(FileName['BMDname'])
+    New_FileName = "{}.inp".format('Simulation')
     FileName["INPname"] = str(Directories['FEA'] / Folder / New_FileName)
 
-    New_FileName = "{}_{}_summary.txt".format(Sample, Version)
+    New_FileName = "{}_Summary.txt".format(Folder)
     FileName['SummaryName'] = str(Directories['FEA'] / Folder / New_FileName)
 
-    FileName['BCs'] = str(Directories['BCs'] / 'boundary_conditions_basic.inp')
+    FileName['BCs'] = str(Directories['FEA'] / Folder / 'MaxLoad.inp')
 
     # Common area
     FileName['Common'] = str(Directories['FEA'] / Folder / 'CommonMask.mhd')
@@ -144,7 +143,7 @@ def Get_AIM_Ints(f):
     header_int = struct.unpack("=32i", binints)
 
     return header_int
-def AIMReader(File, Spacing):
+def AIMReader(File, Spacing, Echo=False):
 
     """
     Reads an AIM file and provides
@@ -153,44 +152,55 @@ def AIMReader(File, Spacing):
     """
 
     # read header
-    print('\n\nRead AIM header of file: ' + File)
+    if Echo:
+        print('\n\nRead AIM header of file: ' + File)
     with open(File, 'rb') as f:
         AIM_Ints = Get_AIM_Ints(f)
         # check AIM version
         if int(AIM_Ints[5]) == 16:
-            print("     -> version 020")
+            if Echo:
+                print("     -> version 020")
             if int(AIM_Ints[10]) == 131074:
                 Format = "short"
-                print("     -> format " + Format)
+                if Echo:
+                    print("     -> format " + Format)
             elif int(AIM_Ints[10]) == 65537:
                 Format = "char"
-                print("     -> format " + Format)
+                if Echo:
+                    print("     -> format " + Format)
             elif int(AIM_Ints[10]) == 1376257:
                 Format = "bin compressed"
-                print("     -> format " + Format + " not supported! Exiting!")
+                if Echo:
+                    print("     -> format " + Format + " not supported! Exiting!")
                 exit(1)
             else:
                 Format = "unknown"
-                print("     -> format " + Format + "! Exiting!")
+                if Echo:
+                    print("     -> format " + Format + "! Exiting!")
                 exit(1)
             Header = f.read(AIM_Ints[2])
             Header_Length = len(Header) + 160
             Extents = (0, AIM_Ints[14] - 1, 0, AIM_Ints[15] - 1, 0, AIM_Ints[16] - 1)
         else:
-            print("     -> version 030")
+            if Echo:
+                print("     -> version 030")
             if int(AIM_Ints[17]) == 131074:
                 Format = "short"
-                print("     -> format " + Format)
+                if Echo:
+                    print("     -> format " + Format)
             elif int(AIM_Ints[17]) == 65537:
                 Format = "char"
-                print("     -> format " + Format)
+                if Echo:
+                    print("     -> format " + Format)
             elif int(AIM_Ints[17]) == 1376257:
                 Format = "bin compressed"
-                print("     -> format " + Format + " not supported! Exiting!")
+                if Echo:
+                    print("     -> format " + Format + " not supported! Exiting!")
                 exit(1)
             else:
                 Format = "unknown"
-                print("     -> format " + Format + "! Exiting!")
+                if Echo:
+                    print("     -> format " + Format + "! Exiting!")
                 exit(1)
             Header = f.read(AIM_Ints[8])
             Header_Length = len(Header) + 280
@@ -257,7 +267,7 @@ def AIMReader(File, Spacing):
     Reader.Update()
     VTK_Image = Reader.GetOutput()
     return VTK_Image, Spacing, Scaling, Slope, Intercept, Header
-def Read_Image_Parameters(FileNames, Bone):
+def Read_Image_Parameters(FileNames, Bone, Echo=False):
 
     """
     Read image parameters from AIM image header.
@@ -269,7 +279,8 @@ def Read_Image_Parameters(FileNames, Bone):
     - Intercept
     """
 
-    print("\n\nRead AIM files")
+    if Echo:
+        print("\n\nRead AIM files")
 
     VTK_Image, Spacing, Scaling, Slope, Intercept, Header = AIMReader(FileNames["RAWname"], 0)
 
@@ -293,7 +304,7 @@ def VTK2Numpy(VTK_Image):
     Numpy_Image = Numpy_Image[:,::-1,:]
     
     return Numpy_Image
-def Read_AIM(Name, FileNames, Bone):
+def Read_AIM(Name, FileNames, Bone, Echo=False):
 
     """
     Read AIM image
@@ -305,7 +316,8 @@ def Read_AIM(Name, FileNames, Bone):
     - numpy array containing AIM image
     """
 
-    print("\n\nRead AIM file :" + Name)
+    if Echo:
+        print("\n\nRead AIM file :" + Name)
 
     Spacing = Bone["Spacing"]
     # Read image as vtk
@@ -393,7 +405,7 @@ def Adjust_Image(Name, Bone, Config, CropType='Crop'):
     # For XCTI added by MI
     if Spacing[0] == 0.082:
         Height = IMG_array.shape[2] * Spacing[0]
-        ElementNumber = np.rint(Height / config['ElementSize'])
+        ElementNumber = np.rint(Height / Config['ElementSize'])
         CoarseFactor = IMG_array.shape[2] / ElementNumber
         FEelSize = np.copy(Spacing) * CoarseFactor
 
@@ -525,7 +537,7 @@ def GetShortFilenameAndExtension(FileName):
     FileName, Ext = GetFilenameAndExtension(FileName)
     FileName = FileName.split('/')
     return FileName[len(FileName) - 1], Ext
-def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
+def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList, Echo=False):
 
     """
     Modified function of Medtool
@@ -566,9 +578,10 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
     @return:
       no return value
     """
-    sys.stdout.write('\n\nSetup ABAQUS *.inp file from template')
-    sys.stdout.write("    -> recast model from '%s' to 'i'" % curVoxelModel.dtype.char)
-    sys.stdout.flush()
+    if Echo:
+        sys.stdout.write('\n\nSetup ABAQUS *.inp file from template')
+        sys.stdout.write("    -> recast model from '%s' to 'i'" % curVoxelModel.dtype.char)
+        sys.stdout.flush()
     curVoxelModel = CastType(curVoxelModel, 'i')
     if dimList.all() == None:  # 12.01.01 change: if dimList == None:     to if dimList.all() == None
         print('\n **ERROR** writeAbaqusGeneral(): Voxel size not optional for this function!\n')
@@ -662,9 +675,11 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
         sys.stdout.flush()
         exit(1)
     if rangeMax > maxVox:
-        sys.stdout.write(
-            '\n **WARNING** mic.writeAbaqusGeneral(): *USER PROPERTY: Max GV Range (%i) > Max Image GV (%i)!\n\n' % (
-                rangeMax, maxVox))
+        if maxVox != 1:
+            sys.stdout.write(
+                '\n **WARNING** mic.writeAbaqusGeneral(): *USER PROPERTY: Max GV Range (%i) > Max Image GV (%i)!\n\n' % (
+                    rangeMax, maxVox))
+            sys.stdout.write(outFileName)
     if np.sum(np.greater(overlap, 1)) > 0:
         sys.stdout.write(
             '\n **ERROR** mic.writeAbaqusGeneral(): *USER PROPERTY: Ranges in property template overlap!\n\n')
@@ -681,7 +696,8 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
     nx1 = nx + 1
     nxy1 = (ny + 1) * (nx + 1)
     sum = 0
-    ProgressStart('     -> setup Element Data  : ')
+    if Echo:
+        ProgressStart('     -> setup Element Data  : ')
     for k in range(nz):
         sum += 1
         progress = float(sum) / float(nz) * 10.0
@@ -713,10 +729,12 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                     if i == nx - 1:
                         elemSets['ALL_ELEM_E'].append(elid)
 
-        ProgressNext(progress)
+        if Echo:
+            ProgressNext(progress)
 
-    ProgressEnd()
-    sys.stdout.write('     -> setup Node Data     :')
+    if Echo:
+        ProgressEnd()
+        sys.stdout.write('     -> setup Node Data     :')
     for matid in thresList:
         if len(elsetNodes[repr(matid)]) > 0:
             matidStr = 'SET' + repr(matid)
@@ -745,8 +763,9 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                     if i == nx:
                         nodeSets['ALL_NODE_E'].append(noid)
 
-    sys.stdout.write(' Done\n')
-    sys.stdout.flush()
+    if Echo:
+        sys.stdout.write(' Done\n')
+        sys.stdout.flush()
     nodeCoord = {}
     nodeCoordOrig = {}
 
@@ -763,7 +782,10 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
 
     curPathFilename, ext = GetFilenameAndExtension(outFileName)
     curFilename, ext = GetShortFilenameAndExtension(outFileName)
-    sys.stdout.write(' ... write ABAQUS *.inp file from template\n')
+
+    if Echo:
+        sys.stdout.write(' ... write ABAQUS *.inp file from template\n')
+
     for line in lines:
         line = line.replace('\n', '')
         line = line.replace('$filename', curFilename)
@@ -772,7 +794,8 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
             OS.write('*NODE\n')
             noid2 = 0
             noid = 0
-            ProgressStart('     -> process Node IDs    : ')
+            if Echo:
+                ProgressStart('     -> process Node IDs    : ')
             for k in range(nz + 1):
                 progress = float(k + 1) / float(nz + 1) * 10.0
                 for j in range(ny + 1):
@@ -784,14 +807,18 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                             OS.write('%12i,%13.6g,%13.6g,%13.6g\n' % (
                                 noid, nodeCoord[noid][0], nodeCoord[noid][1], nodeCoord[noid][2]))
 
-                ProgressNext(progress)
+                if Echo:
+                    ProgressNext(progress)
 
-            ProgressEnd()
-            sys.stdout.write('     -> write Nodes         : %10i \n' % noid2)
-            sys.stdout.flush()
+            if Echo:
+                ProgressEnd()
+                sys.stdout.write('     -> write Nodes         : %10i \n' % noid2)
+                sys.stdout.flush()
+
         elif line.upper().find('*USER ELEMENT') > -1:
             count = 0
-            ProgressStart('     -> process Elements    : ')
+            if Echo:
+                ProgressStart('     -> process Elements    : ')
             for matid in thresList:
                 count += 1
                 progress = count / float(len(thresList)) * 10.0
@@ -806,15 +833,19 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                         for elnd in elnds[1]:
                             activeNodes[elnd] = 1
 
-                ProgressNext(progress)
+                if Echo:
+                    ProgressNext(progress)
 
-            ProgressEnd()
-            sys.stdout.write('     -> write Elements      : %10i             \n' % elid)
-            sys.stdout.flush()
+            if Echo:
+                ProgressEnd()
+                sys.stdout.write('     -> write Elements      : %10i             \n' % elid)
+                sys.stdout.flush()
+
         elif line.upper().find('*USER NSET') > -1:
             if line.upper().find('TYPE=FACE') > -1:
-                sys.stdout.write('     -> write BCs Node Sets     \n')
-                sys.stdout.flush()
+                if Echo:
+                    sys.stdout.write('     -> write BCs Node Sets     \n')
+                    sys.stdout.flush()
                 for nsetName in nodeSets:
                     OS.write('*NSET, NSET=%s\n' % nsetName)
                     entry = 0
@@ -858,8 +889,9 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                     OS.write('%i, %13.6g,  %13.6g, %13.6g\n' % (nid + 8, 0.0, ny * yvox, nz * zvox))
         elif line.upper().find('*USER ELSET') > -1:
             if line.upper().find('TYPE=FACE') > -1:
-                sys.stdout.write('     -> Write BCs Elem Sets          \n')
-                sys.stdout.flush()
+                if Echo:
+                    sys.stdout.write('     -> Write BCs Elem Sets          \n')
+                    sys.stdout.flush()
                 for elsetName in elemSets:
                     OS.write('*ELSET, ELSET=%s\n' % elsetName)
                     entry = 0
@@ -889,7 +921,8 @@ def WriteAbaqusGeneral(outFileName, curVoxelModel, dimList):
                 if arg.upper().find('FILE') == 0:
                     dummy, matTemplateFilename = arg.split('=')
 
-            sys.stdout.write('     -> Write Property      : %s \n' % matTemplateFilename)
+            if Echo:
+                sys.stdout.write('     -> Write Property      : %s \n' % matTemplateFilename)
             try:
                 osMatCard = open(matTemplateFilename, 'r')
             except IOError:
@@ -960,8 +993,10 @@ def GetAbaqusArgument(string, argName):
         sys.stdout.flush()
         exit(1)
     return argument
-def ReadAbaqus(inFileName, props=False):
-    print(' ... read Abaqus file       : ', inFileName)
+def ReadAbaqus(inFileName, props=False, Echo=False):
+
+    if Echo:
+        print(' ... read Abaqus file       : ', inFileName)
     sys.stdout.flush()
     try:
         inStream = open(inFileName, 'r')
@@ -1038,7 +1073,8 @@ def ReadAbaqus(inFileName, props=False):
             continue
         LINE = line.upper()
         if LINE.find('*NSET') == 0:
-            print('  -> found *NSET    at Line %s' % repr(lineNo))
+            if Echo:
+                print('  -> found *NSET    at Line %s' % repr(lineNo))
             nsetName = GetAbaqusArgument(line, 'NSET')
             while lineNo < len(lines):
                 lineNo = lineNo + 1
@@ -1225,8 +1261,10 @@ def ReadAbaqus(inFileName, props=False):
                 nsets,
                 elems,
                 elsets)
-def WriteAbaqus(outFileName, title, nodes, nsets, elems, elsets, NscaResults=None):
-    print(' ... write ABAQUS file       : ', outFileName)
+def WriteAbaqus(outFileName, title, nodes, nsets, elems, elsets, NscaResults=None, Echo=False):
+
+    if Echo:
+        print(' ... write ABAQUS file       : ', outFileName)
     sys.stdout.flush()
     keys = list(nodes.keys())
     nkey1 = keys[1]
@@ -1588,10 +1626,11 @@ def Calculate_BVTV(Bone, Config, ImageType):
     Intercept = Bone["Intercept"]
     BMD_Array = Bone["BMD_Array"]
 
-    print("\n ... prepare mask and BVTV images")
-    print("     -> Scaling   = ", Scaling)
-    print("     -> Slope     = ", Slope)
-    print("     -> Intercept = ", Intercept)
+    if Config['Echo'] == True:
+        print("\n ... prepare mask and BVTV images")
+        print("     -> Scaling   = ", Scaling)
+        print("     -> Slope     = ", Slope)
+        print("     -> Intercept = ", Intercept)
 
     if ImageType.find('BMD') > -1:
         # if image is already in BMD units (e.g. Hosseinis data)
@@ -1659,15 +1698,22 @@ def Generate_Mesh(Bone, FileNames, Config):
 
     # Adjust element size and coarse factor to fit image size
     if Config['Adjust_ElementSize']:
-        print('\nAdjust elements size')
+
+        if Config['Echo'] == True:
+            print('\nAdjust elements size')
         Height = Spacing[2] * MeshShape[2]
         N_Elements = np.floor(Height / FEelSize[2]) + 1
 
-        print('Original coarse factor: %.3f' % (CoarseFactor))
+        if Config['Echo'] == True:
+            print('Original coarse factor: %.3f' % (CoarseFactor))
         CoarseFactor = np.floor(MeshShape[2] / N_Elements * 1E6) / 1E6
-        print('New coarse factor: %.3f' % (CoarseFactor))
+
+        if Config['Echo'] == True:
+            print('New coarse factor: %.3f' % (CoarseFactor))
+
         FEelSize = Spacing * CoarseFactor
-        print('Adjusted elements size: %.3f' % (FEelSize[2]))
+        if Config['Echo'] == True:
+            print('Adjusted elements size: %.3f' % (FEelSize[2]))
 
         Bone['Spacing'] = Spacing 
         Bone['CoarseFactor'] = CoarseFactor 
@@ -1678,13 +1724,15 @@ def Generate_Mesh(Bone, FileNames, Config):
     MESH = np.ones(([int(dim) for dim in np.floor(np.array(MeshShape) / CoarseFactor)]))
     MESH = MESH.transpose(2, 1, 0)  # weird numpy array convention (z,y,x)
 
-    Print_Memory_Usage()
-    print('Spacing = ' + str(Spacing))
-    print('FEelSize = ' + str(FEelSize))
-    print(FEelSize[0] / 0.082)
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
+        print('Spacing = ' + str(Spacing))
+        print('FEelSize = ' + str(FEelSize))
+        print(FEelSize[0] / 0.082)
 
     # Write MESH to Abaqus input file
-    print('\n\nGenerate full block mesh (Abaqus inp file)')
+    if Config['Echo'] == True:
+        print('\n\nGenerate full block mesh (Abaqus inp file)')
     Input_FilneName = FileNames['INPname']
 
     WriteAbaqusGeneral(Input_FilneName, MESH, FEelSize)
@@ -1700,7 +1748,8 @@ def Generate_Mesh(Bone, FileNames, Config):
     Elements = {Element: Elements[Element] for Element in Elements_Sets["SET1"]}
     Nodes = {Node: Nodes[Node] for Element in Elements for Node in Elements[Element].get_nodes()}
     Elements_Sets = {}
-    print('\nFinished')
+    if Config['Echo'] == True:
+        print('\nFinished')
 
     # Set Bone values
     Bone['Elements'] = Elements
@@ -1715,18 +1764,21 @@ def Isotropic_Fabric():
     return [eval1, eval2, eval3], [evecxx, evecxy, evecxz], [evecyx, evecyy, evecyz], [eveczx, eveczy, eveczz]]
     """
     return [1.0, 1.0, 1.0], [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
-def Calculate_Iso_Fabric(Bone):
+def Calculate_Iso_Fabric(Bone, Echo=False):
 
     """
     Adapted from Denis's preprocessing_SA.py
     Compute isotropic fabric
     """
 
-    print('\n\nCompute isotropic fabric')
+    if Echo:
+        print('\n\nCompute isotropic fabric')
     EigenValues, EigenVectors = Isotropic_Fabric()
-    print('\nFinished')
 
-    Print_Memory_Usage()
+    if Echo:
+        print('\nFinished')
+
+        Print_Memory_Usage()
 
     Bone['EigenValues'] = EigenValues
     Bone['EigenVectors'] = EigenVectors
@@ -1848,9 +1900,6 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
 
     """
 
-    print('\n\nAssign MSL triangulation')
-    Tic = time.time()
-
     # Compute image dimensions
     DimX = Image_Dim[0]
     DimY = Image_Dim[1]
@@ -1860,35 +1909,39 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     SEG_array[SEG_array > 0] = 1
     SEG_VTK_Image = Numpy2VTK(SEG_array, Spacing)
     del SEG_array
-    Print_Memory_Usage()
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # Create STL file from segmented image
+    Time.Update((3 + 1/7)/10, 'Create STL')
     STL = vtk.vtkDiscreteMarchingCubes()
     STL.SetInputData(SEG_VTK_Image)
     del SEG_VTK_Image
     STL.GenerateValues(1, 1, 1)
     STL.Update()
-    print('Step 1/7: STL file creation finished')
-    Print_Memory_Usage()
-    PrintTime(Tic, time.time())
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # Decimate STL
+    Time.Update((3 + 2/7)/10, 'Decimate cells')
     STLdeci = vtk.vtkDecimatePro()
     STLdeci.SetInputConnection(STL.GetOutputPort())
     STLdeci.SetTargetReduction(0.9)
     STLdeci.PreserveTopologyOn()
     STLdeci.Update()
-    print('Step 2/7: Decimation finished')
-    Print_Memory_Usage()
+
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
+
     del STL
-    Print_Memory_Usage()
-    PrintTime(Tic, time.time())
+
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # Calculate number of cells in triangulated mesh
+    Time.Update((3 + 3/7)/10, 'Compute cell #')
     vtkSTL = STLdeci.GetOutput()
     NFacet = np.arange(vtkSTL.GetNumberOfCells())
-    print('Step 3/7: Number of cells calculated')
-    PrintTime(Tic, time.time())
 
     # Calculate center of gravity for each triangle (xc = (x1+x2+x3)/3...)
     # Only keep cogs which are not at the border (z-direction)
@@ -1896,6 +1949,7 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
 
     # Optimized to run with numba added by Michael Indermaur
     # Find Center of gravity of each cell
+    Time.Update((3 + 4/7)/10, 'Compute COGs')
     Filt = vtk.vtkCellCenters()
     Filt.SetInputDataObject(vtkSTL)
     Filt.Update()
@@ -1926,14 +1980,14 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
         COGPoints_Trab = TransformPoints(np.array(COGPoints_Trab), C1, R1, T1, C2, R2, T2, C3, R3, T3)
         COGPoints_Cort = TransformPoints(np.array(COGPoints_Cort), C1, R1, T1, C2, R2, T2, C3, R3, T3)
 
-    print('Step 4/7: Computation COG finished')
-    PrintTime(Tic, time.time())
-
     # Compute cell normals and dyadic product
     vtkNormals = vtk.vtkPolyDataNormals()
     vtkNormals.SetInputConnection(STLdeci.GetOutputPort())
+
     del STLdeci
-    Print_Memory_Usage()
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
+
     vtkNormals.ComputeCellNormalsOn()
     vtkNormals.ComputePointNormalsOff()
     vtkNormals.ConsistencyOn()
@@ -1941,6 +1995,7 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     vtkNormals.Update()
     PointNormalArray = vtkNormals.GetOutput().GetCellData().GetNormals()
 
+    Time.Update((3 + 5/7)/10, 'Compute dyadics')
     Dyad_Cort = np.zeros([3, 3])
     Dyad_Trab = np.zeros([3, 3])
     Dyadic_Cort = []
@@ -1954,9 +2009,6 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
         vtk.vtkMath.Outer(PointNormalArray.GetTuple(i), PointNormalArray.GetTuple(i), Dyad_Trab)
         Dyadic_Trab.append(Dyad_Trab.tolist())
 
-    print('Step 5/7: Computation dyadic products finished')
-    PrintTime(Tic, time.time())
-
     # Get Cell Area https://www.vtk.org/Wiki/VTK/Examples/Python/MeshLabelImage
     TriangleCellAN = vtk.vtkMeshQuality()
     TriangleCellAN.SetInputConnection(vtkNormals.GetOutputPort())
@@ -1965,6 +2017,7 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     TriangleCellAN.Update()  # creates vtkDataSet
     QualityArray = TriangleCellAN.GetOutput().GetCellData().GetArray("Quality")
 
+    Time.Update((3 + 6/7)/10, 'Compute areas')
     Area_Cort = []
     Area_Trab = []
 
@@ -1974,18 +2027,14 @@ def Assign_MSL_Triangulation(Bone, SEG_array, Image_Dim, Tolerance, TRAB_Mask, S
     for i in Indices_Trab:
         Area_Trab.append(QualityArray.GetValue(i))
 
-    print('Step 6/7: Computation areas finished')
-    PrintTime(Tic, time.time())
-
     # area dyadic represents the multiplication of the area with the cross-product of the normals of each triangle
     # these values can now be assigned to the elements according to the center of gravity of the triangle
     # all lists are sorted according to index (position in list is index identifier for triangles)
     AreaDyadic_Cort = [np.multiply(a, b) for a, b in zip(Area_Cort, Dyadic_Cort)]
     AreaDyadic_Trab = [np.multiply(a, b) for a, b in zip(Area_Trab, Dyadic_Trab)]
 
-    print('Step 7/7: Computation areas finished')
-    Print_Memory_Usage()
-    PrintTime(Tic, time.time())
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     Bone['CogPoints_Cort'] = COGPoints_Cort
     Bone['CogPoints_Trab'] = COGPoints_Trab
@@ -2364,7 +2413,7 @@ def PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames):
     for i, Element in enumerate(Elements):
 
         # Compute center of gravity
-        COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
+        COG = np.nanmean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()],
                            axis=0)  # center of gravity of each element
 
         # Compute PHI from masks
@@ -2447,8 +2496,7 @@ def PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames):
                 DOA[Element] = EigenValues[0] / EigenValues[2]
                 COGs[Element] = COG
 
-        sys.stdout.write("\r" + " ... material mapping element " + str(i) + "/" + str(len(Elements) - 1))
-        sys.stdout.flush()
+        Time.Update((4 + i/(len(Elements) - 1)*4)/10, 'Material mapping')
 
     # conversion to np array for calculation of BVTV and selection of only elements contained in ELSET BONE
     # -----------------------------------------------------------------------------------------------------
@@ -2518,9 +2566,8 @@ def PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames):
     mmarray2 = np.real(np.mean([np.asarray(mm[Element][1]) for Element in m.keys()], axis=0))
     mmarray3 = np.real(np.mean([np.asarray(mm[Element][2]) for Element in m.keys()], axis=0))
 
-    Print_Memory_Usage()
-
-    print("... material mapping finished")
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # store variables to bone dict
     Bone["RHOc_array"] = RHOc_array
@@ -2547,11 +2594,9 @@ def PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames):
     Bone['COGs'] = COGs
 
     # Write elements and material properties to input file
-    print("\n ... update ABAQUS file       :  " + INPname)
+    Time.Update(9/10, 'Update input file')
     outfile = open(INPname, 'a')
     outfile.write("***********************************************************\n")
-
-    print("...inputfile_opened (delete)")
 
     # Write node sets as elements with material properties
     for Element in Elements:
@@ -2756,7 +2801,10 @@ def Compute_EigenValues_EigenVectors(i, elem, MSL_kernel_list, BVseg, projection
     try:
         # MSL method according to Hosseini Bone 2017
         H = 2.0 * BVseg * scipy.linalg.inv(MSL_kernel_list[elem - 1])
-        MSL = 3.0 * H / np.trace(H)
+        if np.trace(H) > 1E-3:
+            MSL = 3.0 * H / np.trace(H)
+        else:
+            MSL = 3.0 * H / np.trace(1E-3)
         evalue, evect = scipy.linalg.eig(MSL)
         # print(evalue, '\n', evect)
         # order eigenvalues 0=min, 1=mid, 2=max
@@ -2786,87 +2834,6 @@ def Compute_EigenValues_EigenVectors(i, elem, MSL_kernel_list, BVseg, projection
 
 
     return np.array(evalue), np.array(evect)
-def Change_Ext(FileName, New_Ext):
-    """changes the file extension"""
-    return FileName.replace("." + FileName.split(".")[-1], New_Ext)
-def Fabric2VTK(INPname, m, mm, Phis_Cort, Phis_Trab):
-
-    """
-    Writes vtk files displaying the eigenvectors computed
-    for a mesh (only for elements with fabric)
-    """
-
-    # Read abaqus input file
-    Input_Data = ReadAbaqus(INPname)
-    Nodes = Input_Data[1]
-    Elements = Input_Data[3]
-
-    # Calculate center of gravity of each element with fabric
-    COG = {Element: np.mean([np.asarray(Nodes[Node].get_coord())
-                             for Node in Elements[Element].get_nodes()],axis=0)
-           for Element in m.keys()}
-
-    # Write vtk files for each eigenvector
-    for i in [0, 1, 2]:
-        if i == 0:
-            vtkname = Change_Ext(INPname, "_FABmin.vtk")
-        elif i == 1:
-            vtkname = Change_Ext(INPname, "_FABmid.vtk")
-        elif i == 2:
-            vtkname = Change_Ext(INPname, "_FABmax.vtk")
-        print(" ... write vtk file: " + vtkname)
-        with open(vtkname, "w") as vtkFile:
-            vtkFile.write("# vtk DataFile Version 2.0\n")
-            vtkFile.write("Reconstructed Lagrangian Field Data\n")
-            vtkFile.write("ASCII\n")
-            vtkFile.write("DATASET UNSTRUCTURED_GRID\n")
-            vtkFile.write("\nPOINTS " + str(2 * len(m.keys())) + " float\n")
-            for Element in m.keys():
-                vtkFile.write(
-                    str(COG[Element][0] - m[Element][i] * mm[Element][0][i])
-                    + " "
-                    + str(COG[Element][1] - m[Element][i] * mm[Element][1][i])
-                    + " "
-                    + str(COG[Element][2] - m[Element][i] * mm[Element][2][i])
-                    + "\n"
-                )
-            for Element in m.keys():
-                vtkFile.write(
-                    str(COG[Element][0] + m[Element][i] * mm[Element][0][i])
-                    + " "
-                    + str(COG[Element][1] + m[Element][i] * mm[Element][1][0])
-                    + " "
-                    + str(COG[Element][2] + m[Element][i] * mm[Element][2][i])
-                    + "\n"
-                )
-            vtkFile.write(
-                "\nCELLS " + str(len(m.keys())) + " " + str(3 * len(m.keys())) + "\n"
-            )
-            count = -1
-            for Element in m.keys():
-                count = count + 1
-                vtkFile.write(
-                    "2 " + str(count) + " " + str(count + len(m.keys())) + "\n"
-                )
-            vtkFile.write("\nCELL_TYPES " + str(len(m.keys())) + "\n")
-            for Element in m.keys():
-                vtkFile.write("3\n")
-
-            vtkFile.write("\nCELL_DATA " + str(len(m.keys())) + "\n")
-            vtkFile.write("scalars DOA_max float\n")
-            vtkFile.write("LOOKUP_TABLE default\n")
-            for Element in m.keys():
-                vtkFile.write(str(m[Element][0] / m[Element][2]) + "\n")
-
-            vtkFile.write("scalars PHIc float\n")
-            vtkFile.write("LOOKUP_TABLE default\n")
-            for Element in m.keys():
-                vtkFile.write(str(Phis_Cort[Element]) + "\n")
-
-            vtkFile.write("scalars PHIt float\n")
-            vtkFile.write("LOOKUP_TABLE default\n")
-            for Element in m.keys():
-                vtkFile.write(str(Phis_Trab[Element]) + "\n")
 def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
 
     """
@@ -2972,18 +2939,16 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
         T3 = -np.array(P3[3:])
 
     # ---------------------------------------------------------------------------
-    print('\n\nPerform material mapping')
-    Tic = time.time()
     for i, Element in enumerate(Elements):
         # 2.1 Compute center of gravity
         COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()], axis=0)  # center of gravity of each element
-
+        # print(i) 267
+        
         # Transform Center of gravity from uCT to HRpQCT space
         if Config['Registration']:
             COG_Inv = InverseTransformPoints(np.array([COG]), C1, R1, T1, C2, R2, T2, C3, R3, T3)[0]
         else:
             COG_Inv = COG
-
         # 2.2 compute PHI from masks
         Phi_Cort, Xc, Yc, Zc = Compute_Phi(COG_Inv, Spacing, FEelSize[0], CORTMASK_Array)
         Phi_Trab, Xt, Yt, Zt = Compute_Phi(COG_Inv, Spacing, FEelSize[0], TRABMASK_Array)
@@ -3100,12 +3065,11 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
                 DOA[Element] = EigenValues[0] / EigenValues[2]
                 COGs[Element] = COG
 
-        sys.stdout.write("\r" + " ... material mapping element " + str(i) + "/" + str(len(Elements) - 1))
-        sys.stdout.flush()
+        Time.Update((4 + i/(len(Elements) - 1)*4)/10, 'Material mapping')
 
-    print("\nThe following number of elements were mapped for each phase\n  - cortical:   %5d \n"
+    if Config['Echo'] == True:
+        print("\nThe following number of elements were mapped for each phase\n  - cortical:   %5d \n"
           "  - trabecular: %5d \n  - mixed:      %5d" % (only_cort_element, only_trab_element, mixed_phase_element))
-    PrintTime(Tic, time.time())
 
     # conversion to np array for calculation of BVTV and selection of only elements contained in ELSET BONE
     # -----------------------------------------------------------------------------------------------------
@@ -3162,9 +3126,8 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     mmarray2 = np.real(np.mean([np.asarray(mm[Element][1]) for Element in m.keys()], axis=0))
     mmarray3 = np.real(np.mean([np.asarray(mm[Element][2]) for Element in m.keys()], axis=0))
 
-    Print_Memory_Usage()
-
-    print("... material mapping finished")
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # Store variables to bone dict
     Bone['RHOc_array'] = RHOc_array
@@ -3191,11 +3154,9 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     Bone['COGs'] = COGs
 
     # Write elements and material properties to input file
-    print("\n ... update ABAQUS file       :  " + INPname)
+    Time.Update(9/10, 'Update input file')
     outfile = open(INPname, 'a')
     outfile.write("***********************************************************\n")
-
-    print("...inputfile_opened (delete)")
 
     # Write node sets as elements with material properties
     for Element in Elements:
@@ -3263,7 +3224,7 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     outfile.write("*KINEMATIC COUPLING, REF NODE=REF_NODE\n")  # couple the reference node to the top nodes
     outfile.write("TOPNODES, 1, 6\n")
     outfile.write("**\n")
-    if Config['nlgeom'] == 'on':
+    if Config['nlgeom'] == 'YES':
         outfile.write(
             "*STEP,AMPLITUDE=RAMP,UNSYMM=YES,INC=" + str(Config['Max_Increments']) + ",NLGEOM=YES\n")  # apply displ to top nodes via reference node
     else:
@@ -3312,334 +3273,6 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     outfile.write("*END STEP\n")
     outfile.close()
 
-    # Writes out vtk maps of fabric for visualization
-    Fabric2VTK(INPname, m, mm, Phis_Cort, Phis_Trab)
-
-    return Bone
-def Set_Summary_Variables(Bone):
-
-    """
-    Computes variables for summary file
-    """
-
-    # get bone values
-    BMD_Scaled = Bone['BMD_Scaled']
-    BVTV_Scaled = Bone['BVTV_Scaled']
-
-    CORTMASK_Array = Bone['CORTMASK_Array']
-    CORTMASK_Array[CORTMASK_Array > 0] = 1
-    TRABMASK_Array = Bone['TRABMASK_Array']
-    TRABMASK_Array[TRABMASK_Array > 0] = 1
-
-    MASK_array = np.add(CORTMASK_Array, TRABMASK_Array)
-
-    FEelSize = Bone['FEelSize']
-    Spacing = Bone['Spacing']
-
-    RHOc_array = Bone['RHOc_array']
-    RHOc_FE_array = Bone['RHOc_FE_array']
-    PHIc_array = Bone['PHIc_array']
-
-    RHOt_array = Bone['RHOt_array']
-    RHOt_FE_array = Bone['RHOt_FE_array']
-    PHIt_array = Bone['PHIt_array']
-
-    RHOc_orig_array = Bone['RHOc_orig_array']
-    RHOt_orig_array = Bone['RHOt_orig_array']
-
-    # Computation of variables for summary file
-    Variables = {}
-
-    # Mask volume from MASK array [mm3]
-    Variables['Mask_Volume_CORTMASK'] = np.sum(CORTMASK_Array * Spacing[1] ** 3)
-    Variables['Mask_Volume_TRABMASK'] = np.sum(TRABMASK_Array * Spacing[1] ** 3)
-    Variables['Mask_Volume_MASK'] = Variables['Mask_Volume_CORTMASK'] + Variables['Mask_Volume_TRABMASK']
-
-    # Mask volume from FE elememts [mm3]
-    Variables['CORTMask_Volume_FE'] = np.sum(PHIc_array * FEelSize[1] ** 3)
-    Variables['TRABMask_Volume_FE'] = np.sum(PHIt_array * FEelSize[1] ** 3)
-
-    # Ratio quality check mesh
-    Variables['CORTVolume_ratio'] = Variables['CORTMask_Volume_FE'] / Variables['Mask_Volume_CORTMASK']
-    Variables['TRABVolume_ratio'] = Variables['TRABMask_Volume_FE'] / Variables['Mask_Volume_TRABMASK']
-    Variables['TOTVolume_ratio'] = (Variables['TRABMask_Volume_FE'] + Variables['CORTMask_Volume_FE']) / \
-                                   (Variables['Mask_Volume_TRABMASK'] + Variables['Mask_Volume_CORTMASK'])
-
-    # BMD computation [mgHA/ccm]
-    # ------------------------------------------------------
-    Variables['TOT_mean_BMD_image'] = np.mean(BMD_Scaled[MASK_array > 0])
-    Variables['CORT_mean_BMD_image'] = np.mean(BMD_Scaled[CORTMASK_Array > 0])
-    Variables['TRAB_mean_BMD_image'] = np.mean(BMD_Scaled[TRABMASK_Array > 0])
-
-    # BMC
-    Variables['TOT_mean_BMC_image'] = np.mean(BMD_Scaled[MASK_array > 0]) * Variables['Mask_Volume_MASK'] / 1000
-    Variables['CORT_mean_BMC_image'] = np.mean(BMD_Scaled[CORTMASK_Array > 0]) * Variables[
-        'Mask_Volume_CORTMASK'] / 1000
-    Variables['TRAB_mean_BMC_image'] = np.mean(BMD_Scaled[TRABMASK_Array > 0]) * Variables[
-        'Mask_Volume_TRABMASK'] / 1000
-
-    Variables['CORT_simulation_BMC_FE_tissue_ROI'] = np.sum(RHOc_array * PHIc_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['CORT_simulation_BMC_FE_tissue_orig_ROI'] = np.sum(
-        RHOc_orig_array * PHIc_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TRAB_simulation_BMC_FE_tissue_ROI'] = np.sum(RHOt_array * PHIt_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TRAB_simulation_BMC_FE_tissue_orig_ROI'] = np.sum(
-        RHOt_orig_array * PHIt_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TOT_simulation_BMC_FE_tissue_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_ROI'] + \
-                                                    Variables['TRAB_simulation_BMC_FE_tissue_ROI']
-    Variables['TOT_simulation_BMC_FE_tissue_orig_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_orig_ROI'] + \
-                                                         Variables['TRAB_simulation_BMC_FE_tissue_orig_ROI']
-    # Quality check
-    # corrected, with BMC conversion
-    Variables['TRAB_BMC_ratio_ROI'] = Variables['TRAB_simulation_BMC_FE_tissue_ROI'] / Variables['TRAB_mean_BMC_image']
-    Variables['CORT_BMC_ratio_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_ROI'] / Variables['CORT_mean_BMC_image']
-    Variables['TOT_BMC_ratio_ROI'] = Variables['TOT_simulation_BMC_FE_tissue_ROI'] / Variables['TOT_mean_BMC_image']
-    # original, without correction
-    Variables['TRAB_BMC_ratio_orig_ROI'] = Variables['TRAB_simulation_BMC_FE_tissue_orig_ROI'] / Variables[
-        'TRAB_mean_BMC_image']
-    Variables['CORT_BMC_ratio_orig_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_orig_ROI'] / Variables[
-        'CORT_mean_BMC_image']
-    Variables['TOT_BMC_ratio_orig_ROI'] = Variables['TOT_simulation_BMC_FE_tissue_orig_ROI'] / Variables[
-        'TOT_mean_BMC_image']
-
-    # BVTV computation [%]
-    # ------------------------------------------------------
-    # mean tissue BVTV
-    Variables['TOT_BVTV_tissue'] = np.mean(BVTV_Scaled[MASK_array == 1])
-    Variables['CORT_BVTV_tissue'] = np.mean(BVTV_Scaled[CORTMASK_Array == 1])
-    Variables['TRAB_BVTV_tissue'] = np.mean(BVTV_Scaled[TRABMASK_Array == 1])
-
-    # BVTV from FE elements, but only in ROI
-    Variables['CORT_simulation_BVTV_FE_tissue_ROI'] = np.sum(RHOc_array * PHIc_array) / np.sum(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_tissue_ROI'] = np.sum(RHOt_array * PHIt_array) / np.sum(PHIt_array)
-
-    Variables['CORT_simulation_BVTV_FE_tissue_orig_ROI'] = np.sum(RHOc_orig_array * PHIc_array) / np.sum(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_tissue_orig_ROI'] = np.sum(RHOt_orig_array * PHIt_array) / np.sum(PHIt_array)
-
-    Variables['CORT_simulation_BVTV_FE_tissue_ELEM'] = np.sum(RHOc_FE_array * PHIc_array) / np.sum(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_tissue_ELEM'] = np.sum(RHOt_FE_array * PHIt_array) / np.sum(PHIt_array)
-
-    # BVTV from FE elements, including full element volume (as well volume of FE elements outside of mask)
-    Variables['CORT_simulation_BVTV_FE_elements_ROI'] = np.sum(RHOc_array * PHIc_array) / len(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_elements_ROI'] = np.sum(RHOt_array * PHIt_array) / len(PHIt_array)
-
-    Variables['CORT_simulation_BVTV_FE_elements_orig_ROI'] = np.sum(RHOc_orig_array * PHIc_array) / len(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_elements_orig_ROI'] = np.sum(RHOt_orig_array * PHIt_array) / len(PHIt_array)
-
-    Variables['CORT_simulation_BVTV_FE_elements_ELEM'] = np.sum(RHOc_array * PHIc_array) / len(PHIc_array)
-    Variables['TRAB_simulation_BVTV_FE_elements_ELEM'] = np.sum(RHOt_array * PHIt_array) / len(PHIt_array)
-    Variables['TOT_simulation_BVTV_FE_elements_ELEM'] = \
-        (np.sum(RHOt_array * PHIt_array) + np.sum(RHOc_array + PHIc_array)) / \
-        (len(PHIt_array) + len(PHIc_array))
-
-    Variables['CORT_BVTV_ratio_ROI'] = Variables['CORT_simulation_BVTV_FE_tissue_ROI'] / Variables['CORT_BVTV_tissue']
-    Variables['TRAB_BVTV_ratio_ROI'] = Variables['TRAB_simulation_BVTV_FE_tissue_ROI'] / Variables['TRAB_BVTV_tissue']
-
-    Variables['CORT_BVTV_ratio_ELEM'] = Variables['CORT_simulation_BVTV_FE_tissue_ELEM'] / Variables['CORT_BVTV_tissue']
-    Variables['TRAB_BVTV_ratio_ELEM'] = Variables['TRAB_simulation_BVTV_FE_tissue_ELEM'] / Variables['TRAB_BVTV_tissue']
-
-    # Bone volume BV [mm^3]
-    Variables['TOT_BV_tissue'] = Variables['TOT_BVTV_tissue'] * Variables['Mask_Volume_MASK']
-    Variables['CORT_BV_tissue'] = Variables['CORT_BVTV_tissue'] * Variables['Mask_Volume_CORTMASK']
-    Variables['TRAB_BV_tissue'] = Variables['TRAB_BVTV_tissue'] * Variables['Mask_Volume_TRABMASK']
-
-    # Tissue BMC [mgHA] from mask and BMD image
-    Variables['TOT_BMC_tissue'] = Variables['TOT_mean_BMD_image'] * Variables['Mask_Volume_MASK'] / 1000
-    Variables['CORT_BMC_tissue'] = Variables['CORT_mean_BMD_image'] * Variables['Mask_Volume_CORTMASK'] / 1000
-    Variables['TRAB_BMC_tissue'] = Variables['TRAB_mean_BMD_image'] * Variables['Mask_Volume_TRABMASK'] / 1000
-
-    # BMC FE tissue (BVTV that FE simulation uses --> homogenized as ROI is bigger than FE element)
-    Variables['CORT_simulation_BMC_FE_tissue_ROI'] = np.sum(RHOc_array * PHIc_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TRAB_simulation_BMC_FE_tissue_ROI'] = np.sum(RHOt_array * PHIt_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TOT_simulation_BMC_FE_tissue_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_ROI'] + \
-                                                    Variables['TRAB_simulation_BMC_FE_tissue_ROI']
-
-    # BMC FE tissue that should be equal to total tissue BMC, as only RHO inside FE element is considered.
-    Variables['CORT_simulation_BMC_FE_tissue_ELEM'] = np.sum(
-        RHOc_FE_array * PHIc_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TRAB_simulation_BMC_FE_tissue_ELEM'] = np.sum(
-        RHOt_FE_array * PHIt_array * FEelSize[0] ** 3 * 1200) / 1000
-    Variables['TOT_simulation_BMC_FE_tissue_ELEM'] = Variables['CORT_simulation_BMC_FE_tissue_ELEM'] + \
-                                                     Variables['TRAB_simulation_BMC_FE_tissue_ELEM']
-
-    # Ratio quality check mesh
-    Variables['TOT_BMC_ratio_ROI'] = Variables['TOT_simulation_BMC_FE_tissue_ROI'] / Variables['TOT_BMC_tissue']
-    Variables['CORT_BMC_ratio_ROI'] = Variables['CORT_simulation_BMC_FE_tissue_ROI'] / Variables['CORT_BMC_tissue']
-    Variables['TRAB_BMC_ratio_ROI'] = Variables['TRAB_simulation_BMC_FE_tissue_ROI'] / Variables['TRAB_BMC_tissue']
-
-    Variables['TOT_BMC_ratio_ELEM'] = Variables['TOT_simulation_BMC_FE_tissue_ELEM'] / Variables['TOT_BMC_tissue']
-    Variables['CORT_BMC_ratio_ELEM'] = Variables['CORT_simulation_BMC_FE_tissue_ELEM'] / Variables['CORT_BMC_tissue']
-    Variables['TRAB_BMC_ratio_ELEM'] = Variables['TRAB_simulation_BMC_FE_tissue_ELEM'] / Variables['TRAB_BMC_tissue']
-
-    Print_Memory_Usage()
-
-    return Variables
-def Log_Summary(Config, Bone, FileNames, Summary_Variables):
-
-
-    Summary = "\n".join(
-        [
-            """******************************************************************
-            **                         SUMMARY FILE                         **
-            **                hFE pipeline Denis Schenk 2018                **
-            ******************************************************************""",
-            "File                 : {}".format(FileNames['BMDname']),
-            "System computed on   : {}".format(socket.gethostname()),
-            "Simulation Type      : Fast model (one phase / isotropic)",
-            "*****************************************************************",
-            "Patient specific loading",
-            "-------------------------------------------------------------------",
-            "Image Dimension      : {}".format(np.shape(Bone['BMD_Array'])),
-            "Scaling              : {}".format(Bone['Scaling']),
-            "Slope                : {:.3f}".format(Bone['Slope']),
-            "Intercept            : {:.3f}".format(Bone['Intercept']),
-            "Spacing              : {:.3f}, {:.3f}, {:.3f} mm".format(*Bone['Spacing']),
-            "FE element size      : {:.3f}, {:.3f}, {:.3f} mm".format(*Bone['FEelSize']),
-            "Number of elements   : {:d} + {:d}".format(len(Bone['Bone_Elements']), len(Bone['Elements'])-len(Bone['Bone_Elements'])),
-            "******************************************************************",
-            "Variables computed from scaled BMD image and original masks",
-            "-------------------------------------------------------------------",
-            "*BMD*",
-            "CORT                 : {:.2f} mgHA/ccm".format(Summary_Variables['CORT_mean_BMD_image']),
-            "TRAB                 : {:.2f} mgHA/ccm".format(Summary_Variables['TRAB_mean_BMD_image']),
-            "TOT                  : {:.2f} mgHA/ccm".format(Summary_Variables['TOT_mean_BMD_image']),
-            "*BMC*",
-            "CORT                 : {:.2f} mgHA/ccm".format(Summary_Variables['CORT_mean_BMC_image']),
-            "TRAB                 : {:.2f} mgHA/ccm".format(Summary_Variables['TRAB_mean_BMC_image']),
-            "TOT                  : {:.2f} mgHA/ccm".format(Summary_Variables['TOT_mean_BMC_image']),
-            "*MASK Volumes*",
-            "CORT                 : {:.2f} mm^3".format(Summary_Variables['Mask_Volume_CORTMASK']),
-            "TRAB                 : {:.2f} mm^3".format(Summary_Variables['Mask_Volume_TRABMASK']),
-            "TOT                  : {:.2f} mm^3".format(Summary_Variables['Mask_Volume_MASK']),
-            "******************************************************************",
-            "Variables computed from element values - original, without BMC conversion",
-            "-------------------------------------------------------------------",
-            "*BMC*",
-            "CORT                 : {:.2f} mgHA/ccm".format(Summary_Variables['CORT_simulation_BMC_FE_tissue_orig_ROI']),
-            "TRAB                 : {:.2f} mgHA/ccm".format(Summary_Variables['TRAB_simulation_BMC_FE_tissue_orig_ROI']),
-            "TOT                  : {:.2f} mgHA/ccm".format(Summary_Variables['TOT_simulation_BMC_FE_tissue_orig_ROI']),
-            "******************************************************************",
-            "Variables computed from element values - corrected, with BMC conversion",
-            "-------------------------------------------------------------------",
-            "*BMC*",
-            "CORT                 : {:.2f} mgHA/ccm".format(Summary_Variables['CORT_simulation_BMC_FE_tissue_orig_ROI']),
-            "TRAB                 : {:.2f} mgHA/ccm".format(Summary_Variables['TRAB_simulation_BMC_FE_tissue_ROI']),
-            "TOT                  : {:.2f} mgHA/ccm".format(Summary_Variables['TOT_simulation_BMC_FE_tissue_ROI']),
-            "******************************************************************",
-            "Summary Benchmark Tests",
-            "-------------------------------------------------------------------",
-            "*without BMC conversion*",
-            "BMC CORT             : {:.3f}".format(Summary_Variables['CORT_BMC_ratio_orig_ROI']),
-            "BMC TRAB             : {:.3f}".format(Summary_Variables['TRAB_BMC_ratio_orig_ROI']),
-            "BMC TOT              : {:.3f}".format(Summary_Variables['TOT_BMC_ratio_orig_ROI']),
-            "*with BMC conversion*",
-            "BMC CORT             : {:.3f}".format(Summary_Variables['CORT_BMC_ratio_ROI']),
-            "BMC TRAB             : {:.3f}".format(Summary_Variables['TRAB_BMC_ratio_ROI']),
-            "BMC TOT              : {:.3f}".format(Summary_Variables['TOT_BMC_ratio_ROI']),
-            "*Volumes",
-            "Mask volume CORT     : {:.3f}".format(Summary_Variables['CORTVolume_ratio']),
-            "Mask volume TRAB     : {:.3f}".format(Summary_Variables['TRABVolume_ratio']),
-            "Mask volume TOT      : {:.3f}".format(Summary_Variables['TOTVolume_ratio']),
-            "******************************************************************",
-            "******************************************************************",
-            "******************************************************************",
-        ]
-    )
-
-    print(Summary)
-
-    with open(FileNames['SummaryName'], "w") as SumFile:
-        SumFile.write(Summary)
-
-    return
-def Plot_MSL_Fabric_Fast(Config, Bone, Sample):
-
-    cogs_plot = []
-    evect1 = []
-    evect2 = []
-    evect3 = []
-    eval1 = []
-    eval2 = []
-    eval3 = []
-
-    Elements = Bone['Elements']
-    COGs = Bone['COGs']
-    m = Bone['m_dict']
-    mm = Bone['mm_dict']
-
-    for Element in Elements:
-        cogs_plot.append([COGs[Element][0], COGs[Element][1], COGs[Element][2]])
-        evect1.append(mm[Element][0])
-        evect2.append(mm[Element][1])
-        evect3.append(mm[Element][2])
-        eval1.append(m[Element][0])
-        eval2.append(m[Element][1])
-        eval3.append(m[Element][2])
-    cogs_plot = np.array(cogs_plot)
-    evect1 = np.array(evect1)
-    evect2 = np.array(evect2)
-    evect3 = np.array(evect3)
-    eval1 = np.array(eval1)
-    eval2 = np.array(eval2)
-    eval3 = np.array(eval3)
-
-    def quiver_3d_MSL(EigenValues, EigenVectors, COGs, path):
-        cmap = 'jet'
-        if EigenValues.ptp() != 0:
-            c = (EigenValues - EigenValues.min()) / EigenValues.ptp()
-        elif EigenValues.max() == EigenValues.min():
-            c = EigenValues
-        else:
-            c = (EigenValues - EigenValues.min())
-        c = np.concatenate((c, np.repeat(c,2)))
-        c = getattr(plt.cm, cmap)(c)
-
-        fig = plt.figure()
-        ax = fig.gca(projection='3d')
-        q = ax.quiver(COGs[:,0], COGs[:,1], COGs[:,2], EigenVectors[:,0], EigenVectors[:,1], EigenVectors[:,2], cmap = cmap)
-        fig.colorbar(q)
-        q.set_edgecolor(c)
-        q.set_facecolor(c)
-        plt.savefig(path)
-
-    Path = os.getcwd() + '/' + Config['FEADir'] + Config['Folder_IDs'][Sample] + '/' + Sample + '_' + Config['Version'] + '_'
-
-    quiver_3d_MSL(eval1, evect1, cogs_plot, Path + 'MSL_1.png')
-    quiver_3d_MSL(eval2, evect2, cogs_plot, Path + 'MSL_2.png')
-    quiver_3d_MSL(eval3, evect3, cogs_plot, Path + 'MSL_3.png')
-def Compute_BVTVd_Seg(Bone):
-
-    """
-    Compute BVTV from segmented images and from corrected BVTVd values for comparison
-    Parameters
-    ----------
-    config
-    bone
-    sample
-
-    Returns
-    -------
-
-    """
-
-    SEG = Bone['SEG_Array']
-    SEG[SEG > 0] = 1
-    SegVoxels = np.sum(SEG[SEG > 0])
-
-    MASK = Bone['CORTMASK_Array'] + Bone['TRABMASK_Array']
-    MASK[MASK > 0] = 1
-    MaskVoxels = np.sum(MASK[MASK > 0])
-
-    Bone['BVTV_Seg_Compare'] = SegVoxels / MaskVoxels
-
-    BVTVd_Scaled = Bone['BVTV_Scaled']
-    MeanBVTVd_Scaled = np.mean(BVTVd_Scaled[BVTVd_Scaled != 0])
-    BVTVd_Raw = Bone['BVTV_Raw']
-    MeanBVTVd__Raw= np.mean(BVTVd_Raw[BVTVd_Raw != 0])
-
-    Bone['Mean_BVTV_Seg'] = SegVoxels / MaskVoxels
-    Bone['Mean_BVTVd_Scaled'] = MeanBVTVd_Scaled
-    Bone['Mean_BVTVd_Raw'] = MeanBVTVd__Raw
-
     return Bone
 def AIM2FE_SA_PSL(Config, Sample, Directories):
 
@@ -3648,16 +3281,17 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
     Adapted from Denis's aim2fe_SA_PSL.py
     """
 
-    print('\nPerform material mapping: ')
     FileNames = Set_FileNames(Config, Sample, Directories)
 
-    print(yaml.dump(FileNames, default_flow_style=False))
-    Print_Memory_Usage()
+    if Config['Echo'] == True:
+        print(yaml.dump(FileNames, default_flow_style=False))
+        Print_Memory_Usage()
 
     # Create bone dictionary, storing arrays and variables
     Bone = {}
 
     # Read AIM images and image parameters
+    Time.Update(1/10, 'Read Images')
     Bone = Read_Image_Parameters(FileNames, Bone)
     Image_List = ['BMD', 'SEG', 'CORTMASK', 'TRABMASK']
 
@@ -3665,12 +3299,16 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
         Bone = Read_AIM(Item, FileNames, Bone)
         Bone = Adjust_Image(Item, Bone, Config, 'Crop')
 
-    Print_Memory_Usage()
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # If registration, read common image and mask arrays
     if Config['Registration']:
+        Time.Update(2/10, 'Common region')
         Bone = CommonRegion(Bone, FileNames['Common'], FileNames['Common_uCT'])
-    Print_Memory_Usage()
+
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # Prepare material mapping
     ImageType = Config['ImageType']
@@ -3680,8 +3318,10 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
 
     # 4 Material mapping
     # Compute MSL kernel list
+    Time.Update(3/10, 'Compute MSL')
     Bone = Compute_Local_MSL(Bone, Config, FileNames)
-    Print_Memory_Usage()
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     # ---------------------------------------------------------------------------------
     # Ghost layer mode
@@ -3689,220 +3329,9 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
         Bone = PSL_Material_Mapping_Copy_Layers_Iso_Cort(Bone, Config, FileNames)
     else:
         Bone = PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames)
-    Print_Memory_Usage()
-
-    # 5 Compute and store summary and performance variables
-    Summary_Variables = Set_Summary_Variables(Bone)
-    Log_Summary(Config, Bone, FileNames, Summary_Variables)
-    Print_Memory_Usage()
-
-    return
-def UpDate_BCs_Files(Config, Directories):
-
-    """
-    Function same as in  PSL_Fast, DO NOT CHANGE!
-    Updates the global BC files in BC folder with new bc values defined in config.yaml
-    depending on config['control']
-    """
-
-    def Replace(File, SearchExp, ReplaceExp):
-        for Line in fileinput.input(File, inplace=1):
-            if SearchExp in Line:
-                Line = ReplaceExp + "\n"
-            else:
-                Line = Line
-            sys.stdout.write(Line)
-
-    bc_folder = str(Directories['BCs']) + '/'
-
-    if Config['Control'] == 'Displacement':
-        load_fx = bc_folder + "boundary_conditions_disp_x.inp"
-        load_fy = bc_folder + "boundary_conditions_disp_y.inp"
-        load_fz = bc_folder + "boundary_conditions_disp_z.inp"
-        load_mx = bc_folder + "boundary_conditions_mom_x.inp"
-        load_my = bc_folder + "boundary_conditions_mom_y.inp"
-        load_mz = bc_folder + "boundary_conditions_mom_z.inp"
-
-        Replace(load_fx, "REF_NODE, 1, 1,", "REF_NODE, 1, 1," + str(float(Config['BCs_Load'][0][0])))
-        Replace(load_fy, "REF_NODE, 2, 2,", "REF_NODE, 2, 2," + str(float(Config['BCs_Load'][1][1])))
-        Replace(load_fz, "REF_NODE, 3, 3,", "REF_NODE, 3, 3," + str(float(Config['BCs_Load'][2][2])))
-        Replace(load_mx, "REF_NODE, 4, 4,", "REF_NODE, 4, 4," + str(float(Config['BCs_Load'][3][3])))
-        Replace(load_my, "REF_NODE, 5, 5,", "REF_NODE, 5, 5," + str(float(Config['BCs_Load'][4][4])))
-        Replace(load_mz, "REF_NODE, 6, 6,", "REF_NODE, 6, 6," + str(float(Config['BCs_Load'][5][5])))
-
-    elif Config['Control'] == 'Force':
-        load_fx = bc_folder + "boundary_conditions_disp_x_force.inp"
-        load_fy = bc_folder + "boundary_conditions_disp_y_force.inp"
-        load_fz = bc_folder + "boundary_conditions_disp_z_force.inp"
-        load_mx = bc_folder + "boundary_conditions_mom_x_force.inp"
-        load_my = bc_folder + "boundary_conditions_mom_y_force.inp"
-        load_mz = bc_folder + "boundary_conditions_mom_z_force.inp"
-
-        Replace(load_fx, "REF_NODE, 1,", "REF_NODE, 1, " + str(float(Config['BCs_Load'][0][0])))
-        Replace(load_fy, "REF_NODE, 2,", "REF_NODE, 2, " + str(float(Config['BCs_Load'][1][1])))
-        Replace(load_fz, "REF_NODE, 3,", "REF_NODE, 3, " + str(float(Config['BCs_Load'][2][2])))
-        Replace(load_mx, "REF_NODE, 4,", "REF_NODE, 4, " + str(float(Config['BCs_Load'][3][3])))
-        Replace(load_my, "REF_NODE, 5,", "REF_NODE, 5, " + str(float(Config['BCs_Load'][4][4])))
-        Replace(load_mz, "REF_NODE, 6,", "REF_NODE, 6, " + str(float(Config['BCs_Load'][5][5])))
-
-    else:
-        raise ValueError('experiment control variable CONTROL is not set properly!')
-
-    return
-def Create_Canonical_LoadCases(Config, Input_FileName, Directories):
-
-    """
-    Function same as in  PSL_Fast, DO NOT CHANGE!
-    Creates new inputfiles for canonical load cases from general input file
-    New input files have suffix acc. to canonical load case and the INCLUDE statement
-    at the end of each input file is changed to the respective canonical boundary condition file.
-    Procedure is different according to config['control'] for either force or displacement controlled
-    boundary conditions.
-    """
-
-    bc_folder = str(Directories['BCs']) + '/'
-
-    if Config['Control'] == 'Displacement':
-        load_fx = bc_folder + "boundary_conditions_disp_x.inp\n"
-        load_fy = bc_folder + "boundary_conditions_disp_y.inp\n"
-        load_fz = bc_folder + "boundary_conditions_disp_z.inp\n"
-        load_mx = bc_folder + "boundary_conditions_mom_x.inp\n"
-        load_my = bc_folder + "boundary_conditions_mom_y.inp\n"
-        load_mz = bc_folder + "boundary_conditions_mom_z.inp\n"
-
-    elif Config['Control'] == 'Force':
-        load_fx = bc_folder + "boundary_conditions_disp_x_force.inp\n"
-        load_fy = bc_folder + "boundary_conditions_disp_y_force.inp\n"
-        load_fz = bc_folder + "boundary_conditions_disp_z_force.inp\n"
-        load_mx = bc_folder + "boundary_conditions_mom_x_force.inp\n"
-        load_my = bc_folder + "boundary_conditions_mom_y_force.inp\n"
-        load_mz = bc_folder + "boundary_conditions_mom_z_force.inp\n"
-
-    else:
-        raise ValueError('experiment control variable CONTROL is not set properly!')
-
-    # create 6 new input files, that will be a copy of the original input file, but with different boundary conditions
-    name_fx = Input_FileName[:-4] + "_FX.inp"
-    name_fy = Input_FileName[:-4] + "_FY.inp"
-    name_fz = Input_FileName[:-4] + "_FZ.inp"
-    name_mx = Input_FileName[:-4] + "_MX.inp"
-    name_my = Input_FileName[:-4] + "_MY.inp"
-    name_mz = Input_FileName[:-4] + "_MZ.inp"
-
-    outfile_fx = open(name_fx, 'w')
-    outfile_fy = open(name_fy, 'w')
-    outfile_fz = open(name_fz, 'w')
-    outfile_mx = open(name_mx, 'w')
-    outfile_my = open(name_my, 'w')
-    outfile_mz = open(name_mz, 'w')
-
-    input_file = open(Input_FileName, "r")
-
-    for line in input_file:
-        outfile_fx.write("*INCLUDE, input=" + load_fx if "*INCLUDE, input=" in line else line)
-        outfile_fy.write("*INCLUDE, input=" + load_fy if "*INCLUDE, input=" in line else line)
-        outfile_fz.write("*INCLUDE, input=" + load_fz if "*INCLUDE, input=" in line else line)
-        outfile_mx.write("*INCLUDE, input=" + load_mx if "*INCLUDE, input=" in line else line)
-        outfile_my.write("*INCLUDE, input=" + load_my if "*INCLUDE, input=" in line else line)
-        outfile_mz.write("*INCLUDE, input=" + load_mz if "*INCLUDE, input=" in line else line)
-
-    outfile_fx.close()
-    outfile_fy.close()
-    outfile_fz.close()
-    outfile_mx.close()
-    outfile_my.close()
-    outfile_mz.close()
-
-    print("... created abaqus .inp for 6 canonical load cases")
-
-    return
-def Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, LoadCase, Directories):
-
-    """
-    create BC file for force MAX loadcase
-    Force MAX loadcases boundary conditions are displacements of respective linear load cases, scaled by a factor lambda
-    to ensure failure. Lambda is computed so that the max displacement in the repective direction is equal to
-    config['Fz_Max_Factor'].
-    @rtype: None
-    """
-
-    # read BC file to BC optim
-    bc_file = open(str(Directories['BCs'] / 'boundary_conditions_disp_x.inp'), "r")
-    bc_fmax_file_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / ('boundary_conditions_' + LoadCase + '.inp'))
-    bc_fmax_file = open(bc_fmax_file_pwd, "w")
-
-    # BC_mode NUMBERS:  0: all DOF fixed / 2: two in plane fixed / 5: all DOF free
-    if Config['BCs_Mode'] == 0:
-        for line in bc_file:
-            if "REF_NODE, 1, 1," in line:
-                bc_fmax_file.write("REF_NODE, 1, 1, 0.0" + "\n")
-            elif "REF_NODE, 2, 2," in line:
-                bc_fmax_file.write("REF_NODE, 2, 2, 0.0" + "\n")
-            elif "REF_NODE, 3, 3," in line:
-                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['Fz_Max_Factor']) + "\n")
-            elif "REF_NODE, 4, 4," in line:
-                bc_fmax_file.write("REF_NODE, 4, 4, 0.0" + "\n")
-            elif "REF_NODE, 5, 5," in line:
-                bc_fmax_file.write("REF_NODE, 5, 5, 0.0" + "\n")
-            elif "REF_NODE, 6, 6," in line:
-                bc_fmax_file.write("REF_NODE, 6, 6, 0.0" + "\n")
-            else:
-                bc_fmax_file.write(line)
-    elif Config['BCs_Mode'] == 2:
-        for line in bc_file:
-            if "REF_NODE, 1, 1," in line:
-                bc_fmax_file.write("REF_NODE, 1, 1, 0.0" + "\n")
-            elif "REF_NODE, 2, 2," in line:
-                bc_fmax_file.write("REF_NODE, 2, 2, 0.0" + "\n")
-            elif "REF_NODE, 3, 3," in line:
-                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['Fz_Max_Factor']) + "\n")
-            elif "REF_NODE, 4, 4," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 5, 5," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 6, 6," in line:
-                bc_fmax_file.write("")
-            else:
-                bc_fmax_file.write(line)
-    elif Config['BCs_Mode'] == 5:
-        for line in bc_file:
-            if "REF_NODE, 1, 1," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 2, 2," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 3, 3," in line:
-                bc_fmax_file.write("REF_NODE, 3, 3, " + str(Config['Fz_Max_Factor']) + "\n")
-            elif "REF_NODE, 4, 4," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 5, 5," in line:
-                bc_fmax_file.write("")
-            elif "REF_NODE, 6, 6," in line:
-                bc_fmax_file.write("")
-            else:
-                bc_fmax_file.write(line)
-    else:
-        raise ValueError('BC_mode was not properly defined. Was ' + str(Config['BCs_Mode']) + ', but should be [0, 2, 5]')
-
-    bc_file.close()
-    bc_fmax_file.close()
-
-    # Create optim input file
-    inp_file_fx_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / (Sample + '_' + Config['Version'] + '_FX.inp'))
-    inp_file_fx = open(inp_file_fx_pwd, "r")
-    inp_fzmax_file_pwd = str(Directories['FEA'] / Config['Folder_IDs'][Sample] / (Sample + '_' + Config['Version'] + '_' + LoadCase + '.inp'))
-    inp_fzmax_file = open(inp_fzmax_file_pwd, "w")
-
-    # Include the OPT_MAX boundary condition file into input file and change NLGEOM flag to YES for nonlinear geometry
-    for line in inp_file_fx:
-        if "*INCLUDE, input=" in line:
-            inp_fzmax_file.write("*INCLUDE, input=" + bc_fmax_file_pwd + "\n")
-        elif "NLGEOM=" in line:
-            inp_fzmax_file.write("*STEP,AMPLITUDE=RAMP,UNSYMM=YES,INC=" + str(Config['Max_Increments']) + ",NLGEOM=YES\n")
-        else:
-            inp_fzmax_file.write(line)
-
-    inp_fzmax_file.close()
-    inp_file_fx.close()
+    
+    if Config['Echo'] == True:
+        Print_Memory_Usage()
 
     return
 
@@ -3911,45 +3340,43 @@ def Main(ConfigFile):
 
     # Read config and store to dictionary
     Config = ReadConfigFile(ConfigFile)
-
-    print(yaml.dump(Config, default_flow_style=False))
-
-    # Current version of the pipeline/run
-    Version = Config['Version']
+    if Config['Echo'] == True:
+        print(yaml.dump(Config, default_flow_style=False))
 
     # Directories
-    WD, Data, Scripts, Results = SetDirectories('FRACTIB')
+    WD, DD, SD, RD = SetDirectories('FRACTIB')
     Directories = {}
-    Directories['AIM'] = Data / '02_uCT/'
-    Directories['FEA'] = Results / '03_hFE/'
-    Directories['Localization'] = Results / '05_Localizations/'
-    Directories['Scripts'] = Scripts / '3_hFE/'
-    Directories['BCs'] = Scripts / '3_hFE' / 'BCs/'
+    Directories['AIM'] = DD / '02_uCT/'
+    Directories['FEA'] = RD / '03_hFE/'
+    Directories['Localization'] = RD / '05_Localizations/'
+    Directories['Scripts'] = SD / '3_hFE/'
+    Directories['BCs'] = SD / '3_hFE' / 'BCs/'
 
     # File names and folders
     GrayScale_FileNames = Config['GrayScale_FileNames']
     Folder_IDs = Config['Folder_IDs']
 
-
-#    Sample = GrayScale_FileNames[0]
     for iS, Sample in enumerate(GrayScale_FileNames):
 
-        Text = 'Sample ' + str(iS) + '/' + str(len(GrayScale_FileNames))
+        Text = 'Sample ' + str(iS+1) + '/' + str(len(GrayScale_FileNames))
         Time.Process(1, Text)
 
         # Set paths
         Folder = Folder_IDs[Sample]
-        InputFileName = "{}_{}.inp".format(Sample, Version)
+        InputFileName = "{}.inp".format('Simulation')
         InputFile = str(Directories['FEA'] / Folder / InputFileName)
 
         # Perform material mapping
         AIM2FE_SA_PSL(Config, Sample, Directories)
 
-        # Write load cases
-        UpDate_BCs_Files(Config, Directories)
-        Create_Canonical_LoadCases(Config, InputFile, Directories)
-        Create_LoadCases_FmMax_NoPSL_Tibia(Config, Sample, 'FZ_MAX', Directories)
-        
+        # Write load case
+        StepName = str(Directories['FEA'] / Folder / 'MaxLoad.inp')
+        FileName = str(RD / '02_Experiment' / Folder / 'MatchedSignals.csv')
+        Experiment = pd.read_csv(FileName)
+        MaxForce = Experiment['FZ'].idxmin()
+        Value = round(Experiment.loc[MaxForce,'Z'],2)
+        Abaqus.WriteRefNodeBCs(StepName, [3], [Value], Config['Control'])
+
         Time.Process(0, Text)
         
     return
