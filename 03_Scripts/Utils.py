@@ -40,12 +40,12 @@ from numba.typed import Dict, List
 import statsmodels.formula.api as smf
 from scipy.stats.distributions import t
 from skimage import measure, morphology
+from matplotlib.colors import ListedColormap
 from vtk.util.numpy_support import vtk_to_numpy # type: ignore
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
 from pypore3d.p3dBlobPy import py_p3dMorphometricAnalysis as MA
 
-from matplotlib import ListedColormap
 
 
 #%% Tuning
@@ -607,15 +607,20 @@ class Show():
 
         return
 
-    def Signal(self, X, Y=[], Points=[], Normalize=False, Axes=[], Labels=[]):
+    def Signal(self, X, Y=[], Points=[], Normalize=False, Axes=[], Labels=[], Legend=True):
 
         if len(X) > 6:
             N = len(X)
             Values = np.ones((N, 4))
-            Values[:, 0] = np.linspace(1, 0, N)
-            Values[:, 1] = np.linspace(0, 0, N)
-            Values[:, 2] = np.linspace(0, 1, N)
-            Colors = ListedColormap(Values)[np.linspace(0,1,N)]
+            Values[:N//3*2, 0] = np.linspace(1, 0, N//3*2)
+            Values[N//3*2:, 0] = 0
+
+            Values[:N//3*2, 2] = np.linspace(0, 1, N//3*2)
+            Values[-N//3:, 2] = np.linspace(1, 0, N//3+1)
+
+            Values[:-N//3, 1] = 0
+            Values[-N//3:, 1] = np.linspace(0, 1, N//3+1)
+            Colors = ListedColormap(Values)(np.linspace(0,1,N))
         else:
             Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
 
@@ -650,8 +655,13 @@ class Show():
             Axis.set_xlabel(Axes[0])
             Axis.set_ylabel(Axes[1])
 
-        Cols = i+1 if i < 3 else (1+i)//2
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5,1.12), ncol=Cols)
+        if i < 3:
+            Cols = i+1
+        else:
+            Cols = (1+i)//2
+
+        if Legend:
+            plt.legend(loc='upper center', bbox_to_anchor=(0.5,1.12), ncol=Cols)
 
         if (self.FName):
             plt.savefig(self.FName, bbox_inches='tight', pad_inches=0.02)
