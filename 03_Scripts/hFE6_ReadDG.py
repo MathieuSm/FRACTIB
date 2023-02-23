@@ -209,6 +209,14 @@ def DecomposeJacobian(JacobianArray):
 
     return SC, ID
 
+#%% For testing purpose
+class Arguments:
+
+    def __init__(self):
+        self.Folder = 'FRACTIB'
+        self.Sample = '441_R_64_M' # or 448_L_80_M
+
+Arguments = Arguments()
 
 #%% Main
 # Main code
@@ -227,11 +235,12 @@ def Main(Arguments):
     FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
     ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
 
-    # Truncate experiment to monotonic loading part
+    # Truncate experiment to monotonic loading part and set to 0
     Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=100)
     Start = Peaks[4]
     Stop = Peaks[5]
     ExpData = ExpData[Start:Stop].reset_index(drop=True)
+    ExpData -= ExpData.loc[0]
 
     # # Rotate experimental data back
     # R = RotationMatrix(Psi=-60/180*np.pi)
@@ -240,6 +249,12 @@ def Main(Arguments):
     # Sum up fea steps results
     Indices = FEAData.groupby('Step')['Increment'].idxmax()
     FEA = FEAData.loc[Indices].cumsum()
+
+    # Truncate again experiment to match hFE
+    Last = np.abs(ExpData['Z'] - FEA['Z'].max()).idxmin()
+    Show.Signal([ExpData['Z'][:Last], FEA['Z']],
+                [ExpData['Psi'][:Last], FEA['Psi']],
+                Labels=['Experiment', 'hFE'])
 
     # Compute min force location
     MinForceIdx = FEAData['FZ'][1:].abs().idxmin()
