@@ -410,13 +410,16 @@ class Show():
         self.ShowPlot = True
         self.IRange = [0.8, 1.2]
 
-    def Normalize(self, Array):
+    def Normalize(self, Array, uint=False):
 
         Min = np.min(Array)
         Max = np.max(Array)
-        N_Array = (Array - Min) / (Max - Min) * 255
+        N_Array = (Array - Min) / (Max - Min)
 
-        return np.array(N_Array).astype('uint8') 
+        if uint:
+            N_Array = np.array(N_Array * 255).astype('uint8') 
+
+        return N_Array
 
     def Slice(self, Image, Slice=None, Title=None, Axis='Z'):
 
@@ -2140,7 +2143,11 @@ CF
                 Start = Index + len('*STEP')
                 Index = Text.find('*STEP', Start)
 
-            Index = np.array(Indices)[-NSteps]
+            if NSteps > len(Indices):
+                Index = Indices[0]
+            else:
+                Index = np.array(Indices)[-NSteps]
+                
             with open(File, 'w') as F:
                 F.write(Text[:Index - len('*STEP') + 1])
 

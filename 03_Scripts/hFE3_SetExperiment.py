@@ -143,17 +143,26 @@ def Main(Arguments):
         Experiment = pd.read_csv(FileName)
 
         # Truncate experiment
-        Peaks, Properties = sig.find_peaks(Experiment['FZ'], prominence=100)
-        Start = Peaks[4]
-        Stop = Peaks[5]
-        Experiment = Experiment[Start:Stop].reset_index(drop=True)
+        Peaks, Properties = sig.find_peaks(Experiment['FZ'], prominence=1)
         MaxForce = Experiment['FZ'].idxmin()
+        MaxDisp = Experiment['Z'].idxmax()
+        DeltaTime = 10
+        DeltaIndex = np.argmin(np.abs(Experiment['T']-DeltaTime))
+        Start = Peaks[Peaks < MaxForce - DeltaIndex][-1]
+        Stop = Peaks[Peaks > MaxDisp][0]
+        # Show.Signal([Experiment['T'],Experiment['T']],
+        #             [Experiment['Z'],Experiment['FZ']],
+        #             Points=[[Start,Stop],[Start, Stop]],
+        #             Normalize=True, Labels=['Displacement','Force'])
+        
+        Experiment = Experiment[Start:Stop].reset_index(drop=True)
+        Experiment -= Experiment.loc[0]
 
         # Rotate coordinate system
         R = RotationMatrix(Psi=BestAngle/180*np.pi)
         if (R == np.eye(3)).all():
             XYZ = Experiment[['X','Y','Z']].values
-            PTP = Experiment[['Phi', 'Theta', 'Psi']].values
+            PTP = Experiment[['Phi', 'Theta', 'Psi']].values / 180 * np.pi
         
         else:
             XYZ = np.dot(R, Experiment[['X','Y','Z']].values.T).T
@@ -162,24 +171,21 @@ def Main(Arguments):
             Rs = RotationMatrix(Phi, Theta, Psi)
             rPTP = np.einsum('ij,ljk->lik',R,Rs)
             PTP = GetAngles(rPTP)
-        
-        XYZ -= XYZ[0,:]
-        PTP -= PTP[0,:]
 
-        # Plot rotation results
-        Figure, Axis = plt.subplots(1,2, sharex=True, sharey=True, figsize=(11,4.5))
-        Axis[0].plot(Simulation['X'], -Simulation['Z'],color=(0,0,0))
-        Axis[0].plot(Experiment['X'][:MaxForce], -Experiment['Z'][:MaxForce],color=(1,0,0))
-        Axis[0].plot(XYZ[:MaxForce,0], -XYZ[:MaxForce,2],color=(0,0,1))
-        Axis[0].set_xlabel('X (mm)')
-        Axis[0].set_ylabel('Z (mm)')
-        Axis[1].plot(Simulation['Y'], -Simulation['Z'],color=(0,0,0),label='hFE')
-        Axis[1].plot(Experiment['Y'][:MaxForce], -Experiment['Z'][:MaxForce],color=(1,0,0), label='Experiment')
-        Axis[1].plot(XYZ[:MaxForce,1], -XYZ[:MaxForce,2],color=(0,0,1), label='Rotated')
-        Axis[1].set_xlabel('Y (mm)')
-        Figure.legend(loc='upper center', ncol=3)
-        plt.savefig(str(RD / '05_Comparison' / (Sample + '_XY')))
-        plt.close()
+        # # Plot rotation results
+        # Figure, Axis = plt.subplots(1,2, sharex=True, sharey=True, figsize=(11,4.5))
+        # Axis[0].plot(Simulation['X'], -Simulation['Z'],color=(0,0,0))
+        # Axis[0].plot(Experiment['X'][:MaxForce-Start], -Experiment['Z'][:MaxForce-Start],color=(1,0,0))
+        # Axis[0].plot(XYZ[:MaxForce-Start,0], -XYZ[:MaxForce-Start,2],color=(0,0,1))
+        # Axis[0].set_xlabel('X (mm)')
+        # Axis[0].set_ylabel('Z (mm)')
+        # Axis[1].plot(Simulation['Y'], -Simulation['Z'],color=(0,0,0),label='hFE')
+        # Axis[1].plot(Experiment['Y'][:MaxForce-Start], -Experiment['Z'][:MaxForce-Start],color=(1,0,0), label='Experiment')
+        # Axis[1].plot(XYZ[:MaxForce-Start,1], -XYZ[:MaxForce-Start,2],color=(0,0,1), label='Rotated')
+        # Axis[1].set_xlabel('Y (mm)')
+        # Figure.legend(loc='upper center', ncol=3)
+        # plt.savefig(str(RD / '05_Comparison' / (Sample + '_XY')))
+        # plt.close()
 
         # Modify abaqus input file
         uCTFile = 'C000' + str(Data.loc[Index, 'MicroCT pretest file number']) + '_DOWNSCALED_00_FZ_MAX.inp'
@@ -187,7 +193,7 @@ def Main(Arguments):
         FileName = str(SamplePath / 'Simulation.inp')
         Abaqus.RemoveSteps(FileName,50)
 
-        NSteps = 50
+        NSteps = 10
         StepSize = len(XYZ) / NSteps
         DOFs = np.arange(6)+1
         Values = np.zeros(6)
@@ -199,7 +205,6 @@ def Main(Arguments):
             Delta = NewValues - Values
             Abaqus.AddStep(FileName,StepName,DOFs,np.round(Delta,3))
             Values = NewValues
-
 
     Time.Process(0)
 

@@ -250,6 +250,8 @@ def Main(Arguments):
     Indices = FEAData.groupby('Step')['Increment'].idxmax()
     FEA = FEAData.loc[Indices].cumsum()
 
+    Show.Signal([FEA['Z']],[FEA['FZ']])
+
     # Truncate again experiment to match hFE
     Last = np.abs(ExpData['Z'] - FEA['Z'].max()).idxmin()
     Show.Signal([ExpData['Z'][:Last], FEA['Z']],
