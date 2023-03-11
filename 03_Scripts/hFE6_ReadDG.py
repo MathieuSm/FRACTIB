@@ -236,9 +236,14 @@ def Main(Arguments):
     ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
 
     # Truncate experiment to monotonic loading part and set to 0
-    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=100)
-    Start = Peaks[4]
-    Stop = Peaks[5]
+    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=1)
+    MaxForce = ExpData['FZ'].idxmin()
+    MaxDisp = ExpData['Z'].idxmax()
+    DeltaTime = 10
+    DeltaIndex = np.argmin(np.abs(ExpData['T']-DeltaTime))
+    Start = Peaks[Peaks < MaxForce - DeltaIndex][-1]
+    Stop = Peaks[Peaks > MaxDisp][0]
+    
     ExpData = ExpData[Start:Stop].reset_index(drop=True)
     ExpData -= ExpData.loc[0]
 
@@ -253,9 +258,8 @@ def Main(Arguments):
     Show.Signal([FEA['Z']],[FEA['FZ']])
 
     # Truncate again experiment to match hFE
-    Last = np.abs(ExpData['Z'] - FEA['Z'].max()).idxmin()
-    Show.Signal([ExpData['Z'][:Last], FEA['Z']],
-                [ExpData['Psi'][:Last], FEA['Psi']],
+    Show.Signal([ExpData['Z'], FEA['Z']],
+                [ExpData['Theta'], FEA['Theta']*180/np.pi],
                 Labels=['Experiment', 'hFE'])
 
     # Compute min force location
