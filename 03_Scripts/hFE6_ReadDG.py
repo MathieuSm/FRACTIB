@@ -214,7 +214,8 @@ class Arguments:
 
     def __init__(self):
         self.Folder = 'FRACTIB'
-        self.Sample = '441_R_64_M' # or 448_L_80_M
+        # self.Sample = '441_R_64_M' # or 448_L_80_M
+        self.Sample = '448_L_80_M' # or 448_L_80_M
 
 Arguments = Arguments()
 
@@ -252,8 +253,8 @@ def Main(Arguments):
 
     # Truncate again experiment to match hFE
     Last = np.abs(ExpData['Z'] - FEA['Z'].max()).idxmin()
-    Show.Signal([ExpData['Z'][:Last], FEA['Z']],
-                [ExpData['Psi'][:Last], FEA['Psi']],
+    Show.Signal([ExpData['Z']],
+                [ExpData['FZ']],
                 Labels=['Experiment', 'hFE'])
 
     # Compute min force location

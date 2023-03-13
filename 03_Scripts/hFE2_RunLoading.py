@@ -71,6 +71,7 @@ abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete
         Completed = True
     except:
         Completed = False
+        print('Analysis not completed')
 
     if Completed:
         # Remove unnecessary files
