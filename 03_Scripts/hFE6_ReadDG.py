@@ -201,11 +201,9 @@ def Decomposition(JacobianArray):
 
 def DecomposeJacobian(JacobianArray):
   
-    print('\nDecompose Jacobian')
-    Tic = time.time()
+    Time.Process(1,'Decompose Jacobian')
     SC, ID = Decomposition(JacobianArray)
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+    Time.Process(0)
 
     return SC, ID
 
@@ -246,10 +244,6 @@ def Main(Arguments):
     
     ExpData = ExpData[Start:Stop].reset_index(drop=True)
     ExpData -= ExpData.loc[0]
-
-    # # Rotate experimental data back
-    # R = RotationMatrix(Psi=-60/180*np.pi)
-    # XYZ = np.dot(R, ExpData[['X','Y','Z']].values.T).T
 
     # Sum up fea steps results
     Indices = FEAData.groupby('Step')['Increment'].idxmax()
