@@ -37,7 +37,7 @@ Show.ShowPlot = False
 #%% Main
 # Main code
 
-def Main(Arguments):
+def Main():
 
     CWD, DD, SD, RD = SetDirectories('FRACTIB')
     Data = pd.read_csv(str(DD / 'SampleList.csv'))
@@ -70,8 +70,16 @@ def Main(Arguments):
         Indices = FEAData.groupby('Step')['Increment'].idxmax()
         FEA = FEAData.loc[Indices].cumsum()
 
+        # Plot force displacement curves
+        Show.FName = str(RD / '05_Comparison' / (Sample + '_Curve.png'))     
+        Show.Signal([FEA['Z'],ExpData['Z']],
+                    [FEA['FZ'], -ExpData['FZ']],
+                    Axes=['Displacement (mm)', 'Force (N)'],
+                    Labels=['hFE','Experiment'],
+                    Normalize=True)
         
-        Show.Signal([FEA['Z']],[FEA['FZ']])
+        # Store stiffess, force at max(ExpForce), max displacement
+        
         
     Time.Process(0, Text)
 

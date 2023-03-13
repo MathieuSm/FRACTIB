@@ -640,10 +640,10 @@ class Show():
         for i in range(len(X)):
 
             if Normalize:
-                Xi = self.Normalize(X[i])
                 Yi = self.Normalize(Y[i])
             else:
-                Xi, Yi = X[i], Y[i]
+                Yi = Y[i]
+            Xi = X[i]
             
             if len(Labels) > 0:
                 Axis.plot(Xi, Yi, color=Colors[i], label=Labels[i])
@@ -995,7 +995,6 @@ class Show():
             plt.show()
         else:
             plt.close()
-
 
 Show = Show()
 #%% Reading functions
@@ -2023,6 +2022,21 @@ class Signal():
 
         return FilteredSignal
 
+    @njit
+    def MaxSlope(Signal, WindowWidth, StepSize=1):
+
+        Slopes = []
+        Iterations = round(len(Signal) - WindowWidth) / StepSize - 0.5)
+        for 
+
+        N = len(Signal)
+
+        X = np.matrix([np.ones(N),np.arange(N)]).T
+        Y = np.matrix(Signal).T
+
+        Bi, Bc = np.linalg.inv(X.T * X) * X.T * Y
+
+        return Slope
 #%% Abaqus functions
 class Abaqus():
 
