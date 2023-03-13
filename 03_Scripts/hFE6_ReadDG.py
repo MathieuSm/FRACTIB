@@ -201,11 +201,9 @@ def Decomposition(JacobianArray):
 
 def DecomposeJacobian(JacobianArray):
   
-    print('\nDecompose Jacobian')
-    Tic = time.time()
+    Time.Process(1,'Decompose Jacobian')
     SC, ID = Decomposition(JacobianArray)
-    Toc = time.time()
-    PrintTime(Tic, Toc)
+    Time.Process(0)
 
     return SC, ID
 
@@ -237,24 +235,26 @@ def Main(Arguments):
     ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
 
     # Truncate experiment to monotonic loading part and set to 0
-    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=100)
-    Start = Peaks[4]
-    Stop = Peaks[5]
+    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=1)
+    MaxForce = ExpData['FZ'].idxmin()
+    MaxDisp = ExpData['Z'].idxmax()
+    DeltaTime = 10
+    DeltaIndex = np.argmin(np.abs(ExpData['T']-DeltaTime))
+    Start = Peaks[Peaks < MaxForce - DeltaIndex][-1]
+    Stop = Peaks[Peaks > MaxDisp][0]
+    
     ExpData = ExpData[Start:Stop].reset_index(drop=True)
     ExpData -= ExpData.loc[0]
-
-    # # Rotate experimental data back
-    # R = RotationMatrix(Psi=-60/180*np.pi)
-    # XYZ = np.dot(R, ExpData[['X','Y','Z']].values.T).T
 
     # Sum up fea steps results
     Indices = FEAData.groupby('Step')['Increment'].idxmax()
     FEA = FEAData.loc[Indices].cumsum()
 
+    Show.Signal([FEA['Z']],[FEA['FZ']])
+
     # Truncate again experiment to match hFE
-    Last = np.abs(ExpData['Z'] - FEA['Z'].max()).idxmin()
-    Show.Signal([ExpData['Z']],
-                [ExpData['FZ']],
+    Show.Signal([ExpData['Z'], FEA['Z']],
+                [ExpData['Theta'], FEA['Theta']*180/np.pi],
                 Labels=['Experiment', 'hFE'])
 
     # Compute min force location

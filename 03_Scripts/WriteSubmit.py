@@ -28,8 +28,8 @@ for i, S in enumerate(Scripts):
 #%%
 SList = [Scripts[11]]
 Arguments = {
-             'hFE2_RunLoading':{'UMAT':'UMAT.f','nCPUs':42},
-             'hFE4_RunSimulation':{'UMAT':'UMAT.f','nCPUs':42},
+             'hFE2_RunLoading':{'UMAT':'UMAT.f','nCPUs':24},
+             'hFE4_RunSimulation':{'UMAT':'UMAT.f','nCPUs':24},
              'uCT_Registration':{'Show':False,'Type':'BSpline','Jac':True},
             }
 

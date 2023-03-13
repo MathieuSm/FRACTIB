@@ -38,9 +38,9 @@ from numba.core import types
 import matplotlib.pyplot as plt
 from numba.typed import Dict, List
 import statsmodels.formula.api as smf
-from scipy.stats.distributions import t
 from skimage import measure, morphology
 from matplotlib.colors import ListedColormap
+from scipy.stats.distributions import t, norm
 from vtk.util.numpy_support import vtk_to_numpy # type: ignore
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pypore3d.p3dSITKPy import py_p3dReadRaw8 as ReadRaw8
@@ -410,13 +410,16 @@ class Show():
         self.ShowPlot = True
         self.IRange = [0.8, 1.2]
 
-    def Normalize(self, Array):
+    def Normalize(self, Array, uint=False):
 
         Min = np.min(Array)
         Max = np.max(Array)
-        N_Array = (Array - Min) / (Max - Min) * 255
+        N_Array = (Array - Min) / (Max - Min)
 
-        return np.array(N_Array).astype('uint8') 
+        if uint:
+            N_Array = np.array(N_Array * 255).astype('uint8') 
+
+        return N_Array
 
     def Slice(self, Image, Slice=None, Title=None, Axis='Z'):
 
@@ -925,6 +928,74 @@ class Show():
         plt.tight_layout()
         plt.show()
         plt.close(Figure)
+
+    def Histogram(self, Arrays, Labels=[], Density=False, Norm=False):
+
+        if len(Arrays) > 6:
+            N = len(Arrays)
+            Values = np.ones((N, 4))
+            Values[:N//3*2, 0] = np.linspace(1, 0, N//3*2)
+            Values[N//3*2:, 0] = 0
+
+            Values[:N//3*2, 2] = np.linspace(0, 1, N//3*2)
+            Values[-N//3:, 2] = np.linspace(1, 0, N//3+1)
+
+            Values[:-N//3, 1] = 0
+            Values[-N//3:, 1] = np.linspace(0, 1, N//3+1)
+            Colors = ListedColormap(Values)(np.linspace(0,1,N))
+        else:
+            Colors = [(1,0,0), (0,0,1), (0,0,0), (0,1,0), (0,1,1), (1,0,1)]
+
+        Figure, Axes = plt.subplots(1, 1, figsize=(5.5, 4.5), dpi=300)
+        for i, Array in enumerate(Arrays):
+
+            X = pd.DataFrame(Array)
+            SortedValues = np.sort(X.T.values)[0]
+            N = len(X)
+            X_Bar = X.mean()
+            S_X = np.std(X, ddof=1)
+
+            if i == 0:
+                Bins = 20
+                Div = (X.max()-X.min()) / Bins
+            else:
+                Bins = int(round((X.max()-X.min()) / Div))
+
+            ## Histogram and density distribution
+            Histogram, Edges = np.histogram(X, bins=Bins)
+            Width = 0.9 * (Edges[1] - Edges[0])
+            Center = (Edges[:-1] + Edges[1:]) / 2
+            Axes.bar(Center, Histogram, align='center', width=Width, edgecolor=Colors[i], color=(1, 1, 1, 0))
+            
+            if Density and N < 1E3:
+                KernelEstimator = np.zeros(N)
+                NormalIQR = np.sum(np.abs(norm.ppf(np.array([0.25, 0.75]), 0, 1)))
+                DataIQR = np.abs(X.quantile(0.75)) - np.abs(X.quantile(0.25))
+                KernelHalfWidth = 0.9 * N ** (-1 / 5) * min(np.abs([S_X, DataIQR / NormalIQR]))
+                for Value in SortedValues:
+                    KernelEstimator += norm.pdf(SortedValues - Value, 0, KernelHalfWidth * 2)
+                KernelEstimator = KernelEstimator / N
+            
+                Axes.plot(SortedValues, KernelEstimator, color=Colors[i], label='Kernel Density')
+            
+            if Norm:
+                TheoreticalDistribution = norm.pdf(SortedValues, X_Bar, S_X)
+                Axes.plot(SortedValues, TheoreticalDistribution, linestyle='--', color=Colors[i], label='Normal Distribution')
+            
+        if len(Labels) > 0:
+            plt.xlabel(Labels[0])
+            plt.ylabel(Labels[1])
+        
+        # plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.15), prop={'size': 10})
+        # plt.legend(loc='upper left')
+
+        if (self.FName):
+            plt.savefig(self.FName, bbox_inches='tight', pad_inches=0.02)
+        if self.ShowPlot:
+            plt.show()
+        else:
+            plt.close()
+
 
 Show = Show()
 #%% Reading functions
@@ -2140,7 +2211,11 @@ CF
                 Start = Index + len('*STEP')
                 Index = Text.find('*STEP', Start)
 
-            Index = np.array(Indices)[-NSteps]
+            if NSteps > len(Indices):
+                Index = Indices[0]
+            else:
+                Index = np.array(Indices)[-NSteps]
+                
             with open(File, 'w') as F:
                 F.write(Text[:Index - len('*STEP') + 1])
 

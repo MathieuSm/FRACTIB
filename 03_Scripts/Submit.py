@@ -39,7 +39,7 @@ for Sample in Samples:
 
 	Arguments.Sample = Sample
 	Arguments.UMAT = 'UMAT.f'
-	Arguments.nCPUs = 42
+	Arguments.nCPUs = 24
 
 	hFE4_RunSimulation(Arguments)
 
