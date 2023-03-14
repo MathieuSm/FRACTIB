@@ -70,18 +70,37 @@ def Main():
 
         # Sum up fea steps results
         Indices = FEAData.groupby('Step')['Increment'].idxmax()
-        for i in Indices:
-            FEAData.loc[i+1:] = FEAData.loc[i+1:] + FEAData.loc[i]
+        # for i in Indices:
+        #     FEAData.loc[i+1:] = FEAData.loc[i+1:] + FEAData.loc[i]
         FEA = FEAData.loc[Indices].cumsum()
 
-        Show.Signal([FEAData['Z'][:Indices[2]], FEA['Z'][:2+1]],
-                    [FEAData['X'][:Indices[2]], FEA['X'][:2+1]])
+        Show.Signal([ExpData['Z'], FEA['Z']],
+                    [ExpData['X'], FEA['X']], Labels=['Experiment', 'hFE'])
         
-        Show.Signal([FEAData['Z'], ExpData['Z']],
-                    [FEAData['X'], ExpData['X']])
-
         FEATest = FEAData.copy()
-        FEATest.loc[Indices[1]+1:] += FEATest.loc[Indices[1]]
+        for i in Indices:
+            FEATest.loc[i+1:] = FEATest.loc[i+1:] + FEAData.loc[i]
+        FEATest.loc[Indices] - FEA
+
+        Show.Signal([ExpData['Z'], FEA['Z']],
+                    [-ExpData['FZ'], FEA['FZ']/1E3],
+                    Labels=['Experiment', 'hFE'])
+
+        i = 9
+        Stop = np.argsort(np.abs(ExpData['Z'] - FEA.loc[Indices[i],'Z']))[1]
+        Interp = np.interp(np.arange(Indices[i]+1),
+                           np.arange(Stop+1) / Stop * Indices[i],
+                           ExpData['Z'][:Stop+1])
+
+        Show.Signal([np.arange(Indices[i]), Indices[:i+1], np.arange(Indices[i]+1)],
+                    [FEAData['Z'][:Indices[i]], FEA.loc[:Indices[i],'Z'], Interp])
+
+        Show.Signal([ExpData['Z'][:Stop], FEA.loc[:Indices[i+1],'Z']],
+                    [ExpData['X'][:Stop], FEA.loc[:Indices[i+1],'X']])
+        
+
+
+
 
         Show.Signal([FEAData['Z'], FEATest['Z'], FEA.loc[Indices, 'Z']],
                     [FEAData['X'], FEATest['X'], FEA.loc[Indices, 'X']])

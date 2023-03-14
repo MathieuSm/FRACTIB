@@ -2941,9 +2941,11 @@ def PSL_Material_Mapping_Copy_Layers_Accurate(Bone, Config, FileNames):
     # ---------------------------------------------------------------------------
     for i, Element in enumerate(Elements):
         # 2.1 Compute center of gravity
-        COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()], axis=0)  # center of gravity of each element
-        # print(i) 267
-        
+        try:
+            COG = np.mean([np.asarray(Nodes[Node].get_coord()) for Node in Elements[Element].get_nodes()], axis=0)  # center of gravity of each element
+        except:
+            print(i)
+            
         # Transform Center of gravity from uCT to HRpQCT space
         if Config['Registration']:
             COG_Inv = InverseTransformPoints(np.array([COG]), C1, R1, T1, C2, R2, T2, C3, R3, T3)[0]
@@ -3311,6 +3313,7 @@ def AIM2FE_SA_PSL(Config, Sample, Directories):
         Print_Memory_Usage()
 
     # Prepare material mapping
+    Time.Update(2/10, 'Prepare mapping')
     ImageType = Config['ImageType']
     Bone = Calculate_BVTV(Bone, Config, ImageType)
     Bone = Generate_Mesh(Bone, FileNames, Config)
