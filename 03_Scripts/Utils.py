@@ -1364,7 +1364,7 @@ class Read():
         if self.Echo:
             Time.Process(0,Text)
             print('\nScanner ID:                 ', CT_ID)
-            print('Scanning time in ms:         ', Scanning_time)
+            print('Scanning time in ms:        ', Scanning_time)
             print('Energy in keV:              ', Energy)
             print('Current in muA:             ', Current)
             print('Nb X pixel:                 ', X_pixel)
@@ -1950,7 +1950,10 @@ Registration = Registration()
 #%% Signal treatment functions
 class Signal():
 
-    def FFT(Signal, Sampling, Show=False):
+    def __init__(self):
+        pass
+
+    def FFT(self, Signal, Sampling, Show=False):
 
         """
         Analyze signal spectrum in frequency domain
@@ -1976,7 +1979,7 @@ class Signal():
 
         return HalfFrequencies, RealHalfSpectrum
 
-    def DesignFilter(Frequency, Order=2):
+    def DesignFilter(self, Frequency, Order=2):
 
         """
         Design Butterworth filter according to cut-off frequency and order
@@ -1999,7 +2002,7 @@ class Signal():
 
         return
 
-    def Filter(Signal, Sampling, Frequency, Order=2, Show=False):
+    def Filter(self, Signal, Sampling, Frequency, Order=2, Show=False):
         
         """
         Filter signal and look filtering effect
@@ -2010,7 +2013,7 @@ class Signal():
         :param Order: filter order
         :param Show: plot results
         """
-
+        
         SOS = sig.butter(Order, Frequency / Sampling, output='sos')
         FilteredSignal = sig.sosfiltfilt(SOS, Signal)
 
@@ -2022,21 +2025,43 @@ class Signal():
 
         return FilteredSignal
 
-    @njit
-    def MaxSlope(Signal, WindowWidth, StepSize=1):
+    def MaxSlope(self, X, Y=[], WindowWidth=1, StepSize=1):
 
-        Slopes = []
-        Iterations = round(len(Signal) - WindowWidth) / StepSize - 0.5)
-        for 
+        if len(Y) == 0:
+            Y = X.copy()
+            X = np.arange(len(X))
 
-        N = len(Signal)
-
-        X = np.matrix([np.ones(N),np.arange(N)]).T
-        Y = np.matrix(Signal).T
-
-        Bi, Bc = np.linalg.inv(X.T * X) * X.T * Y
+        Slope = NumbaMaxSlope(np.array(X), np.array(Y), int(WindowWidth), StepSize)
 
         return Slope
+
+@njit
+def NumbaMaxSlope(Xdata, Ydata, WindowWidth, StepSize):
+
+    Slopes = []
+    Iterations = round((len(Xdata) - WindowWidth) / StepSize - 1)
+    
+    for i in range(Iterations):
+
+        Start = i * StepSize
+        Stop = Start + WindowWidth
+        XPoints = Xdata[Start:Stop] 
+        YPoints = Ydata[Start:Stop] 
+        N = len(XPoints)
+
+        X = np.ones((N,2))
+        X[:,1] = XPoints
+        Y = np.reshape(YPoints, (N,1))
+
+        X1 = np.linalg.inv(np.dot(X.T, X))
+        Intercept, Coefficient = np.dot(X1, np.dot(X.T, Y))
+        Slopes.append(Coefficient)
+
+    Slope = max(Slopes)[0]
+
+    return Slope
+
+Signal = Signal()
 #%% Abaqus functions
 class Abaqus():
 

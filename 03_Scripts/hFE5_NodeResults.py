@@ -27,9 +27,9 @@ import argparse
 import numpy as np
 import pandas as pd
 from scipy import signal as sig
-from Utils import SetDirectories, Time, Show, Abaqus
+from Utils import SetDirectories, Time, Show, Abaqus, Signal
 
-Show.ShowPlot = False
+Show.ShowPlot = True
 
 #%% Functions
 
@@ -40,13 +40,15 @@ Show.ShowPlot = False
 def Main():
 
     CWD, DD, SD, RD = SetDirectories('FRACTIB')
-    Data = pd.read_csv(str(DD / 'SampleList.csv'))
+    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
 
     Text = 'Nodal Results'
     Time.Process(1, Text)
-    for Index, Sample in enumerate(Data['Internal ID']):
+    Columns = pd.MultiIndex.from_product([['hFE','Experiment'],['MD', 'Fmd', 'S']])
+    Data = pd.DataFrame(index=SampleList.index, columns=Columns)
+    for Index, Sample in enumerate(SampleList['Internal ID']):
 
-        Time.Update((Index + 1) / len(Data))
+        Time.Update((Index + 1) / len(SampleList))
         FEADir = RD / '03_hFE' / Sample
         ExpDir = RD / '02_Experiment' / Sample
 
@@ -68,17 +70,43 @@ def Main():
 
         # Sum up fea steps results
         Indices = FEAData.groupby('Step')['Increment'].idxmax()
+        for i in Indices:
+            FEAData.loc[i+1:] = FEAData.loc[i+1:] + FEAData.loc[i]
         FEA = FEAData.loc[Indices].cumsum()
+
+        Show.Signal([FEAData['Z'][:Indices[2]], FEA['Z'][:2+1]],
+                    [FEAData['X'][:Indices[2]], FEA['X'][:2+1]])
+        
+        Show.Signal([FEAData['Z'], ExpData['Z']],
+                    [FEAData['X'], ExpData['X']])
+
+        FEATest = FEAData.copy()
+        FEATest.loc[Indices[1]+1:] += FEATest.loc[Indices[1]]
+
+        Show.Signal([FEAData['Z'], FEATest['Z'], FEA.loc[Indices, 'Z']],
+                    [FEAData['X'], FEATest['X'], FEA.loc[Indices, 'X']])
 
         # Plot force displacement curves
         Show.FName = str(RD / '05_Comparison' / (Sample + '_Curve.png'))     
-        Show.Signal([FEA['Z'],ExpData['Z']],
-                    [FEA['FZ'], -ExpData['FZ']],
+        Show.Signal([FEAData['Z'],ExpData['Z']],
+                    [FEAData['FZ'], -ExpData['FZ']],
                     Axes=['Displacement (mm)', 'Force (N)'],
                     Labels=['hFE','Experiment'],
                     Normalize=True)
         
         # Store stiffess, force at max(ExpForce), max displacement
+        Data.loc[Index]['hFE','MD'] = FEA['Z'].max()
+        Data.loc[Index]['Experiment','MD'] = ExpData['Z'].max()
+
+        Fmax = abs(ExpData['FZ'].min())
+        FmaxDisp = ExpData.loc[ExpData['FZ'].idxmin(),'Z']
+        Data.loc[Index]['Experiment','Fmd'] = FmaxDisp
+
+        WindowWidth = ExpData['FZ'].idxmin() // 3
+        X = ExpData.loc[:ExpData['FZ'].idxmin(), 'Z']
+        Y = -ExpData.loc[:ExpData['FZ'].idxmin(), 'FZ']
+        Data.loc[Index]['Experiment','S'] = Signal.MaxSlope(X, Y, WindowWidth)
+
         
         
     Time.Process(0, Text)
