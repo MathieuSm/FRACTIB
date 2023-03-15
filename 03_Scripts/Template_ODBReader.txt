@@ -7,9 +7,9 @@ import csv
 import sys
 
 print '\n\n'
-print 'Open odb file {Sample}'
-Directory = '/home/ms20s284/FRACTIB/04_Results/03_hFE/{Sample}/'
-odb = openOdb(path=Directory + '{Sample}.odb')
+print 'Open odb file {File}'
+Directory = '/home/ms20s284/FRACTIB/04_Results/03_hFE/{Folder}/'
+odb = openOdb(path=Directory + '{File}.odb')
 
 # Create a variable that refers to the
 # last frame of the first step.

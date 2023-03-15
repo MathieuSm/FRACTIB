@@ -207,114 +207,83 @@ def DecomposeJacobian(JacobianArray):
 
     return SC, ID
 
-#%% For testing purpose
-class Arguments:
-
-    def __init__(self):
-        self.Folder = 'FRACTIB'
-        # self.Sample = '441_R_64_M' # or 448_L_80_M
-        self.Sample = '448_L_80_M' # or 448_L_80_M
-
-Arguments = Arguments()
 
 #%% Main
 # Main code
 
 def Main(Arguments):
 
-    print('\nRead hFE results for sample ' + Arguments.Sample)
-
     # Set directories
     CWD, DD, SD, RD = SetDirectories('FRACTIB')
-    FEADir = RD / '03_hFE' / Arguments.Sample
-    ExpDir = RD / '02_Experiment' / Arguments.Sample
+    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
 
-    # Read files
-    print('\tPlot force-displacement hFE vs experiment')
-    FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
-    ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
+    for Index, Sample in enumerate(SampleList['Internal ID'][:6]):
 
-    # Truncate experiment to monotonic loading part and set to 0
-    Peaks, Properties = sig.find_peaks(ExpData['FZ'], prominence=1)
-    MaxForce = ExpData['FZ'].idxmin()
-    MaxDisp = ExpData['Z'].idxmax()
-    DeltaTime = 10
-    DeltaIndex = np.argmin(np.abs(ExpData['T']-DeltaTime))
-    Start = Peaks[Peaks < MaxForce - DeltaIndex][-1]
-    Stop = Peaks[Peaks > MaxDisp][0]
-    
-    ExpData = ExpData[Start:Stop].reset_index(drop=True)
-    ExpData -= ExpData.loc[0]
+        Time.Process(1, Sample)
 
-    # Sum up fea steps results
-    Indices = FEAData.groupby('Step')['Increment'].idxmax()
-    FEA = FEAData.loc[Indices].cumsum()
+        FEADir = RD / '03_hFE' / Sample
+        FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
+        Frame = FEAData.loc[FEAData.index[-1],'Increment']
+        Step = FEAData.loc[FEAData.index[-1],'Step']
 
-    Show.Signal([FEA['Z']],[FEA['FZ']])
+        # Write and execute ODB reader
+        os.chdir(str(FEADir))
+        with open(str(SD / 'Template_ODBReader.txt')) as Temp:
+            Script = Temp.read()
 
-    # Truncate again experiment to match hFE
-    Show.Signal([ExpData['Z'], FEA['Z']],
-                [ExpData['Theta'], FEA['Theta']*180/np.pi],
-                Labels=['Experiment', 'hFE'])
+        Context = {'Folder':Sample,
+                   'File':'Experiment',
+                   'Step':Step,
+                   'Frame':Frame}
 
-    # Compute min force location
-    MinForceIdx = FEAData['FZ'][1:].abs().idxmin()
-    Frame = FEAData.loc[MinForceIdx,'Increment']
-    Step = FEAData.loc[MinForceIdx,'Step']
+        with open('ReadODB.py', 'w') as File:
+            File.write(Script.format(**Context))
 
-    # Write and execute ODB reader
-    os.chdir(str(FEADir))
-    with open(str(SD / 'Template_ODBReader.txt')) as Temp:
-        Script = Temp.read()
+        Time.Update(1/3, 'Read odb')
+        os.system('abaqus python ReadODB.py')
 
-    Context = {'Sample':Arguments.Sample,
-               'Step':Step,
-               'Frame':Frame}
+        # Read resulting files
+        ElementsPositions = pd.read_csv('ElementsPositions.csv',names=['X','Y','Z'])
+        DeformationGradients = pd.read_csv('DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
 
-    with open('ReadODB.py', 'w') as File:
-        File.write(Script.format(**Context))
+        # Build arrays
+        X = np.unique(ElementsPositions['X'].values)
+        Y = np.unique(ElementsPositions['Y'].values)
+        Z = np.unique(ElementsPositions['Z'].values)
 
-    print('\tRead odb')
-    os.system('abaqus python ReadODB.py')
+        F = np.zeros((len(Z),len(Y),len(X),9))
+        for Index in DeformationGradients.index:
+            
+            Position = ElementsPositions.loc[Index]
+            X_Index = list(X).index(Position['X'])
+            Y_Index = list(Y).index(Position['Y'])
+            Z_Index = list(Z).index(Position['Z'])
+            
+            F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
 
-    # Read resulting files
-    ElementsPositions = pd.read_csv('ElementsPositions.csv',names=['X','Y','Z'])
-    DeformationGradients = pd.read_csv('DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
+        # Decompose deformation
+        Time.Update(2/3, 'Decompose Jacobian')
+        SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
-    # Build arrays
-    X = np.unique(ElementsPositions['X'].values)
-    Y = np.unique(ElementsPositions['Y'].values)
-    Z = np.unique(ElementsPositions['Z'].values)
+        # Write MHDs
+        # Compute metadata
+        Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
+        Origin = np.array([X.min(), Y.min(), Z.min()])
 
-    F = np.zeros((len(Z),len(Y),len(X),9))
-    for Index in DeformationGradients.index:
-        
-        Position = ElementsPositions.loc[Index]
-        X_Index = list(X).index(Position['X'])
-        Y_Index = list(Y).index(Position['Y'])
-        Z_Index = list(Z).index(Position['Z'])
-        
-        F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
+        SC = sitk.GetImageFromArray(SphericalCompression)
+        SC.SetSpacing(Spacing)
+        SC.SetOrigin(Origin)
 
-    # Decompose deformation
-    print('\tDecompose Jacobian and write to disk')
-    SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
+        ID = sitk.GetImageFromArray(IsovolumicDeformation)
+        ID.SetSpacing(Spacing)
+        ID.SetOrigin(Origin)
 
-    # Write MHDs
-    # Compute metadata
-    Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
-    Origin = np.array([X.min(), Y.min(), Z.min()])
+        Write.FName = 'J'
+        Write.MHD(SC, PixelType='float')
+        Write.FName = 'F_Tilde'
+        Write.MHD(ID, PixelType='float')
 
-    SC = sitk.GetImageFromArray(SphericalCompression)
-    SC.SetSpacing(Spacing)
-    SC.SetOrigin(Origin)
-
-    ID = sitk.GetImageFromArray(IsovolumicDeformation)
-    ID.SetSpacing(Spacing)
-    ID.SetOrigin(Origin)
-
-    Write.MHD(SC, 'J', PixelType='float')
-    Write.MHD(ID, 'F_Tilde', PixelType='float')
+        Time.Process(0)
 
     return
 
@@ -329,8 +298,6 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('-F', '--Folder', help='Root folder of the project', default='FRACTIB', type=str)
-    Parser.add_argument('Sample', help='Sample to analyze (required)', type=str)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()

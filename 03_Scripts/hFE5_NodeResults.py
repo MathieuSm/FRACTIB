@@ -31,8 +31,6 @@ from Utils import SetDirectories, Time, Show, Abaqus, Signal
 
 Show.ShowPlot = True
 
-#%% Functions
-
 
 #%% Main
 # Main code
@@ -53,6 +51,7 @@ def Main():
         ExpDir = RD / '02_Experiment' / Sample
 
         # Read files
+        MaxLoad = Abaqus.ReadDAT(str(FEADir / 'MaxLoad.dat'))
         FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
         ExpData = pd.read_csv(str(ExpDir / 'MatchedSignals.csv'))
 
@@ -82,9 +81,9 @@ def Main():
             FEATest.loc[i+1:] = FEATest.loc[i+1:] + FEAData.loc[i]
         FEATest.loc[Indices] - FEA
 
-        Show.Signal([ExpData['Z'], FEA['Z']],
-                    [-ExpData['FZ'], FEA['FZ']/1E3],
-                    Labels=['Experiment', 'hFE'])
+        Show.Signal([MaxLoad['Z'], FEA['Z'], ExpData['Z']],
+                    [MaxLoad['FZ'], FEA['FZ'], -ExpData['FZ']],
+                    Labels=['Max Load', 'hFE', 'Experiment'])
 
         i = 9
         Stop = np.argsort(np.abs(ExpData['Z'] - FEA.loc[Indices[i],'Z']))[1]
@@ -125,6 +124,11 @@ def Main():
         X = ExpData.loc[:ExpData['FZ'].idxmin(), 'Z']
         Y = -ExpData.loc[:ExpData['FZ'].idxmin(), 'FZ']
         Data.loc[Index]['Experiment','S'] = Signal.MaxSlope(X, Y, WindowWidth)
+
+        # Compute min force location
+        MinForceIdx = FEAData['FZ'][1:].abs().idxmin()
+        Frame = FEAData.loc[MinForceIdx,'Increment']
+        Step = FEAData.loc[MinForceIdx,'Step']
 
         
         
