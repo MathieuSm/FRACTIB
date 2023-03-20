@@ -107,7 +107,7 @@ def Set_FileNames(Config, Sample, Directories):
     New_FileName = "{}_Summary.txt".format(Folder)
     FileName['SummaryName'] = str(Directories['FEA'] / Folder / New_FileName)
 
-    FileName['BCs'] = str(Directories['FEA'] / Folder / 'MaxLoad.inp')
+    FileName['BCs'] = str(Directories['FEA'] / Folder / 'Loading.inp')
 
     # Common area
     FileName['Common'] = str(Directories['FEA'] / Folder / 'CommonMask.mhd')
@@ -3373,12 +3373,27 @@ def Main(ConfigFile):
         AIM2FE_SA_PSL(Config, Sample, Directories)
 
         # Write load case
-        StepName = str(Directories['FEA'] / Folder / 'MaxLoad.inp')
         FileName = str(RD / '02_Experiment' / Folder / 'MatchedSignals.csv')
+        Step1Name = str(Directories['FEA'] / Folder / 'Loading.inp')
+        Step2Name = str(Directories['FEA'] / Folder / 'Unloading.inp')
+        
+        # Truncate experiment
         Experiment = pd.read_csv(FileName)
+        Peaks, Properties = sig.find_peaks(Experiment['FZ'], prominence=1)
         MaxForce = Experiment['FZ'].idxmin()
-        Value = round(Experiment.loc[MaxForce,'Z'],2)
-        Abaqus.WriteRefNodeBCs(StepName, [3], [Value], Config['Control'])
+        MaxDisp = Experiment['Z'].idxmax()
+        DeltaTime = 10
+        DeltaIndex = np.argmin(np.abs(Experiment['T']-DeltaTime))
+        Start = Peaks[Peaks < MaxForce - DeltaIndex][-1]
+        Stop = Peaks[Peaks > MaxDisp][0]
+        Experiment = Experiment[Start:Stop].reset_index(drop=True)
+        Experiment -= Experiment.loc[0]
+
+        # Write simulation steps
+        MaxDisp = round(Experiment['Z'].max(), 3)
+        Abaqus.WriteRefNodeBCs(Step1Name, [3], [MaxDisp], Config['Control'])
+        Delta = round(Experiment['Z'].values[-1] - Experiment['Z'].max(), 3)
+        Abaqus.AddStep(InputFile, Step2Name, [3], [Delta])
 
         Time.Process(0, Text)
         

@@ -120,7 +120,7 @@ def Main(Arguments):
     SampleList = pd.read_csv(str(Data / 'SampleList.csv'))['Internal ID']
     Doc = Document(default_filepath=str(Report))
 
-    for Sample in SampleList:
+    for Sample in SampleList[:6]:
 
         # Generate images with same scales for hFE and registration
         uCTDir = Data / '02_uCT' / Sample

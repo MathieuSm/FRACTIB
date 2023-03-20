@@ -1,6 +1,6 @@
 #! /usr/bin python
 
-from hFE4_RunSimulation import Main as hFE4_RunSimulation
+from hFE2_RunLoading import Main as hFE2_RunLoading
 
 Samples = ['432_L_77_F',
            '433_R_77_F',
@@ -41,6 +41,6 @@ for Sample in Samples:
 	Arguments.UMAT = 'UMAT.f'
 	Arguments.nCPUs = 42
 
-	hFE4_RunSimulation(Arguments)
+	hFE2_RunLoading(Arguments)
 
 print('\nBatch done!\n')

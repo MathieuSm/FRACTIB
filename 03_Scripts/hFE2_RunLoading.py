@@ -56,7 +56,7 @@ def Main(Arguments):
 abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete=OFF
 '''
     
-    Context = {'Job':'MaxLoad',
+    Context = {'Job':'Simulation',
                'InputFile':InputFile,
                'UMAT':str(SD / Arguments.UMAT),
                'nCPUs':Arguments.nCPUs}
@@ -75,12 +75,12 @@ abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete
 
     if Completed:
         # Remove unnecessary files
-        os.remove('MaxLoad.com')
-        os.remove('MaxLoad.msg')
-        os.remove('MaxLoad.odb')
-        os.remove('MaxLoad.prt')
-        os.remove('MaxLoad.sim')
-        os.remove('MaxLoad.sta')
+        os.remove('Simulation.com')
+        os.remove('Simulation.msg')
+        os.remove('Simulation.odb')
+        os.remove('Simulation.prt')
+        os.remove('Simulation.sim')
+        os.remove('Simulation.sta')
 
     # Print time
     Time.Process(0)

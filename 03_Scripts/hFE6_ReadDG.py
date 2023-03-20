@@ -223,8 +223,9 @@ def Main(Arguments):
 
         FEADir = RD / '03_hFE' / Sample
         FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
-        Frame = FEAData.loc[FEAData.index[-1],'Increment']
-        Step = FEAData.loc[FEAData.index[-1],'Step']
+        Step = 2
+        MinFZIdx = FEAData[FEAData['Step'] == Step]['FZ'].abs().idxmin()
+        Frame = FEAData.loc[MinFZIdx,'Increment']
 
         # Write and execute ODB reader
         os.chdir(str(FEADir))
