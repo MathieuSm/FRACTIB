@@ -3392,8 +3392,8 @@ def Main(ConfigFile):
         # Write simulation steps
         MaxDisp = round(Experiment['Z'].max(), 3)
         Abaqus.WriteRefNodeBCs(Step1Name, [3], [MaxDisp], Config['Control'])
-        Delta = round(Experiment['Z'].values[-1] - Experiment['Z'].max(), 3)
-        Abaqus.AddStep(InputFile, Step2Name, [3], [Delta])
+        EndDisp = round(Experiment['Z'].values[-1], 3)
+        Abaqus.AddStep(InputFile, Step2Name, [3], [EndDisp])
 
         Time.Process(0, Text)
         

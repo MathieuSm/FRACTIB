@@ -109,7 +109,7 @@ def Main():
     Show.FName = str(RD / '05_Comparison' / ('DispFmax.png')) 
     Show.OLS(Data['Experiment','Fmd'].astype('float'),
              Data['hFE','Fmd'].astype('float'),
-             Labels=['Experiment (N)', 'hFE (N)'])
+             Labels=['Experiment (mm)', 'hFE (mm)'])
 
     Data.to_csv(str(RD / 'StrucuralResults.csv'))
 
