@@ -3288,6 +3288,14 @@ class Tensor():
         else:
             return C
 
+    # Rotate fabric (use this trick in tensor rotation)
+    # R = np.linalg.inv(Fabric[1])
+    # M = np.zeros((3,3))
+    # for i, m in enumerate(Fabric[0]):
+    #     M += m * np.outer(Fabric[1][:,i], Fabric[1][:,i])
+    # RM = np.dot(np.dot(R,M),Fabric[1])
+    # np.linalg.eigvals(RM) # check that eigen values didn't change
+
 Tensor = Tensor()
 #%%
 if __name__ == '__main__':
