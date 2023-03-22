@@ -66,17 +66,19 @@ def Main():
         ExpData = ExpData[Start:Stop].reset_index(drop=True)
         ExpData -= ExpData.loc[0]
 
+        # Truncate FEA if force became negative
+        FEAData = FEAData[FEAData['FZ'] >= 0]
+
         # Plot force displacement curves
         Show.FName = str(RD / '05_Comparison' / (Sample + '_Curve.png'))     
         Show.Signal([FEAData['Z'],ExpData['Z']],
-                    [FEAData['FZ'], -ExpData['FZ']],
-                    Axes=['Displacement (mm)', 'Force (N)'],
+                    [FEAData['FZ'] / 1E3, -ExpData['FZ'] / 1E3],
+                    Axes=['Displacement (mm)', 'Force (kN)'],
                     Labels=['hFE','Experiment'])
         
         # Store stiffess, force at max(ExpForce), max displacement
         Data.loc[Index]['Experiment','MD'] = ExpData['Z'].max()
         Data.loc[Index]['Experiment','Fm'] = abs(ExpData['FZ'].min())
-        Data.loc[Index]['Experiment','Fmd'] = ExpData.loc[ExpData['FZ'].idxmin(),'Z']
 
         WindowWidth = ExpData['FZ'].idxmin() // 3
         X = ExpData.loc[:ExpData['FZ'].idxmin(), 'Z']
@@ -86,7 +88,6 @@ def Main():
         # Compute min force location
         Data.loc[Index]['hFE','MD'] = FEAData['Z'].max()
         Data.loc[Index]['hFE','Fm'] = FEAData['FZ'].max()
-        Data.loc[Index]['hFE','Fmd'] = FEAData.loc[FEAData['FZ'].idxmax(),'Z']
 
         WindowWidth = FEAData['FZ'].idxmax() // 3
         if WindowWidth < 3:
@@ -95,21 +96,16 @@ def Main():
         Y = FEAData.loc[:FEAData['FZ'].idxmax(), 'FZ']
         Data.loc[Index]['hFE','S'] = Signal.MaxSlope(X, Y, WindowWidth)
 
-    # Show.ShowPlot = True
+    Show.ShowPlot = True
     Show.FName = str(RD / '05_Comparison' / ('MaxForce.png')) 
-    Show.OLS(Data['Experiment','Fm'].astype('float'),
-             Data['hFE','Fm'].astype('float'),
-             Labels=['Experiment (N)', 'hFE (N)'])
+    Show.OLS(Data['Experiment','Fm'].astype('float') / 1E3,
+             Data['hFE','Fm'].astype('float') / 1E3,
+             Labels=['Experiment (kN)', 'hFE (kN)'])
     
     Show.FName = str(RD / '05_Comparison' / ('Stiffness.png')) 
-    Show.OLS(Data['Experiment','S'].astype('float'),
-             Data['hFE','S'].astype('float'),
-             Labels=['Experiment (N/mm)', 'hFE (N/mm)'])
-    
-    Show.FName = str(RD / '05_Comparison' / ('DispFmax.png')) 
-    Show.OLS(Data['Experiment','Fmd'].astype('float'),
-             Data['hFE','Fmd'].astype('float'),
-             Labels=['Experiment (mm)', 'hFE (mm)'])
+    Show.OLS(Data['Experiment','S'].astype('float') / 1E3,
+             Data['hFE','S'].astype('float') / 1E3,
+             Labels=['Experiment (kN/mm)', 'hFE (kN/mm)'])
 
     Data.to_csv(str(RD / 'StrucuralResults.csv'))
 

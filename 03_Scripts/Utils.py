@@ -728,7 +728,7 @@ class Show():
             Axes.plot(X_Obs, Y_Obs, linestyle='none', marker='o', color=(0,0,1), fillstyle='none')
 
         Axes.plot(X_Obs, Y_Fit, color=(1,0,0))
-        Axes.fill_between(X_Obs, CI_Line_o, CI_Line_u, color=(0, 0, 0), alpha=0.2)
+        Axes.fill_between(X_Obs, CI_Line_o, CI_Line_u, color=(0, 0, 0), alpha=0.1)
 
         if Slope > 0:
 
