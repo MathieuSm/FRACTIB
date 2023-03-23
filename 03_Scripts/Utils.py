@@ -2728,7 +2728,7 @@ C
         with open('ReadOdb.py','w') as File:
 
             # Write heading and initial part
-            Text = """# ReadODB.py
+            Text = r"""# ReadODB.py
 # A script to read deformation gradient from odb file from ABAQUS.
 
 import csv
@@ -2736,7 +2736,7 @@ import sys
 import numpy as np
 from odbAccess import *
 
-print \'Open odb file\'
+print \'\nOpen odb file\'
 
 Odb = openOdb(\'{File}\')
 

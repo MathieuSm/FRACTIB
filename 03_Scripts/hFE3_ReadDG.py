@@ -23,12 +23,17 @@ Description = """
 #%% Imports
 # Modules import
 
+import os
 import yaml
 import argparse
-from Utils import *
+import numpy as np
+import pandas as pd
 from numba import njit
+import SimpleITK as sitk
 
-Show.ShowPlot = False
+from Utils import SetDirectories, Time, Abaqus, Write
+
+Write.Echo = False
 
 #%% Functions
 # Define functions
@@ -199,11 +204,15 @@ def Decomposition(JacobianArray):
 
     return SphericalCompression, IsovolumicDeformation
 
-def DecomposeJacobian(JacobianArray):
+def DecomposeJacobian(JacobianArray, Echo=False):
   
-    Time.Process(1,'Decompose Jac.')
+    if Echo:
+        Time.Process(1,'Decompose Jac.')
+
     SC, ID = Decomposition(JacobianArray)
-    Time.Process(0)
+
+    if Echo:
+        Time.Process(0)
 
     return SC, ID
 
@@ -211,7 +220,7 @@ def DecomposeJacobian(JacobianArray):
 #%% Main
 # Main code
 
-def Main(Arguments):
+def Main():
 
     # Set directories
     CWD, DD, SD, RD = SetDirectories('FRACTIB')
@@ -224,15 +233,11 @@ def Main(Arguments):
         FEADir = RD / '03_hFE' / Sample
         os.chdir(FEADir)
 
+        # Write and execute ODB reader
         FEAData = Abaqus.ReadDAT('Simulation.dat')
         FEAData = FEAData[FEAData['FZ'] >= 0]
-
-        Step = 2
-        MinFZIdx = FEAData[FEAData['Step'] == Step]['FZ'].abs().idxmin()
-        Frame = FEAData.loc[MinFZIdx,'Increment']
-
-        # Write and execute ODB reader
-        Abaqus.ReadODB(FEADir, 'Simulation', Variables=['F'], Step=1)
+        Frame = FEAData['Increment'].values[-1]
+        Abaqus.ReadODB(FEADir, 'Simulation', Variables=['F'], Step=1, Frame=Frame)
         Time.Update(1/3, 'Read odb')
 
         # Read resulting files
@@ -255,7 +260,7 @@ def Main(Arguments):
             F[Z_Index,Y_Index,X_Index] = Element[Columns[3:]].values
 
         # Decompose deformation
-        Time.Update(2/3, 'Decompose Jacobian')
+        Time.Update(2/3, 'Decompose Jac.')
         SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
         # Write MHDs
@@ -294,4 +299,4 @@ if __name__ == '__main__':
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments)
+    Main()
