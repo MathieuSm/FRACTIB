@@ -175,7 +175,7 @@ def ReadInputFile(File):
 class Arguments():
 
     def __init__(self):
-        self.Folder = 'FRACTIB'
+        pass
 
 Arguments = Arguments()
 
@@ -185,7 +185,7 @@ Arguments = Arguments()
 def Main(Arguments):
 
     # Set directories
-    WD, DD, SD, RD = SetDirectories(Arguments.Folder)
+    WD, DD, SD, RD = SetDirectories('FRACTIB')
     RegDir = RD / '04_Registration'
     hFEDir  = RD / '03_hFE'
     ResultsDir = RD / '05_Comparison'
@@ -212,12 +212,11 @@ def Main(Arguments):
         PreI = AdjustImageSize(Image, CF)
       
         # Read BVTV values from .inp file
-        FileName = SampleList.loc[Index, 'MicroCT pretest file number']
-        FileName = 'C000' + str(FileName) + '_DOWNSCALED_00_FZ_MAX.inp'
-        BVTV = ReadInputFile(str(hFEDir / Sample / FileName))
+        BVTV = ReadInputFile(str(hFEDir / Sample / 'Simulation.inp'))
         Spacing = BVTV.GetSpacing()
         Origin = BVTV.GetOrigin()
-        Write.MHD(BVTV, str(hFEDir / Sample / 'BVTV'))
+        Write.FName = 'BVTV'
+        Write.MHD(BVTV, PixelType='float')
         BVTV = sitk.GetArrayFromImage(BVTV)
 
         # Read BSpline registration results (for local Dice computation)

@@ -2719,7 +2719,7 @@ C
         Time.Process(0)
         return
 
-    def ReadODB(self, WorkingDir, Sample, Variables=['U','RF'], Step='Compression', Frame=-1, NodeSet='TOPNODES'):
+    def ReadODB(self, WorkingDir, OdbFile, Variables=['U','RF'], Step=0, Frame=-1, NodeSet=False):
 
         # Change working directory
         os.chdir(WorkingDir)
@@ -2732,41 +2732,44 @@ C
 # A script to read deformation gradient from odb file from ABAQUS.
 
 import csv
+import sys
 import numpy as np
 from odbAccess import *
 
 print \'Open odb file\'
 
-odb = openOdb(\'{ODBFile}\')
+Odb = openOdb(\'{File}\')
 
 # Create variable that refers to the last frame of the step.
-LastFrame = odb.steps[\'{STEP}\'].frames[{Frame}]
+Steps = Odb.steps.keys()
+Frame = Odb.steps[Steps[{Step}]].frames[{Frame}]
 
 # Create variable refering to model instance
-Instance = odb.rootAssembly.instances['SAMPLE']
+Instances = Odb.rootAssembly.instances.keys()
+Instance = Odb.rootAssembly.instances[Instances[0]]
 
 """
-            File.write(Text.format(**{'ODBFile':Sample + '.odb',
-                                      'STEP':Step,
+            File.write(Text.format(**{'File':OdbFile + '.odb',
+                                      'Step':Step,
                                       'Frame':Frame}))
                     
             # Select fields outputs
             if 'U' in Variables:
-                File.write('Displacements = LastFrame.fieldOutputs[\'U\'].values\n')
+                File.write('Displacements = Frame.fieldOutputs[\'U\'].values\n')
                 
             if 'RF' in Variables:
-                File.write('Forces = LastFrame.fieldOutputs[\'RF\'].values\n')
+                File.write('Forces = Frame.fieldOutputs[\'RF\'].values\n')
                 
             if 'F' in Variables:
-                File.write("""F11 = LastFrame.fieldOutputs['SDV_F11']
-F12 = LastFrame.fieldOutputs['SDV_F12']
-F13 = LastFrame.fieldOutputs['SDV_F13']
-F21 = LastFrame.fieldOutputs['SDV_F21']
-F22 = LastFrame.fieldOutputs['SDV_F22']
-F23 = LastFrame.fieldOutputs['SDV_F23']
-F31 = LastFrame.fieldOutputs['SDV_F31']
-F32 = LastFrame.fieldOutputs['SDV_F32']
-F33 = LastFrame.fieldOutputs['SDV_F33']
+                File.write("""F11 = Frame.fieldOutputs['SDV_F11']
+F12 = Frame.fieldOutputs['SDV_F12']
+F13 = Frame.fieldOutputs['SDV_F13']
+F21 = Frame.fieldOutputs['SDV_F21']
+F22 = Frame.fieldOutputs['SDV_F22']
+F23 = Frame.fieldOutputs['SDV_F23']
+F31 = Frame.fieldOutputs['SDV_F31']
+F32 = Frame.fieldOutputs['SDV_F32']
+F33 = Frame.fieldOutputs['SDV_F33']
 
 F = [F11,F12,F13,F21,F22,F23,F31,F32,F33]
 F_Names = ['F11','F12','F13','F21','F22','F23','F31','F32','F33']
@@ -2789,26 +2792,26 @@ for Node in Nodes:
 """)
                 Line = '    NodesData.append([Cx, Cy, Cz'
 
-            if 'U' in Variables:
-                File.write("""    Ux = float(Displacements[Node.label].data[0])
+                if 'U' in Variables:
+                    File.write("""    Ux = float(Displacements[Node.label].data[0])
     Uy = float(Displacements[Node.label].data[1])
     Uz = float(Displacements[Node.label].data[2])
 """)
-                Line += ', Ux, Uy, Uz'
+                    Line += ', Ux, Uy, Uz'
 
-            if 'RF' in Variables:
-                File.write("""    Fx = float(Forces[Node.label].data[0])
+                if 'RF' in Variables:
+                    File.write("""    Fx = float(Forces[Node.label].data[0])
     Fy = float(Forces[Node.label].data[1])
     Fz = float(Forces[Node.label].data[2])
 """)
-                Line += ', Fx, Fy, Fz'
+                    Line += ', Fx, Fy, Fz'
                 
-            File.write(Line + '])\n')
-            File.write('NodesData = np.array(NodesData)\n')
+                File.write(Line + '])\n')
+                File.write('NodesData = np.array(NodesData)\n')
 
             # For deformation gradient analysis (to clean/adapt)
             if 'F' in Variables:
-                File.write("""NodeLabels = np.array([])
+                File.write(r"""NodeLabels = np.array([])
 for iNode, Node in enumerate(Nodes):
     NodeLabels = np.append(NodeLabels,Node.label)
 
@@ -2834,7 +2837,6 @@ for ElementNumber, Element in enumerate(Instance.elements[:N]):
 
     for F_Component in range(9):
         F_Value = F[F_Component].getSubset(region=Element).values[0].data
-        #print F_Names[F_Component], ': ', F_Value
         F_IntegrationPoints[0,F_Component] = F_Value
 
     # Add data to arrays and increment
@@ -2843,26 +2845,26 @@ for ElementNumber, Element in enumerate(Instance.elements[:N]):
 """)
 
             # Write into csv file
-            File.write('\nprint  \'Save to csv\'')
+            File.write('\nprint  \'' + r'\n' + 'Save to csv\'')
 
             if 'U' in Variables or 'RF' in Variables:
                 File.write("""
-with open('{Sample}_Nodes.csv', 'w') as File:
+with open('{File}_Nodes.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in NodesData:
         Writer.writerow(Row)  
-""".format(**{'Sample':Sample}))
+""".format(**{'File':OdbFile}))
 
             if 'F' in Variables:
                 File.write("""
-with open('{Sample}_{Step}_{Frame}_DG.csv', 'w') as File:
+with open('{File}_{Step}_{Frame}_DG.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in ElementsDG.T:
         Writer.writerow(Row)            
-""".format(**{'Sample':Sample, 'Step':Step, 'Frame':Frame}))
+""".format(**{'File':OdbFile, 'Step':Step, 'Frame':Frame}))
 
             # Close odb file
-            File.write('odb.close()')
+            File.write('Odb.close()')
 
         # Run odb reader
         os.system('abaqus python ReadOdb.py')
@@ -2870,7 +2872,7 @@ with open('{Sample}_{Step}_{Frame}_DG.csv', 'w') as File:
         # Collect results
         Data = []
         if 'U' in Variables or 'RF' in Variables:
-            ND = pd.read_csv(str(Path(WorkingDir, Sample + '_Nodes.csv')), header=None)
+            ND = pd.read_csv(str(Path(WorkingDir, OdbFile + '_Nodes.csv')), header=None)
             if 'RF' not in Variables:
                 ND.columns = ['Cx','Cy','Cz','Ux','Uy','Uz']
             if 'U' not in Variables:
@@ -2880,9 +2882,8 @@ with open('{Sample}_{Step}_{Frame}_DG.csv', 'w') as File:
             Data.append(ND)
 
         if 'F' in Variables:
-            DG = pd.read_csv(Sample + '_EP.csv', header=None)
-            EP = pd.read_csv(Sample + '_DG.csv', header=None)
-            Data.append([DG, EP])
+            DG = pd.read_csv(OdbFile + '_' + str(Step) + '_' + str(Frame) + '_DG.csv', header=None)
+            Data.append(DG)
 
         return Data
 

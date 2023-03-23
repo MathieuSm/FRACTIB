@@ -201,7 +201,7 @@ def Decomposition(JacobianArray):
 
 def DecomposeJacobian(JacobianArray):
   
-    Time.Process(1,'Decompose Jacobian')
+    Time.Process(1,'Decompose Jac.')
     SC, ID = Decomposition(JacobianArray)
     Time.Process(0)
 
@@ -222,52 +222,43 @@ def Main(Arguments):
         Time.Process(1, Sample)
 
         FEADir = RD / '03_hFE' / Sample
-        FEAData = Abaqus.ReadDAT(str(FEADir / 'Experiment.dat'))
+        os.chdir(FEADir)
+
+        FEAData = Abaqus.ReadDAT('Simulation.dat')
+        FEAData = FEAData[FEAData['FZ'] >= 0]
+
         Step = 2
         MinFZIdx = FEAData[FEAData['Step'] == Step]['FZ'].abs().idxmin()
         Frame = FEAData.loc[MinFZIdx,'Increment']
 
         # Write and execute ODB reader
-        os.chdir(str(FEADir))
-        with open(str(SD / 'Template_ODBReader.txt')) as Temp:
-            Script = Temp.read()
-
-        Context = {'Folder':Sample,
-                   'File':'Experiment',
-                   'Step':Step,
-                   'Frame':Frame}
-
-        with open('ReadODB.py', 'w') as File:
-            File.write(Script.format(**Context))
-
+        Abaqus.ReadODB(FEADir, 'Simulation', Variables=['F'], Step=1)
         Time.Update(1/3, 'Read odb')
-        os.system('abaqus python ReadODB.py')
 
         # Read resulting files
-        ElementsPositions = pd.read_csv('ElementsPositions.csv',names=['X','Y','Z'])
-        DeformationGradients = pd.read_csv('DeformationGradients.csv',names=['F11','F12','F13','F21','F22','F23','F31','F32','F33'])
+        Columns = ['X','Y','Z','F11','F12','F13','F21','F22','F23','F31','F32','F33']
+        ElementsDG = pd.read_csv('Simulation_1_-1_DG.csv', names=Columns)
 
         # Build arrays
-        X = np.unique(ElementsPositions['X'].values)
-        Y = np.unique(ElementsPositions['Y'].values)
-        Z = np.unique(ElementsPositions['Z'].values)
+        X = np.unique(ElementsDG['X'].values)
+        Y = np.unique(ElementsDG['Y'].values)
+        Z = np.unique(ElementsDG['Z'].values)
 
         F = np.zeros((len(Z),len(Y),len(X),9))
-        for Index in DeformationGradients.index:
+        for Index in ElementsDG.index:
             
-            Position = ElementsPositions.loc[Index]
-            X_Index = list(X).index(Position['X'])
-            Y_Index = list(Y).index(Position['Y'])
-            Z_Index = list(Z).index(Position['Z'])
+            Element = ElementsDG.loc[Index]
+            X_Index = list(X).index(Element['X'])
+            Y_Index = list(Y).index(Element['Y'])
+            Z_Index = list(Z).index(Element['Z'])
             
-            F[Z_Index,Y_Index,X_Index] = DeformationGradients.loc[Index].values
+            F[Z_Index,Y_Index,X_Index] = Element[Columns[3:]].values
 
         # Decompose deformation
         Time.Update(2/3, 'Decompose Jacobian')
         SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
         # Write MHDs
-        # Compute metadata
         Spacing = np.array([X[1]-X[0],Y[1]-Y[0],Z[1]-Z[0]])
         Origin = np.array([X.min(), Y.min(), Z.min()])
 
