@@ -2719,7 +2719,7 @@ C
         Time.Process(0)
         return
 
-    def ReadODB(self, WorkingDir, OdbFile, Variables=['U','RF'], Step=0, Frame=-1, NodeSet=False):
+    def ReadODB(self, WorkingDir, OdbFile, Variables=['U','RF'], Step=False, Frame=False, NodeSet=False):
 
         # Change working directory
         os.chdir(WorkingDir)
@@ -2728,7 +2728,7 @@ C
         with open('ReadOdb.py','w') as File:
 
             # Write heading and initial part
-            Text = r"""# ReadODB.py
+            Text = """# ReadODB.py
 # A script to read deformation gradient from odb file from ABAQUS.
 
 import csv
@@ -2736,22 +2736,55 @@ import sys
 import numpy as np
 from odbAccess import *
 
-print \'\nOpen odb file\'
+#print \'Open odb file\'
 
 Odb = openOdb(\'{File}\')
+"""
 
+            File.write(Text.format(**{'File':OdbFile + '.odb'}))
+
+            if Step:
+                Text = """
 # Create variable that refers to the last frame of the step.
 Steps = Odb.steps.keys()
-Frame = Odb.steps[Steps[{Step}]].frames[{Frame}]
+Step = Steps[{Step}]
+"""
+                File.write(Text.format(**{'Step':Step}))
 
+            else:
+                Text = """
+# Create variable that refers to the last frame of the step.
+Steps = Odb.steps.keys()
+Step = Steps[len(Steps)-1]
+"""
+                File.write(Text)
+
+            if Frame:
+                Text = """
+Frame = Odb.steps[Step].frames[{Frame}]
+"""
+                File.write(Text.format(**{'Frame':Frame}))
+                
+            else:
+                Text = """
+Frames = Odb.steps[Step].frames
+Shift = 1
+while len(Frames) == 0:
+    Step = Steps[len(Steps)-(1+Shift)]
+    Frames = Odb.steps[Step].frames
+    Shift += 1
+Frame = Odb.steps[Step].frames[len(Frames)-1]
+"""
+                File.write(Text)
+                
+            # Select instance
+            Text ="""
 # Create variable refering to model instance
 Instances = Odb.rootAssembly.instances.keys()
 Instance = Odb.rootAssembly.instances[Instances[0]]
 
 """
-            File.write(Text.format(**{'File':OdbFile + '.odb',
-                                      'Step':Step,
-                                      'Frame':Frame}))
+            File.write(Text)
                     
             # Select fields outputs
             if 'U' in Variables:
@@ -2820,7 +2853,7 @@ N = len(Instance.elements)
 ElementsDG = np.zeros((12,N))
 
 for ElementNumber, Element in enumerate(Instance.elements[:N]):
-    sys.stdout.write("\r" + "Read element " + str(ElementNumber+1) + "/" + str(N))
+    sys.stdout.write("\r" + "El. " + str(ElementNumber+1) + "/" + str(N))
     sys.stdout.flush()
 
     # Compute element central position
@@ -2845,7 +2878,7 @@ for ElementNumber, Element in enumerate(Instance.elements[:N]):
 """)
 
             # Write into csv file
-            File.write('\nprint  \'' + r'\n' + 'Save to csv\'')
+            #File.write('\nprint  \'' + r'\n' + 'Save to csv\'')
 
             if 'U' in Variables or 'RF' in Variables:
                 File.write("""
@@ -2857,11 +2890,11 @@ with open('{File}_Nodes.csv', 'w') as File:
 
             if 'F' in Variables:
                 File.write("""
-with open('{File}_{Step}_{Frame}_DG.csv', 'w') as File:
+with open('Elements_DG.csv', 'w') as File:
     Writer = csv.writer(File)
     for Row in ElementsDG.T:
         Writer.writerow(Row)            
-""".format(**{'File':OdbFile, 'Step':Step, 'Frame':Frame}))
+""")
 
             # Close odb file
             File.write('Odb.close()')
@@ -2882,7 +2915,7 @@ with open('{File}_{Step}_{Frame}_DG.csv', 'w') as File:
             Data.append(ND)
 
         if 'F' in Variables:
-            DG = pd.read_csv(OdbFile + '_' + str(Step) + '_' + str(Frame) + '_DG.csv', header=None)
+            DG = pd.read_csv('Elements_DG.csv', header=None)
             Data.append(DG)
 
         return Data

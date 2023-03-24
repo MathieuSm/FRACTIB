@@ -226,7 +226,7 @@ def Main():
     CWD, DD, SD, RD = SetDirectories('FRACTIB')
     SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
 
-    for Index, Sample in enumerate(SampleList['Internal ID'][:6]):
+    for Index, Sample in enumerate(SampleList['Internal ID']):
 
         Time.Process(1, Sample)
 
@@ -234,15 +234,13 @@ def Main():
         os.chdir(FEADir)
 
         # Write and execute ODB reader
-        FEAData = Abaqus.ReadDAT('Simulation.dat')
-        FEAData = FEAData[FEAData['FZ'] >= 0]
-        Frame = FEAData['Increment'].values[-1]
-        Abaqus.ReadODB(FEADir, 'Simulation', Variables=['F'], Step=1, Frame=Frame)
-        Time.Update(1/3, 'Read odb')
+        Time.Update(1/4, 'Read odb')
+        Abaqus.ReadODB(FEADir, 'Simulation', Variables=['F'])
 
         # Read resulting files
+        Time.Update(2/4, 'Build Image')
         Columns = ['X','Y','Z','F11','F12','F13','F21','F22','F23','F31','F32','F33']
-        ElementsDG = pd.read_csv('Simulation_1_-1_DG.csv', names=Columns)
+        ElementsDG = pd.read_csv('Elements_DG.csv', names=Columns)
 
         # Build arrays
         X = np.unique(ElementsDG['X'].values)
@@ -260,7 +258,7 @@ def Main():
             F[Z_Index,Y_Index,X_Index] = Element[Columns[3:]].values
 
         # Decompose deformation
-        Time.Update(2/3, 'Decompose Jac.')
+        Time.Update(3/4, 'Decompose Jac.')
         SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
 
         # Write MHDs
@@ -280,7 +278,7 @@ def Main():
         Write.FName = 'F_Tilde'
         Write.MHD(ID, PixelType='float')
 
-        Time.Process(0)
+        Time.Process(0, Sample)
 
     return
 
