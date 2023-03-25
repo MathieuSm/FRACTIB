@@ -4,19 +4,19 @@
 Version = '01'
 
 Description = """
-    Script used for the assessment of localization prediction accuracy.
-    This is done by performing ordinary least square regression on the
-    values (det(F) and |F~|) obtained with the registration vs the simulation
+Script used for the assessment of localization prediction accuracy.
+This is done by performing ordinary least square regression on the
+values (det(F) and |F~|) obtained with the registration vs the simulation
 
-    Version Control:
-        01 - Original script
+Version Control:
+    01 - Original script
 
-    Author: Mathieu Simon
-            ARTORG Center for Biomedical Engineering Research
-            SITEM Insel, University of Bern
+Author: Mathieu Simon
+        ARTORG Center for Biomedical Engineering Research
+        SITEM Insel, University of Bern
 
-    Date: January 2023
-    """
+Date: January 2023
+"""
 
 #%% Imports
 # Modules import
@@ -35,7 +35,6 @@ def ReadConfigFile(Filename):
 
     """ Read configuration file and store to dictionary """
 
-    print('\n\nReading configuration file', Filename)
     with open(Filename, 'r') as File:
         Configuration = yaml.load(File, Loader=yaml.FullLoader)
 
@@ -182,7 +181,7 @@ Arguments = Arguments()
 #%% Main
 # Main code
 
-def Main(Arguments):
+def Main():
 
     # Set directories
     WD, DD, SD, RD = SetDirectories('FRACTIB')
@@ -215,7 +214,7 @@ def Main(Arguments):
         BVTV = ReadInputFile(str(hFEDir / Sample / 'Simulation.inp'))
         Spacing = BVTV.GetSpacing()
         Origin = BVTV.GetOrigin()
-        Write.FName = 'BVTV'
+        Write.FName = str(hFEDir / Sample / 'BVTV')
         Write.MHD(BVTV, PixelType='float')
         BVTV = sitk.GetArrayFromImage(BVTV)
 
@@ -278,7 +277,8 @@ def Main(Arguments):
         ImageConv = sitk.GetImageFromArray(Convolve)
         ImageConv.SetSpacing(Spacing)
         ImageConv.SetOrigin(Origin)
-        Write.MHD(ImageConv, str(RegDir / Sample / 'Dice'))
+        Write.FName = str(RegDir / Sample / 'Dice')
+        Write.MHD(ImageConv, PixelType='float')
         # Test = Show.OLS(BVTV[Mask], Convolve[Mask], Cmap=Y)
 
         # Load decompositions
@@ -342,9 +342,8 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('--Folder', help='Root folder of the project', type=str, default='FRACTIB')
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments)
+    Main()
