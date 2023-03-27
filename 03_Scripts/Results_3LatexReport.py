@@ -20,11 +20,17 @@ Description = """
 #%% Imports
 # Modules import
 
+import os
 import yaml
 import argparse
+import numpy as np
+import pandas as pd
+import SimpleITK as sitk
+from Utils import SetDirectories, Resample, Read, Show
+
 from pylatex import Document, Section, Figure, SubFigure, NoEscape, NewPage
 from pylatex.package import Package
-from Utils import *
+
 Show.ShowPlot = False
 
 #%% Functions
@@ -33,7 +39,6 @@ def ReadConfigFile(Filename):
 
     """ Read configuration file and store to dictionary """
 
-    print('\n\nReading configuration file', Filename)
     with open(Filename, 'r') as File:
         Configuration = yaml.load(File, Loader=yaml.FullLoader)
 
@@ -95,23 +100,13 @@ def AdjustImageSize(Image, CoarseFactor, CropZ='Crop'):
     return Image_Adjusted
 
 
-#%% Classes
-# Define classes
-
-class Arguments():
-
-    def __init__(self):
-        self.Folder = 'FRACTIB'
-
-Arguments = Arguments()
-
 #%% Main
 # Main code
 
-def Main(Arguments):
+def Main():
 
     # Set directories
-    WD, Data, Scripts, Results = SetDirectories(Arguments.Folder)
+    WD, Data, Scripts, Results = SetDirectories('FRACTIB')
     RegDir = Results / '04_Registration'
     hFEDir  = Results / '03_hFE'
     Report = Results / 'Report'
@@ -120,7 +115,7 @@ def Main(Arguments):
     SampleList = pd.read_csv(str(Data / 'SampleList.csv'))['Internal ID']
     Doc = Document(default_filepath=str(Report))
 
-    for Sample in SampleList[:6]:
+    for Sample in SampleList:
 
         # Generate images with same scales for hFE and registration
         uCTDir = Data / '02_uCT' / Sample
@@ -206,19 +201,19 @@ def Main(Arguments):
         Image1 = str(RegDir / Sample / 'RigidRegistration')
         Image2 = str(RegDir / Sample / 'BSplineRegistration')
         Image3 = str(RegDir / Sample / 'DetF')
-        Image4 = str(RegDir / Sample / 'Ftilde')
-        Image5 = str(hFEDir / Sample / 'DetF')
+        Image4 = str(hFEDir / Sample / 'DetF')
+        Image5 = str(RegDir / Sample / 'Ftilde')
         Image6 = str(hFEDir / Sample / 'FTilde')
         Images = [Image1, Image2, Image3, Image4, Image5, Image6]
 
         SubCaptions = ['Rigid',
                        'B-spline',
-                       NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$|\widetilde{\mathbf{F}}|$'),
-                       NoEscape(r'$|\mathbf{F}|$'),
-                       NoEscape(r'$|\widetilde{\mathbf{F}}|$')]
+                       'Registration',
+                       'hFE',
+                       'Registration',
+                       'hFE']
 
-        Captions = ['Registration results', 'Registration analysis', 'hFE analysis']
+        Captions = ['Registration results', NoEscape(r'$|\mathbf{F}|$'), NoEscape(r'$|\widetilde{\mathbf{F}}|$')]
 
         # Create section and add pictures
         with Doc.create(Section(Sample, numbering=False)):
@@ -259,4 +254,4 @@ if __name__ == '__main__':
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments)
+    Main()
