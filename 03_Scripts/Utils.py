@@ -4127,7 +4127,7 @@ class Morphometry():
         if DA:
             Masked = sitk.Mask(Image, Mask)
             eVal, eVect = self.MIL(Masked)
-            Data.loc[0,'DA'] = max(eVal) / min(eVal)
+            Data.loc[0,'DA (-)'] = max(eVal) / min(eVal)
 
         return Data
 
@@ -4174,7 +4174,7 @@ class Morphometry():
         
         return Data
 
-    def SegmentBone(self, Image, Sigma=0.02, nThresholds=2, Mask=True, CloseSize=1):
+    def SegmentBone(self, Image, Sigma=0.02, Threshold=None, nThresholds=2, Mask=True, CloseSize=None):
 
         """
         Perform segmentation of bone form gray value image
@@ -4207,17 +4207,26 @@ class Morphometry():
         Gauss.SetSigma(Sigma)
         Smooth  = Gauss.Execute(Image)
 
-        # Segment image by thresholding using Otsu's method
-        Otsu = sitk.OtsuMultipleThresholdsImageFilter()
-        Otsu.SetNumberOfThresholds(nThresholds)
-        Seg = Otsu.Execute(Smooth)
+        if Threshold:
+            # Segment image using single threshold
+            Binarize = sitk.BinaryThresholdImageFilter()
+            Binarize.SetUpperThreshold(Threshold)
+            Binarize.SetOutsideValue(255)
+            Binarize.SetInsideValue(0)
+            Bin = Binarize.Execute(Smooth)
 
-        # Binarize image to keep bone only
-        Binarize = sitk.BinaryThresholdImageFilter()
-        Binarize.SetUpperThreshold(1)
-        Binarize.SetOutsideValue(255)
-        Binarize.SetInsideValue(0)
-        Bin = Binarize.Execute(Seg)
+        else:
+            # Segment image by thresholding using Otsu's method
+            Otsu = sitk.OtsuMultipleThresholdsImageFilter()
+            Otsu.SetNumberOfThresholds(nThresholds)
+            Seg = Otsu.Execute(Smooth)
+
+            # Binarize image to keep bone only
+            Binarize = sitk.BinaryThresholdImageFilter()
+            Binarize.SetUpperThreshold(nThresholds-1)
+            Binarize.SetOutsideValue(255)
+            Binarize.SetInsideValue(0)
+            Bin = Binarize.Execute(Seg)
 
         # Crop image to bone
         Array = sitk.GetArrayFromImage(Bin)
@@ -4262,7 +4271,7 @@ class Morphometry():
             return GrayCrop, BinCrop, Mask
         
         else:
-            return GrayCrop, BinCrop
+            return GrayCrop, BinCrop    
 
 Morphometry = Morphometry()
 

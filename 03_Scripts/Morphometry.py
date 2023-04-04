@@ -23,20 +23,17 @@ import argparse
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
-from Utils import SetDirectories, Read, Morphometry
+from Utils import SetDirectories, Time, Read, Morphometry
 
-
-#%% Functions
-# Define functions
-
-def AFunction(Argument):
-
-    return
+Read.Echo = False
+Morphometry.Echo = False
 
 #%% Main
 # Main code
 
 def Main():
+
+    print('\nPerform morphometry analysis')
 
     # Set directories and read sample list
     WD, DD, SD, RD = SetDirectories('FRACTIB')
@@ -69,7 +66,7 @@ def Main():
     Metrics = ['BMD (mgHA/cm3)',
                'TMD (mgHA/cm3)',
                'BMC (mgHA)',
-               'C. Th (mm)',
+               'C.Th (mm)',
                'BV/TV (-)',
                'Tb.Th. (mm)',
                'Tb.N. (-)',
@@ -77,7 +74,11 @@ def Main():
                'DA (-)']
     MorphoData = pd.DataFrame(index=SampleList['Internal ID'], columns=Metrics)
 
+    iS = 8
+    Sample = SampleList.loc[iS, 'Internal ID']
     for iS, Sample in enumerate(SampleList['Internal ID']):
+
+        Time.Process(1, Sample)
 
         # Read AIM gray file and compute BMD values
         FilePath = DD / '02_uCT' / Sample
@@ -87,6 +88,7 @@ def Main():
         BMD = sitk.GetArrayFromImage(Gray) * Slope[0] + Intercept[0]
 
         # Read masks to compute mean BMD
+        Time.Update(1/6, 'BMD')
         FileName = FileName[:-4] + '_CORT_MASK.AIM'
         Cort = Read.AIM(str(FilePath / FileName))[0]
         FileName = FileName[:-14] + '_TRAB_MASK.AIM'
@@ -95,36 +97,44 @@ def Main():
         MorphoData.loc[Sample,'BMD (mgHA/cm3)'] = np.mean(BMD[Mask > 0])
         
         # Compute BMC
+        Time.Update(2/6, 'BMC')
         S = np.round(Gray.GetSpacing(),6)
         Volume = np.sum(Mask > 0) * S[0] * S[1] * S[2] / 1E3
-        MorphoData.loc[Sample, 'BMC mgHA'] = MorphoData.loc[Sample,'BMD (mgHA/cm3)'] * Volume
+        MorphoData.loc[Sample, 'BMC (mgHA)'] = MorphoData.loc[Sample,'BMD (mgHA/cm3)'] * Volume
 
         # Read segmented image to compute mean TMD
+        Time.Update(3/6, 'TMD')
         FileName = FileName[:-14] + '_SEG.AIM'
         Seg = Read.AIM(str(FilePath / FileName))[0]
         Seg = sitk.GetArrayFromImage(Seg)
         MorphoData.loc[Sample,'TMD (mgHA/cm3)'] = np.mean(BMD[Seg > 0])
 
         # Cortical morphometry usgin cort mask
+        Time.Update(4/6, 'Cortex')
         Bin = (sitk.GetArrayFromImage(Cort) == 127) * 255
         Bin = sitk.GetImageFromArray(Bin)
         Bin.SetSpacing(S)
         Data = Morphometry.Cortical(Bin)
-        MorphoData.loc[Sample,'C.Th (mm)'] = Data['C.Th (mm)']
+        MorphoData.loc[Sample,'C.Th (mm)'] = Data['C.Th (mm)'].values[0]
 
         # Trabecular morphometry using trab mask and trab seg
+        Time.Update(5/6, 'Trabecular')
         Bin = (Seg == 1) * 255
         Bin = sitk.GetImageFromArray(Bin)
+        Bin = sitk.Cast(Bin, 1)
         Bin.SetSpacing(S)
 
-        EMask = sitk.GetArrayFromImage(Trab) * 255
+        EMask = sitk.GetArrayFromImage(Trab)
+        EMask = EMask / EMask.max() * 255
         EMask = sitk.GetImageFromArray(EMask)
+        EMask = sitk.Cast(EMask, 1)
         EMask.SetSpacing(S)
 
         Data = Morphometry.Trabecular(Bin, EMask, DA=True)
         for C in Data.columns:
-            MorphoData.loc[Sample,C] = Data[C]
+            MorphoData.loc[Sample,C] = Data[C].values[0]
 
+        Time.Process(0, Sample)
     
     MorphoData.to_csv(str(RD / 'Morphometry.csv'))
 
@@ -141,7 +151,6 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('File', help='File to process (required)', type=str)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
