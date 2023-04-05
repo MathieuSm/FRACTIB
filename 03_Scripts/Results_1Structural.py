@@ -42,7 +42,8 @@ def Main():
 
     Text = 'Nodal Results'
     Time.Process(1, Text)
-    Columns = pd.MultiIndex.from_product([['hFE','Experiment'],['MD', 'Fm', 'Fmd', 'S']])
+    Variables = ['Max Displacement (mm)', 'Max Force (N)', 'Stiffness (N/mm)']
+    Columns = pd.MultiIndex.from_product([['hFE','Experiment'],Variables])
     Data = pd.DataFrame(index=SampleList.index, columns=Columns)
     for Index, Sample in enumerate(SampleList['Internal ID']):
 
@@ -77,37 +78,37 @@ def Main():
                     Labels=['hFE','Experiment'])
         
         # Store stiffess, force at max(ExpForce), max displacement
-        Data.loc[Index]['Experiment','MD'] = ExpData['Z'].max()
-        Data.loc[Index]['Experiment','Fm'] = abs(ExpData['FZ'].min())
+        Data.loc[Index]['Experiment',Variables[0]] = ExpData['Z'].max()
+        Data.loc[Index]['Experiment',Variables[1]] = abs(ExpData['FZ'].min())
 
         WindowWidth = ExpData['FZ'].idxmin() // 3
         X = ExpData.loc[:ExpData['FZ'].idxmin(), 'Z']
         Y = -ExpData.loc[:ExpData['FZ'].idxmin(), 'FZ']
-        Data.loc[Index]['Experiment','S'] = Signal.MaxSlope(X, Y, WindowWidth)
+        Data.loc[Index]['Experiment',Variables[2]] = Signal.MaxSlope(X, Y, WindowWidth)
 
         # Compute min force location
-        Data.loc[Index]['hFE','MD'] = FEAData['Z'].max()
-        Data.loc[Index]['hFE','Fm'] = FEAData['FZ'].max()
+        Data.loc[Index]['hFE',Variables[0]] = FEAData['Z'].max()
+        Data.loc[Index]['hFE',Variables[1]] = FEAData['FZ'].max()
 
         WindowWidth = FEAData['FZ'].idxmax() // 3
         if WindowWidth < 3:
             WindowWidth = 3
         X = FEAData.loc[:FEAData['FZ'].idxmax(), 'Z']
         Y = FEAData.loc[:FEAData['FZ'].idxmax(), 'FZ']
-        Data.loc[Index]['hFE','S'] = Signal.MaxSlope(X, Y, WindowWidth)
+        Data.loc[Index]['hFE',Variables[2]] = Signal.MaxSlope(X, Y, WindowWidth)
 
     Show.ShowPlot = True
     Show.FName = str(RD / '05_Comparison' / ('MaxForce.png')) 
-    Show.OLS(Data['Experiment','Fm'].astype('float') / 1E3,
-             Data['hFE','Fm'].astype('float') / 1E3,
+    Show.OLS(Data['Experiment',Variables[1]].astype('float') / 1E3,
+             Data['hFE',Variables[1]].astype('float') / 1E3,
              Labels=['Experiment (kN)', 'hFE (kN)'])
     
     Show.FName = str(RD / '05_Comparison' / ('Stiffness.png')) 
-    Show.OLS(Data['Experiment','S'].astype('float') / 1E3,
-             Data['hFE','S'].astype('float') / 1E3,
+    Show.OLS(Data['Experiment',Variables[2]].astype('float') / 1E3,
+             Data['hFE',Variables[2]].astype('float') / 1E3,
              Labels=['Experiment (kN/mm)', 'hFE (kN/mm)'])
 
-    Data.to_csv(str(RD / 'StrucuralResults.csv'))
+    Data.to_csv(str(RD / 'StructuralResults.csv'))
 
     Time.Process(0, Text)
 
@@ -124,10 +125,8 @@ if __name__ == '__main__':
     # Add long and short argument
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
-    Parser.add_argument('-F', '--Folder', help='Root folder of the project', default='FRACTIB', type=str)
-    Parser.add_argument('Sample', help='Sample to analyze (required)', type=str)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()
 
-    Main(Arguments)
+    Main()
