@@ -42,7 +42,7 @@ def Main():
 
     Text = 'Nodal Results'
     Time.Process(1, Text)
-    Variables = ['Max Displacement (mm)', 'Max Force (N)', 'Stiffness (N/mm)']
+    Variables = ['Max Displacement (mm)', 'Ultimate Load (N)', 'Stiffness (N/mm)']
     Columns = pd.MultiIndex.from_product([['hFE','Experiment'],Variables])
     Data = pd.DataFrame(index=SampleList.index, columns=Columns)
     for Index, Sample in enumerate(SampleList['Internal ID']):
@@ -108,7 +108,7 @@ def Main():
              Data['hFE',Variables[2]].astype('float') / 1E3,
              Labels=['Experiment (kN/mm)', 'hFE (kN/mm)'])
 
-    Data.to_csv(str(RD / 'StructuralResults.csv'))
+    Data.to_csv(str(RD / 'Structural.csv'))
 
     Time.Process(0, Text)
 

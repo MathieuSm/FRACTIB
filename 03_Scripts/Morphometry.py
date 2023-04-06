@@ -73,9 +73,8 @@ def Main():
                'Tb.Sp. (mm)',
                'DA (-)']
     MorphoData = pd.DataFrame(index=SampleList['Internal ID'], columns=Metrics)
+    MorphoData['Sample'] = SampleList['Internal ID']
 
-    iS = 8
-    Sample = SampleList.loc[iS, 'Internal ID']
     for iS, Sample in enumerate(SampleList['Internal ID']):
 
         Time.Process(1, Sample)

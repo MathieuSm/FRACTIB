@@ -31,7 +31,7 @@ from Utils import SetDirectories, Show
 
 def AFunction(Argument):
 
-    return Something
+    return 
 
 #%% Main
 # Main code
@@ -42,7 +42,19 @@ def Main():
     Data = pd.read_csv(str(RD / 'Morphometry.csv'))
     Check = pd.read_csv(str(RD / '01_Morphology' / '00_Data.csv'))
     Map = pd.read_csv(str(DD / 'SampleList.csv'))
-    Data.loc[Map['MicroCT pretest file number'].argsort(),'BV/TV (-)']
+    Sort = Map['MicroCT pretest file number'].argsort().sort_values().index
+    Structural = pd.read_csv(str(RD / 'Structural.csv'), header=[0,1])
+
+    print(Check.mean())
+    print(Data.mean())
+    print(Data.std())
+
+    OLS = Show.OLS(Data['BV/TV (-)'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
+    OLS = Show.OLS(Check.loc[Sort, 'BV/TV'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
+
+    OLS = Show.OLS(Data['BMC (mgHA)'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
+    OLS = Show.OLS(Data['BMC (mgHA)']/1E3, Structural['Experiment']['Max Force (N)']/1E3)
+
     
 
     return
