@@ -63,7 +63,7 @@ def Main():
     Intercept, Slope = np.array(np.linalg.inv(X.T * X) * X.T * Y)
 
     # Create data frame to store metrics
-    Metrics = ['BMD (mgHA/cm3)',
+    Metrics = ['vBMD (mgHA/cm3)',
                'TMD (mgHA/cm3)',
                'BMC (mgHA)',
                'C.Th (mm)',
@@ -87,13 +87,13 @@ def Main():
         BMD = sitk.GetArrayFromImage(Gray) * Slope[0] + Intercept[0]
 
         # Read masks to compute mean BMD
-        Time.Update(1/6, 'BMD')
+        Time.Update(1/6, 'vBMD')
         FileName = FileName[:-4] + '_CORT_MASK.AIM'
         Cort = Read.AIM(str(FilePath / FileName))[0]
         FileName = FileName[:-14] + '_TRAB_MASK.AIM'
         Trab = Read.AIM(str(FilePath / FileName))[0]
         Mask = sitk.GetArrayFromImage(Cort+Trab)
-        MorphoData.loc[Sample,'BMD (mgHA/cm3)'] = np.mean(BMD[Mask > 0])
+        MorphoData.loc[Sample,'vBMD (mgHA/cm3)'] = np.mean(BMD[Mask > 0])
         
         # Compute BMC
         Time.Update(2/6, 'BMC')
