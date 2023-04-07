@@ -56,8 +56,14 @@ def Main():
     OLS = Show.OLS(Data['BV/TV (-)'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
     # OLS = Show.OLS(Check.loc[Sort, 'BV/TV'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
 
-    OLS = Show.OLS(Data['BMC (mgHA)'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
-    OLS = Show.OLS(Data['BMC (mgHA)']/1E3, Structural['Experiment']['Max Force (N)']/1E3)
+    OLS = Show.OLS(Data['BMC (mgHA)']/1E3, 
+                   Structural['Experiment']['Stiffness (N/mm)']/1E3,
+                   Labels=['BMC (gHA)', 'Experimental Stiffness (kN/mm)'],
+                   Annotate=['R2'])
+    OLS = Show.OLS(Data['BMC (mgHA)']/1E3,
+                   Structural['Experiment']['Max Force (N)']/1E3,
+                   Labels=['BMC (gHA)', 'Experimental Ultimate Load (kN)'],
+                   Annotate=['R2'])
 
     # Compute apparent properties
     Columns = ['Height (mm)', 'Mean Area (mm2)']
@@ -93,8 +99,8 @@ def Main():
             
             Time.Update((5 + iS/Mask.shape[0] * 5)/10)
         
-        AppProps.loc[Row['Internal ID'], Columns[1]] = Height
-        AppProps.loc[Row['Internal ID'], Columns[2]] = Volume / Height
+        AppProps.loc[Row['Internal ID'], Columns[0]] = Height
+        AppProps.loc[Row['Internal ID'], Columns[1]] = Volume / Height
 
         Time.Process(0, Row['Internal ID'])
 
@@ -104,8 +110,14 @@ def Main():
     del AppProps['Max Force (N)']
     AppProps.to_csv(str(RD / 'ApparentProps.csv'))
 
-    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'], np.array(AppProps['Apparent Modulus (N/mm2)'], float))
-    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'], np.array(AppProps['Apparent Strength (N/mm2)'], float))
+    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'],
+                   np.array(AppProps['Apparent Modulus (N/mm2)']/1E3, float),
+                   Labels=['vBMD (mgHA/cm3)', 'Apparent Modulus (kN/mm$^2$)'],
+                   Annotate=['R2'])
+    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'],
+                   np.array(AppProps['Apparent Strength (N/mm2)'], float),
+                   Labels=['vBMD (mgHA/cm3)', 'Apparent Strength (N/mm$^2$)'],
+                   Annotate=['R2'])
 
 
     return

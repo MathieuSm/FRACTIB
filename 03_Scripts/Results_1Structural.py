@@ -101,12 +101,14 @@ def Main():
     Show.FName = str(RD / '05_Comparison' / ('MaxForce.png')) 
     Show.OLS(Data['Experiment',Variables[1]].astype('float') / 1E3,
              Data['hFE',Variables[1]].astype('float') / 1E3,
-             Labels=['Experiment (kN)', 'hFE (kN)'])
+             Labels=['Experiment (kN)', 'hFE (kN)'],
+             Annotate=['R2','Slope','Intercept'])
     
     Show.FName = str(RD / '05_Comparison' / ('Stiffness.png')) 
     Show.OLS(Data['Experiment',Variables[2]].astype('float') / 1E3,
              Data['hFE',Variables[2]].astype('float') / 1E3,
-             Labels=['Experiment (kN/mm)', 'hFE (kN/mm)'])
+             Labels=['Experiment (kN/mm)', 'hFE (kN/mm)'],
+             Annotate=['R2','Slope','Intercept'])
 
     Data.to_csv(str(RD / 'Structural.csv'))
 
