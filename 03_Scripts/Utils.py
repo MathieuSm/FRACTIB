@@ -887,7 +887,7 @@ class Show():
         else:
             Axis.set_xticks([])
         
-        plt.legend()
+        plt.legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.125))
         plt.subplots_adjust(left=0.25, right=0.75)
         
         if (self.FName):

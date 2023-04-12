@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import SimpleITK as sitk
+import matplotlib.pyplot as plt
 from Utils import SetDirectories, Show, Read, Time
 
 Read.Echo = False
@@ -56,14 +57,14 @@ def Main():
     OLS = Show.OLS(Data['BV/TV (-)'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
     # OLS = Show.OLS(Check.loc[Sort, 'BV/TV'], Structural['Experiment']['Stiffness (N/mm)']/1E3)
 
-    OLS = Show.OLS(Data['BMC (mgHA)']/1E3, 
-                   Structural['Experiment']['Stiffness (N/mm)']/1E3,
-                   Labels=['BMC (gHA)', 'Experimental Stiffness (kN/mm)'],
-                   Annotate=['R2'])
-    OLS = Show.OLS(Data['BMC (mgHA)']/1E3,
-                   Structural['Experiment']['Max Force (N)']/1E3,
-                   Labels=['BMC (gHA)', 'Experimental Ultimate Load (kN)'],
-                   Annotate=['R2'])
+    OLS1 = Show.OLS(Data['BMC (mgHA)']/1E3, 
+                    Structural['Experiment']['Stiffness (N/mm)']/1E3,
+                    Labels=['BMC (gHA)', 'Experimental Stiffness (kN/mm)'],
+                    Annotate=['R2'])
+    OLS2 = Show.OLS(Data['BMC (mgHA)']/1E3,
+                    Structural['Experiment']['Ultimate Load (N)']/1E3,
+                    Labels=['BMC (gHA)', 'Experimental Ultimate Load (kN)'],
+                    Annotate=['R2'])
 
     # Compute apparent properties
     Columns = ['Height (mm)', 'Mean Area (mm2)']
@@ -110,15 +111,41 @@ def Main():
     del AppProps['Max Force (N)']
     AppProps.to_csv(str(RD / 'ApparentProps.csv'))
 
-    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'],
-                   np.array(AppProps['Apparent Modulus (N/mm2)']/1E3, float),
-                   Labels=['vBMD (mgHA/cm3)', 'Apparent Modulus (kN/mm$^2$)'],
-                   Annotate=['R2'])
-    OLS = Show.OLS(Data['vBMD (mgHA/cm3)'],
-                   np.array(AppProps['Apparent Strength (N/mm2)'], float),
-                   Labels=['vBMD (mgHA/cm3)', 'Apparent Strength (N/mm$^2$)'],
-                   Annotate=['R2'])
+    OLS3 = Show.OLS(Data['vBMD (mgHA/cm3)'],
+                    np.array(AppProps['Apparent Modulus (N/mm2)']/1E3, float),
+                    Labels=['vBMD (mgHA/cm3)', 'Apparent Modulus (kN/mm$^2$)'],
+                    Annotate=['R2'])
+    OLS4 = Show.OLS(Data['vBMD (mgHA/cm3)'],
+                    np.array(AppProps['Apparent Strength (N/mm2)'], float),
+                    Labels=['vBMD (mgHA/cm3)', 'Apparent Strength (N/mm$^2$)'],
+                    Annotate=['R2'])
+    
+    Residuals = pd.DataFrame()
+    Residuals['Experimental Stiffness'] = OLS1.resid
+    Residuals['Experimental Ultimate Load'] = OLS2.resid
+    Residuals['Apparent Modulus'] = OLS3.resid
+    Residuals['Apparent Strength'] = OLS4.resid
+    Residuals.index = [S[:3] for S in Data['Internal ID']]
 
+    Show.FName = str(RD / 'Residuals1.png')
+    Show.BoxPlot([Residuals[C] / Residuals[C].abs().max() for C in Residuals.columns],
+                 Labels=['', 'Normalized residuals (-)'], SetsLabels=['Stiffness','Ult. Load','Modulus','Strength'])
+    Show.FName = None
+
+    Colors = [(1,0,0), (0,0,1), (1,0,0), (0,0,1)]
+    Shapes = ['o', 'o', 'x', 'x']
+    Mew = [2,1,2,1]
+    Figure, Axis = plt.subplots(1,1)
+    for iC, C in enumerate(Residuals.columns):
+        Axis.plot(Residuals.index, Residuals[C] / Residuals[C].abs().max(), label=C,
+                  color=Colors[iC], marker=Shapes[iC], mew=Mew[iC], linestyle='none', fillstyle='none')
+    Axis.set_xlabel('Sample (-)')
+    Axis.set_ylabel('Normalized residuals (-)')
+    Axis.set_xticklabels(Residuals.index, rotation=90)
+    plt.legend(loc='upper center', bbox_to_anchor=[0.5, 1.2], ncol=2)
+    plt.tight_layout()
+    plt.savefig(str(RD / 'Residuals2.png'))
+    plt.show()
 
     return
 

@@ -129,6 +129,7 @@ $ ipl_batch
 ! the newly generated internal file "trab" has a couple of layers at the boundary.
 ! these layers are now deleated (6 voxels)
 !! ensure a minimal cortical thickness of 6 voxels (61um -->  366um)
+!! for FRACTIB project, voxel size of 72.5um minimal cortical thickness of 5 voxels (362.5um)
 
 /gobj_maskaimpeel_ow
   -input_output              trab
