@@ -119,7 +119,7 @@
 %	TITLE PAGE 	-------------------------------------------------
 %----------------------------------------------------------------
 
-\title[FRACTIB]{Limitations of Homogenized Finite Elements Analysis of Distal Tibia Sections} 
+\title[PhD Meeting]{Limitations of Homogenized Finite Elements Analysis of Distal Tibia Sections} 
 
 \author{Mathieu Simon}
 \medskip
@@ -150,7 +150,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass}\\
-			\tiny{Adapted from \cite{p1}}
+			\begin{center}
+				\tiny{Adapted from \cite{p1}}
+			\end{center}
 
 			\column{0.45\linewidth}
 			8.9 millions fractures per year
@@ -161,7 +163,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/White}\\
-			\tiny{\textcolor{white}{Image from eurospinepatientline.org}}
+			\begin{center}
+				\tiny{\textcolor{white}{Image from eurospinepatientline.org}}
+			\end{center}
 		\end{columns}
 
 	\end{frame}
@@ -179,7 +183,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass1}\\
-			\tiny{Adapted from \cite{p1}}
+			\begin{center}
+				\tiny{Adapted from \cite{p1}}
+			\end{center}
 
 			\column{0.45\linewidth}
 			8.9 millions fractures per year
@@ -190,7 +196,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/Osteoporosis1}\\
-			\tiny{Image from eurospinepatientline.org}
+			\begin{center}
+				\tiny{Image from eurospinepatientline.org}
+			\end{center}
 		\end{columns}
 
 	\end{frame}
@@ -208,7 +216,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass2}\\
-			\tiny{Adapted from \cite{p1}}
+			\begin{center}
+				\tiny{Adapted from \cite{p1}}
+			\end{center}
 
 			\column{0.45\linewidth}
 			8.9 millions fractures per year
@@ -219,7 +229,9 @@
 			\vspace{5mm}
 
 			\includegraphics[height=0.7\linewidth]{Pictures/Osteoporosis2}\\
-			\tiny{Image from eurospinepatientline.org}
+			\begin{center}
+				\tiny{Image from eurospinepatientline.org}
+			\end{center}
 
 		\end{columns}
 
@@ -237,12 +249,12 @@
 			\column{0.4\linewidth}
 			\centering
 			\includegraphics[width=\linewidth]{Pictures/DXA}\\
-			\tiny{\cite{p1}}
+			\tiny{\cite{p2}}
 
 			\column{0.55\linewidth}
 			\centering
 			\includegraphics[width=\linewidth]{Pictures/BMDTscore}\\
-			\tiny{\cite{p1}}
+			\tiny{\cite{p3}}
 
 		\end{columns}
 
@@ -253,33 +265,52 @@
 	\begin{frame}
 		\frametitle{HR-pQCT-based Diagnostic}
 
-		Bone 3D structure
-		\begin{itemize}
-			\item Assess microarchitecture
-			\item Differentiate deterioration
-		\end{itemize}
+		\begin{columns}
+			\column{0.65\linewidth}
+			Bone 3D structure
+			\begin{itemize}
+				\item Assess microarchitecture
+				\item Differentiate deterioration
+			\end{itemize}
+	
+			\vspace{5mm}
+	
+			Micro-finite element (\si{\mu}FE)
+			\begin{itemize}
+				\item Direct voxel converstion to hexahedral elements
+			\end{itemize}
 
-		\vfill
+			\column{0.30\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{Pictures/HRpQCT}
 
-		Micro-finite element (\si{\mu}FE)
-		\begin{itemize}
-			\item Direct voxel converstion to hexahedral elements
-		\end{itemize}
+		\end{columns}
 
 	\end{frame}
 
 	\begin{frame}
 		\frametitle{HR-pQCT-based Diagnostic}
 
-		Homogenized finite element (hFE)
-		\begin{itemize}
-			\item "Average" properties
-			\item Good for stiffness and ultimate load
-		\end{itemize}
+		\begin{columns}
+			\column{0.60\linewidth}
+			Homogenized finite element (hFE)
+			\begin{itemize}
+				\item "Average" properties:
+				\begin{itemize}
+					\item Fabric
+					\item Bone volume fraction (BV/TV)
+				\end{itemize}
+				\item Good for stiffness and ultimate load
+			\end{itemize}
+	
+			\vspace{5mm}
+			Is hFE also good for strain localization ?\\\cite{p4}
 
-		\vfill
-		Is hFE also good for strain localization prediction?\\\cite{p1}
+			\column{0.35\linewidth}
+			\includegraphics[width=\linewidth]{Pictures/Fabric}\\
+		\end{columns}
 	\end{frame}
+
 
 	%----------------------------------------------------------------
 	%----------------------------------------------------------------
@@ -475,16 +506,16 @@
 		Structural response
 		\begin{itemize}
 			\item Good to excellent R$^2$ (0.81 to 0.93)
-			\item Similar to radius \cite{p1}\cite{p2}
-			\item Similar to vertebral bodies \cite{p3}\cite{p3}
+			\item Similar to radius \cite{p5}\cite{p6}
+			\item Similar to vertebral bodies \cite{p7}\cite{p8}
 		\end{itemize}
 
 		\vfill
 
 		hFE predictions
 		\begin{itemize}
-			\item Excellent for stiffness (R$^2$ = 0.95) and ultimate load (R$^2$ = 0.97)\\Similar to \cite{p1}\cite{p3}
-			\item Strain localization\\Contrast with \cite{p1}
+			\item Excellent for stiffness (R$^2$ = 0.95) and ultimate load (R$^2$ = 0.97)\\Similar to \cite{p9}\cite{p10}
+			\item Strain localization\\Contrast with \cite{p4}
 		\end{itemize}
 
 	\end{frame}
@@ -499,7 +530,7 @@
 
 		\vspace{5mm}
 
-		Bone stiffness and stength accurately predicted by hFE
+		Distal tibia stiffness and stength accurately predicted by hFE
 		\begin{itemize}
 			\item Can be used for fracture risk computation
 		\end{itemize}
@@ -532,23 +563,91 @@
 	\appendix
 	
 	\section{References}
+
 	\begin{frame}
-		\frametitle{Osteogenesis Imperfecta}
+		\frametitle{Introduction}
 		\footnotesize{
 				\begin{thebibliography}{99}
 						\setbeamertemplate{bibliography item}[triangle]
 						
-						\bibitem[Mortier et al. 2019]{p1} Mortier et al. (2019)
-						\newblock Nosology and classification of genetic skeletal disorders: 2019 revision
-						\newblock \textit{American Journal of Medical Genetics, Part A} (179), 2393-2419
+						\bibitem[1]{p1} Sözen, T., Özisik, L., Başaran, N. Ç. (2017)
+						\newblock An overview and management of osteoporosis
+						\newblock \textit{Eur J Rheumatol}, 4(1), 46-56
+
+						\bibitem[2]{p2}Johnell, O., Kanis, J. A. (2006)
+						\newblock An estimate of the worldwide prevalence and disability associated with osteoporotic fractures
+						\newblock \textit{Osteoporos Int}, 17(12), 1726-1733
 						
-						\bibitem[Tournis 2018]{p2} Tournis, S., Dede, A.D. (2018)
-						\newblock Osteogenesis imperfecta A clinical update
-						\newblock \textit{Metabolism: Clinical and Experimental} (80), 27-37
+					\end{thebibliography}
+			}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Introduction}
+		\footnotesize{
+				\begin{thebibliography}{99}
+						\setbeamertemplate{bibliography item}[triangle]
 						
-						\bibitem[Lim et al. 2017]{p3}  Lim, J., Grafe, I., Alexander, S., Lee, B. (2017)
-						\newblock Genetic causes and mechanisms of osteogenesis imperfecta
-						\newblock \textit{Bone} (102), 40-49
+						\bibitem[Cooper 1992]{p1} Cooper C., Melton L.J. (1992)
+						\newblock Epidemiology of osteoporosis
+						\newblock \textit{Trends Endocrinol Metab}, 3(6), 224-229
+						
+						\bibitem[Oei et al. 2016]{p2} Oei, L., Koromani, F., Rivadeneira, F., Zillikens, M. C. (2016)
+						\newblock Quantitative imaging methods in osteoporosis
+						\newblock \textit{Quantitative Imaging in Medicine and Surgery}, 6(6), 680-698
+						
+						\bibitem[Ferrari 2019]{p3}  Ferrari, S. L., Roux, C. (2019)
+						\newblock Pocket Reference to Osteoporosis
+						\newblock \textit{Springer International Publishing}
+
+						\bibitem[Varga et al. 2009]{p4}  Varga, P., Baumbach, S., Pahr, D., Zysset, P. K. (2009)
+						\newblock Validation of an anatomy specific finite element model of Colles' fracture.
+						\newblock \textit{Journal of Biomechanics}, 42(11), 1726-1731
+						
+					\end{thebibliography}
+			}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Discussion}
+		\footnotesize{
+				\begin{thebibliography}{99}
+						\setbeamertemplate{bibliography item}[triangle]
+
+						\bibitem[Varga et al. 2010]{p5} Varga, P., Pahr, D. H., Baumbach, S., Zysset, P. K. (2010)
+						\newblock HR-pQCT based FE analysis of the most distal radius section provides an improved prediction of Colles' fracture load in vitro
+						\newblock \textit{Bone}, 47(5), 982-988
+
+						\bibitem[Varga et al. 2011]{p6} Varga, P., Dall'Ara, E., Pahr, D. H., Pretterklieber, M., Zysset, P. K. (2011)
+						\newblock Validation of an HR-pQCT-based homogenized finite element approach using mechanical testing of ultra-distal radius sections
+						\newblock \textit{Biomechanics and Modeling in Mechanobiology}, 10(4), 431-444
+
+						\bibitem[Dall'Ara et al. 2010]{p7} Dall'Ara, E., Schmidt, R., Pahr, D., Varga, P., Chevalier, Y., Patsch, J., Kainberger, F., Zysset, P. (2010)
+						\newblock A nonlinear finite element model validation study based on a novel experimental technique for inducing anterior wedge-shape fractures in human vertebral bodies in vitro.
+						\newblock \textit{Journal of Biomechanics}, 43(12), 2374-2380
+						
+					\end{thebibliography}
+			}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Discussion}
+		\footnotesize{
+				\begin{thebibliography}{99}
+						\setbeamertemplate{bibliography item}[triangle]
+
+						\bibitem[Dall'Ara et al. 2012]{p8} Dall'Ara, E., Pahr, D., Varga, P., Kainberger, F., Zysset, P. (2012)
+						\newblock QCT-based finite element models predict human vertebral strength in vitro significantly better than simulated DEXA
+						\newblock \textit{Osteoporosis International}, 23(2), 563-572
+
+						\bibitem[Arias-Moreno et al. 2019]{p9} Arias-Moreno, A. J., Hosseini, H. S., Bevers, M., Ito, K., Zysset, P., Rietbergen, B. van. (2019)
+						\newblock Validation of distal radius failure load predictions by homogenized- and micro-finite element analyses based on second-generation high-resolution peripheral quantitative CT images
+						\newblock \textit{Osteoporosis International}, 30(7), 1433-1443
+
+						\bibitem[Schenk et al. 2022]{p10}Schenk, D., Indermaur, M., Simon, M., Voumard, B., Varga, P., Pretterklieber, M., Lippuner, K., Zysset, P. (2022)
+						\newblock Unified validation of a refined second-generation HR-pQCT based homogenized finite element method to predict strength of the distal segments in radius and tibia
+						\newblock \textit{Journal of the Mechanical Behavior of Biomedical Materials}, 131
+
 						
 					\end{thebibliography}
 			}
