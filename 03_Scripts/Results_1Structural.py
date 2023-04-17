@@ -67,6 +67,12 @@ def Main():
         ExpData = ExpData[Start:Stop].reset_index(drop=True)
         ExpData -= ExpData.loc[0]
 
+        Show.Signal([ExpData['Z']],
+                    [-ExpData['FZ'] / 1E3],
+                    Axes=['Displacement (mm)', 'Force (kN)'],
+                    Legend=False)
+
+
         # Truncate FEA if force became negative
         FEAData = FEAData[FEAData['FZ'] >= 0]
 
@@ -98,7 +104,7 @@ def Main():
         Data.loc[Index]['hFE',Variables[2]] = Signal.MaxSlope(X, Y, WindowWidth)
 
     Show.ShowPlot = True
-    Show.FName = str(RD / '05_Comparison' / ('MaxForce.png')) 
+    Show.FName = str(RD / '05_Comparison' / ('UltimateLoad.png')) 
     Show.OLS(Data['Experiment',Variables[1]].astype('float') / 1E3,
              Data['hFE',Variables[1]].astype('float') / 1E3,
              Labels=['Experiment (kN)', 'hFE (kN)'],

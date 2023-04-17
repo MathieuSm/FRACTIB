@@ -1,0 +1,561 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Beamer Presentation
+% LaTeX Template
+% Version 1.0 (01/07/19)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------
+%	PACKAGES AND THEMES		-----------------------------------
+%----------------------------------------------------------------
+
+\documentclass[xcolor=table,11pt]{beamer}
+
+\mode<presentation> {
+	
+	\usetheme{Frankfurt}
+	\usecolortheme{dove}
+	\usefonttheme{serif}
+	
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{booktabs} 
+\usepackage{subfig}
+\usepackage{pgf}
+\usepackage{multirow}
+\usepackage{appendixnumberbeamer}
+\usepackage{bookmark}
+\usepackage{siunitx}
+\usepackage{animate}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{pifont}
+\usepackage{caption}
+\usepackage{array}
+\captionsetup{skip=0pt,belowskip=0pt}
+
+
+%----------------------------------------------------------------
+%	GENERAL OPTIONS 	-----------------------------------------
+%----------------------------------------------------------------
+
+% Set template options
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{frametitle}{\vspace*{1em}\insertframetitle}
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{section in head/foot}{fg=white, bg=black}
+
+% Headline
+\makeatletter
+\setbeamertemplate{headline}
+{%
+	\pgfuseshading{beamer@barshade}%
+	\vskip-5ex%
+	\begin{beamercolorbox}[ignorebg,ht=2.25ex,dp=3.75ex]{section in head/foot}
+		\insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}
+	\end{beamercolorbox}%
+	\ifbeamer@sb@subsection%
+	\begin{beamercolorbox}[ignorebg,ht=2.125ex,dp=1.125ex,%
+		leftskip=.3cm,rightskip=.3cm plus1fil]{subsection in head/foot}
+		\usebeamerfont{subsection in head/foot}\insertsubsectionhead
+	\end{beamercolorbox}%
+	\fi%
+}%
+\makeatother
+
+% Footline
+\makeatletter
+\setbeamertemplate{footline}
+{
+	\leavevmode%
+	\hbox{%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,left]{section in head/foot}%
+			\usebeamerfont{author in head/foot}\hspace{10pt}\insertshortauthor
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{section in head/foot}%
+			\usebeamerfont{title in head/foot}\insertshorttitle
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{section in head/foot}%
+			\usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}
+			\insertframenumber{}\hspace*{2em}
+	\end{beamercolorbox}}%
+	\vskip0pt%
+}
+\makeatother
+
+% Add logo
+\logo{\pgfputat{\pgfxy(0,7)}{\pgfbox[right,base]{\includegraphics[width=0.1\paperwidth]{Pictures/00_Unibe_Logo}}}}
+
+% Table settings
+\renewcommand{\arraystretch}{2}
+\captionsetup{labelformat=empty,labelsep=none}
+\definecolor{Gray}{gray}{0.9}
+
+% Define highlitghing command
+\makeatletter
+\let\HL\hl
+\renewcommand\hl{%
+	\let\set@color\beamerorig@set@color
+	\let\reset@color\beamerorig@reset@color
+	\HL}
+\makeatother
+
+% Add overview at each begin of section
+%\AtBeginSection[]
+%{
+	%	\begin{frame}
+		%		\frametitle{Overview}
+		%		\tableofcontents[currentsection]
+		%	\end{frame}
+	%}
+
+
+\renewcommand{\arraystretch}{1.4}
+\newcommand{\ColWidth}{1}
+\newcommand{\TrimSize}{50}
+
+%----------------------------------------------------------------
+%	TITLE PAGE 	-------------------------------------------------
+%----------------------------------------------------------------
+
+\title[FRACTIB]{Limitations of Homogenized Finite Elements Analysis of Distal Tibia Sections} 
+
+\author{Mathieu Simon}
+\medskip
+\date{April 18, 2023}
+
+\begin{document}
+	
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Introduction}
+
+	\begin{frame}
+		\frametitle{The Disease - Osteoporosis}
+
+		\begin{columns}
+			\column{0.45\linewidth}
+			Loss of bone mass
+			\begin{itemize}
+				\item Increase of fracture risk
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass}\\
+			\tiny{Adapted from \cite{p1}}
+
+			\column{0.45\linewidth}
+			8.9 millions fractures per year
+			\begin{itemize}
+				\item A fracture every 3 seconds
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/White}\\
+			\tiny{\textcolor{white}{Image from eurospinepatientline.org}}
+		\end{columns}
+
+	\end{frame}
+
+	\begin{frame}[noframenumbering]
+		\frametitle{The Disease - Osteoporosis}
+
+		\begin{columns}
+			\column{0.45\linewidth}
+			Loss of bone mass
+			\begin{itemize}
+				\item Increase of fracture risk
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass1}\\
+			\tiny{Adapted from \cite{p1}}
+
+			\column{0.45\linewidth}
+			8.9 millions fractures per year
+			\begin{itemize}
+				\item A fracture every 3 seconds
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/Osteoporosis1}\\
+			\tiny{Image from eurospinepatientline.org}
+		\end{columns}
+
+	\end{frame}
+
+	\begin{frame}[noframenumbering]
+		\frametitle{The Disease - Osteoporosis}
+
+		\begin{columns}
+			\column{0.45\linewidth}
+			Loss of bone mass
+			\begin{itemize}
+				\item Increase of fracture risk
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/BoneMass2}\\
+			\tiny{Adapted from \cite{p1}}
+
+			\column{0.45\linewidth}
+			8.9 millions fractures per year
+			\begin{itemize}
+				\item A fracture every 3 seconds
+			\end{itemize}
+
+			\vspace{5mm}
+
+			\includegraphics[height=0.7\linewidth]{Pictures/Osteoporosis2}\\
+			\tiny{Image from eurospinepatientline.org}
+
+		\end{columns}
+
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Osteoporosis - Diagnosis}
+
+		Gold standard - DXA
+		\begin{itemize}
+			\item Areal bone mineral density (aBMD)
+		\end{itemize}
+
+		\begin{columns}
+			\column{0.4\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{Pictures/DXA}\\
+			\tiny{\cite{p1}}
+
+			\column{0.55\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{Pictures/BMDTscore}\\
+			\tiny{\cite{p1}}
+
+		\end{columns}
+
+	\end{frame}
+
+
+
+	\begin{frame}
+		\frametitle{HR-pQCT-based Diagnostic}
+
+		Bone 3D structure
+		\begin{itemize}
+			\item Assess microarchitecture
+			\item Differentiate deterioration
+		\end{itemize}
+
+		\vfill
+
+		Micro-finite element (\si{\mu}FE)
+		\begin{itemize}
+			\item Direct voxel converstion to hexahedral elements
+		\end{itemize}
+
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{HR-pQCT-based Diagnostic}
+
+		Homogenized finite element (hFE)
+		\begin{itemize}
+			\item "Average" properties
+			\item Good for stiffness and ultimate load
+		\end{itemize}
+
+		\vfill
+		Is hFE also good for strain localization prediction?\\\cite{p1}
+	\end{frame}
+
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Methods}
+
+	\begin{frame}
+		\frametitle{Summary}
+		25 samples\\
+		\vfill
+		\centering
+		\includegraphics[width=1.0\linewidth]{Pictures/Methods}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Imaging - Pre-test \si{\mu}CT}
+		\begin{columns}
+			\column{0.45\linewidth}
+			Segmented Image
+			\begin{itemize}
+				\item Bone morphometry
+			\end{itemize}
+
+			Filled mask
+			\begin{itemize}
+				\item Volume
+				\item Height
+				\item Mean area
+			\end{itemize}
+
+			Gray values
+			\begin{itemize}
+				\item Volumetric bone mineral density (vBMD)
+				\item Bone mineral content (BMC)
+			\end{itemize}
+
+			\column{0.45\linewidth}
+			\centering
+			\includegraphics[width=1.0\linewidth]{Pictures/PreTest}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Compressive Test}
+		\begin{columns}
+			\column{0.35\linewidth}
+			Extensive properties
+			\begin{itemize}
+				\item Stiffness
+				\item Ultimate Force
+			\end{itemize}
+
+			\vspace{5mm}
+
+			Intensive properties
+			\begin{itemize}
+				\item Apparent modulus
+				\item Apparent strength
+			\end{itemize}
+
+
+			\column{0.6\linewidth}
+			\centering
+			\includegraphics[width=0.4\linewidth]{Pictures/Test}
+			\includegraphics[width=0.55\linewidth]{Pictures/ForceDisp}
+		\end{columns}
+	\end{frame}
+
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Results}
+
+	\begin{frame}
+		\frametitle{Structural Response}
+		\centering
+		\vfill
+		\begin{columns}
+			\column{0.45\linewidth}
+			\centering
+			Extensive properties\\
+			\vspace{2mm}
+			\includegraphics[width=0.8\linewidth, trim=5 0 0 0]{Pictures/SvsBMC}\\
+			\includegraphics[width=0.8\linewidth, trim=0 0 0 25]{Pictures/UvsBMC}
+
+			\column{0.45\linewidth}
+			\centering
+			Intensive propoerties\\
+			\vspace{2mm}
+			\includegraphics[width=0.8\linewidth, trim=0 0 0 0]{Pictures/MvsBMD}\\
+			\includegraphics[width=0.8\linewidth, trim=5 0 0 25]{Pictures/SvsBMD}
+		\end{columns}
+		\vfill
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{hFE vs Mechanical Test}
+		\centering
+		\vfill
+		\begin{columns}
+			\column{0.45\linewidth}
+			\centering
+			Stiffness\\
+			\includegraphics[width=1.0\linewidth]{Pictures/Stiffness}
+
+			\column{0.45\linewidth}
+			\centering
+			Ultimate load\\
+			\includegraphics[width=1.0\linewidth]{Pictures/UltimateLoad}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{hFE vs Registration}
+		\centering
+		\vfill
+		\begin{columns}
+			\column{0.33\linewidth}
+			\vfill
+			3 categories\\
+			\vspace{2mm}
+			\begin{itemize}
+				\item Good agreement\\12\% ( 3/25)
+				\item \textcolor{white}{Partial agreement\\40\% (10/25)}
+				\item \textcolor{white}{Bad agreement\\48\% (12/25)}
+			\end{itemize}
+			\vfill
+
+			\column{0.4\linewidth}
+			\centering
+			\includegraphics[height=0.5\linewidth]{Pictures/hFE3}\vspace{5mm}
+			\includegraphics[height=0.5\linewidth]{Pictures/Reg3}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}[noframenumbering]
+		\frametitle{hFE vs Registration}
+		\centering
+		\vspace{2mm}
+		\begin{columns}
+			\column{0.33\linewidth}
+			\vfill
+			3 categories\\
+			\vfill
+			\begin{itemize}
+				\item \textcolor{gray}{Good agreement\\12\% ( 3/25)}
+				\item Partial agreement\\40\% (10/25)
+				\item \textcolor{white}{Bad agreement\\48\% (12/25)}
+			\end{itemize}
+			\vfill
+
+			\column{0.4\linewidth}
+			\centering
+			\includegraphics[height=0.5\linewidth]{Pictures/hFE2}\vspace{5mm}
+			\includegraphics[height=0.5\linewidth]{Pictures/Reg2}
+		\end{columns}
+	\end{frame}
+
+	\begin{frame}[noframenumbering]
+		\frametitle{hFE vs Registration}
+		\centering
+		\vspace{2mm}
+		\begin{columns}
+			\column{0.33\linewidth}
+			\vfill
+			3 categories\\
+			\vfill
+			\begin{itemize}
+				\item \textcolor{gray}{Good agreement\\12\% ( 3/25)}
+				\item \textcolor{gray}{Partial agreement\\40\% (10/25)}
+				\item Bad agreement\\48\% (12/25)
+			\end{itemize}
+			\vfill
+
+			\column{0.4\linewidth}
+			\centering
+			\includegraphics[height=0.5\linewidth]{Pictures/hFE1}\vspace{5mm}
+			\includegraphics[height=0.5\linewidth]{Pictures/Reg1}
+		\end{columns}
+	\end{frame}
+
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Discussion and Conclusion}
+
+	\begin{frame}
+		\frametitle{Discussion}
+
+		Structural response
+		\begin{itemize}
+			\item Good to excellent R$^2$ (0.81 to 0.93)
+			\item Similar to radius \cite{p1}\cite{p2}
+			\item Similar to vertebral bodies \cite{p3}\cite{p3}
+		\end{itemize}
+
+		\vfill
+
+		hFE predictions
+		\begin{itemize}
+			\item Excellent for stiffness (R$^2$ = 0.95) and ultimate load (R$^2$ = 0.97)\\Similar to \cite{p1}\cite{p3}
+			\item Strain localization\\Contrast with \cite{p1}
+		\end{itemize}
+
+	\end{frame}
+	
+	\begin{frame}
+		\frametitle{Conclusion}
+		Python framework
+		\begin{itemize}
+			\item Bone morphometry
+			\item Pre-/Post test registration
+		\end{itemize}
+
+		\vspace{5mm}
+
+		Bone stiffness and stength accurately predicted by hFE
+		\begin{itemize}
+			\item Can be used for fracture risk computation
+		\end{itemize}
+		
+		\vspace{5mm}
+
+		Mechanical failure occurs at micro-meter scale
+		\begin{itemize}
+			\item Cannot be caught be hFE unless BCs far enough
+		\end{itemize}
+
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{}
+	\begin{frame}
+		\centering
+		\vfill
+		Thank you for your attention !\\
+		\vfill
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\appendix
+	
+	\section{References}
+	\begin{frame}
+		\frametitle{Osteogenesis Imperfecta}
+		\footnotesize{
+				\begin{thebibliography}{99}
+						\setbeamertemplate{bibliography item}[triangle]
+						
+						\bibitem[Mortier et al. 2019]{p1} Mortier et al. (2019)
+						\newblock Nosology and classification of genetic skeletal disorders: 2019 revision
+						\newblock \textit{American Journal of Medical Genetics, Part A} (179), 2393-2419
+						
+						\bibitem[Tournis 2018]{p2} Tournis, S., Dede, A.D. (2018)
+						\newblock Osteogenesis imperfecta A clinical update
+						\newblock \textit{Metabolism: Clinical and Experimental} (80), 27-37
+						
+						\bibitem[Lim et al. 2017]{p3}  Lim, J., Grafe, I., Alexander, S., Lee, B. (2017)
+						\newblock Genetic causes and mechanisms of osteogenesis imperfecta
+						\newblock \textit{Bone} (102), 40-49
+						
+					\end{thebibliography}
+			}
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+\end{document}
