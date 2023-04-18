@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1681820164 "c:/Users/mathi/OneDrive/Documents/FRACTIB/05_Meetings/PhdMeeting/Presentation.tex" "Presentation.pdf" "Presentation" 1681820172
+["pdflatex"] 1681820297 "c:/Users/mathi/OneDrive/Documents/FRACTIB/05_Meetings/PhdMeeting/Presentation.tex" "Presentation.pdf" "Presentation" 1681820305
   "Pictures/00_Unibe_Logo.png" 1681820107 19258 5954bcbc3c59287f1142533152890051 ""
   "Pictures/BMDTscore.png" 1681820107 40860 7c5949d126f98e1a2ac556e071c8c37c ""
   "Pictures/BoneMass.png" 1681820107 34303 f5b3d1241add19789684ee219ee98bec ""
@@ -29,10 +29,10 @@
   "Pictures/hFE1.png" 1681820106 12704 d91bf6d4360ce1d3a8f74a7e1a411ecb ""
   "Pictures/hFE2.png" 1681820106 8392 7b878da8502abf9290d96f9cb8b8ac47 ""
   "Pictures/hFE3.png" 1681820107 9579 fa508d2ddb1cff6d090fc8b909964463 ""
-  "Presentation.aux" 1681820171 8647 675c8cf8bbdbd0203fc80aa044c28196 "pdflatex"
-  "Presentation.nav" 1681820171 3757 1b30751befd7eaef40315e737c3ffb7c "pdflatex"
-  "Presentation.tex" 1681820153 21684 9e703faaf8be7f379b1da57c63d45f82 ""
-  "c:/Users/mathi/OneDrive/Documents/FRACTIB/05_Meetings/PhdMeeting/Presentation.tex" 1681820153 21684 9e703faaf8be7f379b1da57c63d45f82 ""
+  "Presentation.aux" 1681820305 8647 675c8cf8bbdbd0203fc80aa044c28196 "pdflatex"
+  "Presentation.nav" 1681820305 3757 1b30751befd7eaef40315e737c3ffb7c "pdflatex"
+  "Presentation.tex" 1681820295 21685 5dc714e9473b7aa796998eca2d07e4ab ""
+  "c:/Users/mathi/OneDrive/Documents/FRACTIB/05_Meetings/PhdMeeting/Presentation.tex" 1681820295 21685 5dc714e9473b7aa796998eca2d07e4ab ""
   "c:/texlive/2021/texmf-dist/fonts/enc/dvips/newtx/ntx-ec-tlf.enc" 1641896431 2914 8283dfc24eaf1964346f843d7605c2b0 ""
   "c:/texlive/2021/texmf-dist/fonts/map/fontname/texfonts.map" 1641384276 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "c:/texlive/2021/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm" 1641387292 1408 5937f58aa508ea2cea4901c07d10f5fe ""
