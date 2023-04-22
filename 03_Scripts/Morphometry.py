@@ -108,7 +108,7 @@ def Main():
         Seg = sitk.GetArrayFromImage(Seg)
         MorphoData.loc[Sample,'TMD (mgHA/cm3)'] = np.mean(BMD[Seg > 0])
 
-        # Cortical morphometry usgin cort mask
+        # Cortical morphometry using cort mask
         Time.Update(4/6, 'Cortex')
         Bin = (sitk.GetArrayFromImage(Cort) == 127) * 255
         Bin = sitk.GetImageFromArray(Bin)

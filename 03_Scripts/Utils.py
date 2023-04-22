@@ -23,7 +23,6 @@ Description = """
 
 import os
 import vtk
-import sys
 import time
 import struct
 import argparse
