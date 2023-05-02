@@ -10,69 +10,102 @@ from odbAccess import *
 
 Odb = openOdb('PP.odb')
 
-# Create variable that refers to the last frame of the step.
-Steps = Odb.steps.keys()
-Step = Steps[len(Steps)-1]
-
-Frames = Odb.steps[Step].frames
-Shift = 1
-while len(Frames) == 0:
-    Step = Steps[len(Steps)-(1+Shift)]
-    Frames = Odb.steps[Step].frames
-    Shift += 1
-Frame = Odb.steps[Step].frames[len(Frames)-1]
-
 # Create variable refering to model instance
 Instances = Odb.rootAssembly.instances.keys()
 Instance = Odb.rootAssembly.instances[Instances[0]]
+N = len(Instance.elements)
 
-F11 = Frame.fieldOutputs['SDV_F11']
-F12 = Frame.fieldOutputs['SDV_F12']
-F13 = Frame.fieldOutputs['SDV_F13']
-F21 = Frame.fieldOutputs['SDV_F21']
-F22 = Frame.fieldOutputs['SDV_F22']
-F23 = Frame.fieldOutputs['SDV_F23']
-F31 = Frame.fieldOutputs['SDV_F31']
-F32 = Frame.fieldOutputs['SDV_F32']
-F33 = Frame.fieldOutputs['SDV_F33']
-
-F = [F11,F12,F13,F21,F22,F23,F31,F32,F33]
-F_Names = ['F11','F12','F13','F21','F22','F23','F31','F32','F33']
+# Get nodes labels
 Nodes = Instance.nodes
 NodeLabels = np.array([])
 for iNode, Node in enumerate(Nodes):
     NodeLabels = np.append(NodeLabels,Node.label)
 
-# Initialize loop
-N = len(Instance.elements)
-ElementsDG = np.zeros((12,N))
+# Iterate over each step and frame
+DGList = []
+UFList = []
+Steps = Odb.steps.keys()
+for S, Step in enumerate(Steps):
+    Frames = Odb.steps[Step].frames
+    for F in range(len(Frames)):
 
-for ElementNumber, Element in enumerate(Instance.elements[:N]):
-    sys.stdout.write("\r" + "El. " + str(ElementNumber+1) + "/" + str(N))
-    sys.stdout.flush()
+        sys.stdout.write("\r" + "Step " + str(S+1) + "/" + str(len(Steps)) + " Frame " + str(F+1) + "/" + str(len(Frames)) + " ")
+        sys.stdout.flush()
 
-    # Compute element central position
-    XYZ = np.zeros((len(Element.connectivity),3))
-    NodeNumber = 0
-    for NodeLabel in Element.connectivity:
-        Node = np.where(NodeLabels==NodeLabel)[0][0]
-        for Axis in range(3):
-            XYZ[NodeNumber,Axis] = Nodes[Node].coordinates[Axis]
-        NodeNumber += 1
+        # Get fields output
+        F11 = Frames[F].fieldOutputs['SDV_F11']
+        F12 = Frames[F].fieldOutputs['SDV_F12']
+        F13 = Frames[F].fieldOutputs['SDV_F13']
+        F21 = Frames[F].fieldOutputs['SDV_F21']
+        F22 = Frames[F].fieldOutputs['SDV_F22']
+        F23 = Frames[F].fieldOutputs['SDV_F23']
+        F31 = Frames[F].fieldOutputs['SDV_F31']
+        F32 = Frames[F].fieldOutputs['SDV_F32']
+        F33 = Frames[F].fieldOutputs['SDV_F33']
+        DG = [F11,F12,F13,F21,F22,F23,F31,F32,F33]
 
-    # Get element mean deformation gradient
-    F_IntegrationPoints = np.zeros((1,9))
+        U = Frames[F].fieldOutputs['U']
+        RF = Frames[F].fieldOutputs['RF']
 
-    for F_Component in range(9):
-        F_Value = F[F_Component].getSubset(region=Element).values[0].data
-        F_IntegrationPoints[0,F_Component] = F_Value
+        # Get elements deformation gradient
+        ElementsDG = np.zeros((N,22))
+        for iElement, Element in enumerate(Instance.elements[:N]):
 
-    # Add data to arrays and increment
-    ElementsDG[:3,ElementNumber] = np.mean(XYZ,axis=0)
-    ElementsDG[3:,ElementNumber] = F_IntegrationPoints
+            # Compute element central position
+            XYZ = np.zeros((len(Element.connectivity),3))
+            NodeNumber = 0
+            for NodeLabel in Element.connectivity:
+                Node = np.where(NodeLabels==NodeLabel)[0][0]
+                for Axis in range(3):
+                    XYZ[NodeNumber,Axis] = Nodes[Node].coordinates[Axis]
+                NodeNumber += 1
 
-with open('Elements_DG.csv', 'w') as File:
+            # Get element mean deformation gradient
+            F_IntegrationPoints = np.zeros((1,9))
+            for F_Component in range(9):
+                F_Value = DG[F_Component].getSubset(region=Element).values[0].data
+                F_IntegrationPoints[0,F_Component] = F_Value
+
+            # Add data to array
+            ElementsDG[iElement,0] = S
+            ElementsDG[iElement,1] = F
+            ElementsDG[iElement,2:10] = Element.connectivity
+            ElementsDG[iElement,10:13] = np.mean(XYZ,axis=0)
+            ElementsDG[iElement,13:] = F_IntegrationPoints
+            DGList.append(ElementsDG)
+        
+        # Get nodes displacements/rotations and reaction forces/moments
+        NodesURFM = np.zeros((len(Nodes),12))
+        for iNode, Node in enumerate(Nodes):
+            NodesURFM[iNode,0] = S
+            NodesURFM[iNode,1] = F
+            NodesURFM[iNode,2] = Node.label
+            NodesURFM[iNode,3:6] = Node.coordinates
+            NodesURFM[iNode,6:9] = U.getSubset(region=Node).values[0].data
+            NodesURFM[iNode,9:] = RF.getSubset(region=Node).values[0].data
+        
+        UFList.append(NodesURFM)
+        
+sys.stdout.write("\n")
+sys.stdout.flush()
+
+with open('Elements.csv', 'w') as File:
     Writer = csv.writer(File)
-    for Row in ElementsDG.T:
-        Writer.writerow(Row)            
+    Writer.writerow(['Step','Frame','Node 1','Node 2','Node 3','Node 4',
+                     'Node 5','Node 6','Node 7','Node 8', 'X', 'Y', 'Z',
+                     'F11','F12','F13','F21','F22','F23','F31','F32','F33'])            
+    for Frame in DGList:
+        for Row in Frame:
+            Writer.writerow(Row)
+
+with open('Nodes.csv', 'w') as File:
+    Writer = csv.writer(File)
+    Writer.writerow(['Step','Frame','Label',
+                     'X', 'Y', 'Z',
+                     'Ux', 'Uy', 'Uz',
+                     'Fx', 'Fy', 'Fz'])            
+    for Frame in UFList:
+        for Row in Frame:
+            Writer.writerow(Row)
+
 Odb.close()
