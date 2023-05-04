@@ -13,7 +13,7 @@ Description = """
             ARTORG Center for Biomedical Engineering Research
             SITEM Insel, University of Bern
 
-    Date: Mai 2023
+    Date: May 2023
     """
 
 #%% Imports
@@ -36,7 +36,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def PlotCube(Nodes, R, Values, FName):
 
-    C = plt.get_cmap('jet')(round(1-R,3))
+    C = plt.get_cmap('jet')(round(R,3))
 
     Faces = [[0,1,3,2], [4,5,7,6],
             [0,3,4,7], [1,2,5,6],
@@ -139,25 +139,25 @@ def Main():
     i = 0
     for (Step, Frame), Data in Frames:
 
+        for Node in [5,6,7,8]:
+            if Node == 5:
+                Force = Data[Data['Label']== Node]['Fz'].values[0]
+                Disp = Data[Data['Label']== Node]['Uz'].values[0]
+            else:
+                Force += Data[Data['Label']== Node]['Fz'].values[0]
+                Disp += Data[Data['Label']== Node]['Uz'].values[0]
+        
+        # Mean displacement of the 4 nodes
+        Disp /= 4
+
+        # Symmetric top and bottom displacement
+        Disp *= 2
+
+        # Compute and store stress and strain
+        Stress.append(Force / 1.0)
+        Strain.append(Disp / 1.0)
+
         if np.mod(Frame, 10) == 0.0:
-
-            for Node in [5,6,7,8]:
-                if Node == 5:
-                    Force = Data[Data['Label']== Node]['Fz'].values[0]
-                    Disp = Data[Data['Label']== Node]['Uz'].values[0]
-                else:
-                    Force += Data[Data['Label']== Node]['Fz'].values[0]
-                    Disp += Data[Data['Label']== Node]['Uz'].values[0]
-            
-            # Mean displacement of the 4 nodes
-            Disp /= 4
-
-            # Symmetric top and bottom displacement
-            Disp *= 2
-
-            # Compute and store stress and strain
-            Stress.append(Force / 1.0)
-            Strain.append(Disp / 1.0)
 
             if Force >= 0:
                 R = Force / SIGDAP
