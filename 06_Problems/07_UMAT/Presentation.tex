@@ -1,0 +1,157 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Beamer Presentation
+% LaTeX Template
+% Version 1.0 (01/07/19)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------
+%	PACKAGES AND THEMES		-----------------------------------
+%----------------------------------------------------------------
+
+\documentclass[xcolor=table,11pt]{beamer}
+
+\mode<presentation> {
+	
+	\usetheme{Frankfurt}
+	\usecolortheme{dove}
+	\usefonttheme{serif}
+	
+}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{booktabs} 
+\usepackage{subfig}
+\usepackage{pgf}
+\usepackage{multirow}
+\usepackage{appendixnumberbeamer}
+\usepackage{bookmark}
+\usepackage{siunitx}
+\usepackage{animate}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage{pifont}
+\usepackage{caption}
+\usepackage{array}
+\captionsetup{skip=0pt,belowskip=0pt}
+
+
+%----------------------------------------------------------------
+%	GENERAL OPTIONS 	-----------------------------------------
+%----------------------------------------------------------------
+
+% Set template options
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{frametitle}{\vspace*{1em}\insertframetitle}
+\setbeamertemplate{enumerate items}[default]
+\setbeamercolor{section in head/foot}{fg=white, bg=black}
+
+% Headline
+\makeatletter
+\setbeamertemplate{headline}
+{%
+	\pgfuseshading{beamer@barshade}%
+	\vskip-5ex%
+	\begin{beamercolorbox}[ignorebg,ht=2.25ex,dp=3.75ex]{section in head/foot}
+		\insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}
+	\end{beamercolorbox}%
+	\ifbeamer@sb@subsection%
+	\begin{beamercolorbox}[ignorebg,ht=2.125ex,dp=1.125ex,%
+		leftskip=.3cm,rightskip=.3cm plus1fil]{subsection in head/foot}
+		\usebeamerfont{subsection in head/foot}\insertsubsectionhead
+	\end{beamercolorbox}%
+	\fi%
+}%
+\makeatother
+
+% Footline
+\makeatletter
+\setbeamertemplate{footline}
+{
+	\leavevmode%
+	\hbox{%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,left]{section in head/foot}%
+			\usebeamerfont{author in head/foot}\hspace{10pt}\insertshortauthor
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{section in head/foot}%
+			\usebeamerfont{title in head/foot}\insertshorttitle
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{section in head/foot}%
+			\usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}
+			\insertframenumber{}\hspace*{2em}
+	\end{beamercolorbox}}%
+	\vskip0pt%
+}
+\makeatother
+
+% Add logo
+\logo{\pgfputat{\pgfxy(0,7)}{\pgfbox[right,base]{\includegraphics[width=0.1\paperwidth]{Pictures/00_Unibe_Logo}}}}
+
+% Table settings
+\renewcommand{\arraystretch}{2}
+\captionsetup{labelformat=empty,labelsep=none}
+\definecolor{Gray}{gray}{0.9}
+
+% Define highlitghing command
+\makeatletter
+\let\HL\hl
+\renewcommand\hl{%
+	\let\set@color\beamerorig@set@color
+	\let\reset@color\beamerorig@reset@color
+	\HL}
+\makeatother
+
+% Add overview at each begin of section
+%\AtBeginSection[]
+%{
+	%	\begin{frame}
+		%		\frametitle{Overview}
+		%		\tableofcontents[currentsection]
+		%	\end{frame}
+	%}
+
+
+\renewcommand{\arraystretch}{1.4}
+\newcommand{\ColWidth}{1}
+\newcommand{\TrimSize}{50}
+
+%----------------------------------------------------------------
+%	TITLE PAGE 	-------------------------------------------------
+%----------------------------------------------------------------
+
+\title[Bilateral Meeting]{Abaqus UMAT} 
+
+\author{Mathieu Simon}
+\institute[University of Bern]
+{
+Phd Student - Musculoskeletal Biomechanics \\
+Supervisor: Philippe Zysset \\
+}
+\medskip
+\date{April 18, 2023}
+
+\begin{document}
+	
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+	\section{Perfect Plasticity}
+
+	\begin{frame}
+		\frametitle{Perfect Plasticity}
+
+		\centering
+		\animategraphics[controls, width=\linewidth]{30}{PP/UMAT-}{000}{101}
+
+	\end{frame}
+	
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	%----------------------------------------------------------------
+	
+\end{document}

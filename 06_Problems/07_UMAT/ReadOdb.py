@@ -47,8 +47,18 @@ for S, Step in enumerate(Steps):
         U = Frames[F].fieldOutputs['U']
         RF = Frames[F].fieldOutputs['RF']
 
+        DMG = Frames[F].fieldOutputs['SDV_DMG']
+        Eel = Frames[F].fieldOutputs['E']
+        Sel = Frames[F].fieldOutputs['S']
+        Ep1 = Frames[F].fieldOutputs['SDV_EP1']
+        Ep2 = Frames[F].fieldOutputs['SDV_EP2']
+        Ep3 = Frames[F].fieldOutputs['SDV_EP3']
+        Ep4 = Frames[F].fieldOutputs['SDV_EP4']
+        Ep5 = Frames[F].fieldOutputs['SDV_EP5']
+        Ep6 = Frames[F].fieldOutputs['SDV_EP6']
+
         # Get elements deformation gradient
-        ElementsDG = np.zeros((N,22))
+        ElementsDG = np.zeros((N,41))
         for iElement, Element in enumerate(Instance.elements[:N]):
 
             # Compute element central position
@@ -71,7 +81,16 @@ for S, Step in enumerate(Steps):
             ElementsDG[iElement,1] = F
             ElementsDG[iElement,2:10] = Element.connectivity
             ElementsDG[iElement,10:13] = np.mean(XYZ,axis=0)
-            ElementsDG[iElement,13:] = F_IntegrationPoints
+            ElementsDG[iElement,13:22] = F_IntegrationPoints
+            ElementsDG[iElement,22] = DMG.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,23:29] = Eel.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,29:35] = Sel.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,35] = Ep1.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,36] = Ep2.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,37] = Ep3.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,38] = Ep4.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,39] = Ep5.getSubset(region=Element).values[0].data
+            ElementsDG[iElement,40] = Ep6.getSubset(region=Element).values[0].data
             DGList.append(ElementsDG)
         
         # Get nodes displacements/rotations and reaction forces/moments
@@ -93,7 +112,10 @@ with open('Elements.csv', 'w') as File:
     Writer = csv.writer(File)
     Writer.writerow(['Step','Frame','Node 1','Node 2','Node 3','Node 4',
                      'Node 5','Node 6','Node 7','Node 8', 'X', 'Y', 'Z',
-                     'F11','F12','F13','F21','F22','F23','F31','F32','F33'])            
+                     'F11','F12','F13','F21','F22','F23','F31','F32','F33','DMG',
+                     'E1','E2','E3','E4','E5','E6',
+                     'S1','S2','S3','S4','S5','S6',
+                     'Ep1','Ep2','Ep3','Ep4','Ep5','Ep6'])  
     for Frame in DGList:
         for Row in Frame:
             Writer.writerow(Row)
