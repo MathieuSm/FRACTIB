@@ -88,9 +88,6 @@ def PlotCube(Nodes, R, Values, FName):
 
     return
 
-#%% Classes
-# Define classes
-
 
 #%% Main
 # Main code
@@ -98,8 +95,8 @@ def PlotCube(Nodes, R, Values, FName):
 def Main():
 
     # Read data
-    Nodes = pd.read_csv('Nodes.csv')
-    Elements = pd.read_csv('Elements.csv')
+    Nodes = pd.read_csv('Nodes_PP.csv')
+    Elements = pd.read_csv('Elements_PP.csv')
 
     # UMAT values
     E0 = 0.009
