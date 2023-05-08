@@ -484,8 +484,8 @@ C
       IF (PBVT.GT.0.0D0.AND.PBVC.GT.0.0D0) THEN
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
-        PYFL   = 2
-        DENSFL = 1
+        PYFL   = 1
+        DENSFL = 0
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -496,7 +496,7 @@ C       POSTYIELD PARAMETERS (KMAX to be scaled)
         ND     = 2.0D0
 C
 C       DENSITY-BASED DENSIFICATION PARAMETERS
-        ECRIT = -0.1D0
+        ECRIT = -0.3D0
         GAMMAL0 = 1100.0D0
         RL = 2.928D0
         GAMMAP0 = 1300.0D0
@@ -691,8 +691,8 @@ C
 C      
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
-        PYFL   = 2
-        DENSFL = 1
+        PYFL   = 1
+        DENSFL = 0
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -703,7 +703,7 @@ C       POSTYIELD PARAMETERS (KMAX to be scaled)
         ND     = 2.0D0
 C
 C       DENSITY-BASED DENSIFICATION PARAMETERS
-        ECRIT = -0.1D0
+        ECRIT = -0.3D0
         GAMMAL0 = 1100.0D0
         RL = 2.928D0
         GAMMAP0 = 1300.0D0
@@ -813,8 +813,8 @@ C     DENSITY-BASED TRANSVERSELY ISOTROPIC COMPACT BONE, MAIN DIRECTION 3
 C     ___________________________________________________________________
 C       FLAGS
         VISCFL = 0
-        PYFL   = 2
-        DENSFL = 1
+        PYFL   = 1
+        DENSFL = 0
 C
 C
 C       POSTYIELD PARAMETERS
@@ -826,7 +826,7 @@ C       POSTYIELD PARAMETERS
         ND     = 2.0D0
 C
 C       DENSITY-BASED DENSIFICATION PARAMETERS
-        ECRIT = -0.1D0
+        ECRIT = -0.3D0
         GAMMAL0 = 1100.0D0
         RL = 2.928D0
         GAMMAP0 = 1300.0D0
@@ -1427,8 +1427,7 @@ C
 C     CALCULATE THE DENSIFICATION STRESS AND TANGENT           
 C     __________________________________________________________________
 C 
-C        TRACEEN = ETOT1(1)+ETOT1(2)+ETOT1(3)
-        TRACEEN = ETOT1(3)
+        TRACEEN = ETOT1(1)+ETOT1(2)+ETOT1(3)
 C 
         CRITERION = TRACEEN-ECRIT
 C 
