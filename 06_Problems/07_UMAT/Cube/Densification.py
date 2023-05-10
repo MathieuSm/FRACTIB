@@ -1,21 +1,3 @@
-#%% #!/usr/bin/env python3
-# Initialization
-
-Version = '01'
-
-Description = """
-    Read output of ReadOdb.py and plot results
-
-    Version Control:
-        01 - Original script
-
-    Author: Mathieu Simon
-            ARTORG Center for Biomedical Engineering Research
-            SITEM Insel, University of Bern
-
-    Date: May 2023
-    """
-
 #%% Imports
 # Modules import
 
