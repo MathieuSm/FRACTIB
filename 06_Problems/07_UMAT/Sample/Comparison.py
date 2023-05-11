@@ -47,12 +47,13 @@ def Main():
     plt.show()
 
         
-    SS_0X = pd.read_csv('RefNode.csv')
+    SS_X = pd.read_csv('RefNode.csv')
+    Exp = pd.read_csv('../../../04_Results/02_Experiment/455_L_97_F/MatchedSignals.csv')
 
     Figure, Axis = plt.subplots(1,1)
-    Axis.plot(SS['Uz'], SS['Fz']/1E3, color=(0,0,1), label='Simple Softening')
-    Axis.plot(SS_NL['Uz'], SS_NL['Fz']/1E3, color=(0,0,1), linestyle='--', label='NL Simple Softening')
-    Axis.plot(SS_0X['Uz'], SS_0X['Fz']/1E3, color=(1,0,0), label='NL Simple Softening 0X')
+    Axis.plot(Exp['Z'], -Exp['FZ']/1E3, color=(0,0,1), label='Experiment')
+    Axis.plot(SS_X['Uz'], SS_X['Fz']/1E3, color=(1,0,0), label='Simple Softening')
+    Axis.plot(PP_NL['Uz'], PP_NL['Fz']/1E3, color=(1,0,0), linestyle='--', label='Perfect Plasticity')
     Axis.set_xlabel('Displacement (mm)')
     Axis.set_ylabel('Force (kN)')
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.1))

@@ -460,7 +460,8 @@ C
 C     YIELD/STRENGTH RATIO
 C     Adapted Denis 2018: RDY = 0.7D0+0.29D0*(PHIC/(PHIC+PHIT)) BEFORE: RDY = 0.7D0
 C     Only for accurate HFE! PYFL = 5!
-      RDY = 0.7D0
+C      RDY = 0.7D0
+      RDY = 0.2D0
 C
 C     TO BE FITTED
 C     SCA1 stiffness parameters
@@ -469,7 +470,8 @@ C     SCA2 strength parameters
       SCA2 = 0.78010
 C      SCA3 = 0.75D0
 C      SCA4 = 1.6D0
-      KMAX = 0.01D0
+C      KMAX = 0.01D0
+      KMAX = 0.04D0
 C    
 C     _______________________________________________________________
 C

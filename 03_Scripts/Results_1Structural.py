@@ -82,6 +82,7 @@ def Main():
                     [FEAData['FZ'] / 1E3, -ExpData['FZ'] / 1E3],
                     Axes=['Displacement (mm)', 'Force (kN)'],
                     Labels=['hFE','Experiment'])
+        Show.FName = None
         
         # Store stiffess, force at max(ExpForce), max displacement
         Data.loc[Index]['Experiment',Variables[0]] = ExpData['Z'].max()

@@ -9,6 +9,7 @@ Description = """
 
     Version Control:
         01 - Original script
+        02 - Modify to loop over all samples
 
     Author: Mathieu Simon
             ARTORG Center for Biomedical Engineering Research
@@ -30,60 +31,58 @@ from Utils import *
 
 def Main(Arguments):
 
-    Text = 'Run ' + Arguments.Sample
-    Time.Process(1, Text)
-
     # Set working directory
-    CWD, DD, SD, RD = SetDirectories(Arguments.Folder)
-    FEADir = RD / '03_hFE' / Arguments.Sample
-    os.chdir(str(FEADir))
+    CWD, DD, SD, RD = SetDirectories('FRACTIB')
+    SampleList = pd.read_csv(str(DD / 'SampleList.csv'))
 
-    # Build some variables
-    if hasattr(Arguments, 'InputFile'):
-        InputFile = Arguments.InputFile
-    else:
-        InputFile = 'Simulation.inp'
+    for Sample in SampleList['Internal ID']:
 
-    # Absolutely necessary to start abaqus job
-    try:
-        os.environ.pop('PYTHONIOENCODING')
-    except KeyError:
-        pass
+        Text = 'Run ' + Sample
+        Time.Process(1, Text)
 
-    # Write script
-    Script = '''
+        FEADir = RD / '03_hFE' / Sample
+        os.chdir(str(FEADir))
+        
+        # Absolutely necessary to start abaqus job
+        try:
+            os.environ.pop('PYTHONIOENCODING')
+        except KeyError:
+            pass
+
+        # Write script
+        Script = '''
 #!/bin/bash
 abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete=OFF
 '''
-    
-    Context = {'Job':'Simulation',
-               'InputFile':InputFile,
-               'UMAT':str(SD / Arguments.UMAT),
-               'nCPUs':Arguments.nCPUs}
+        
+        Context = {'Job':'Simulation',
+                'InputFile':Arguments.Input,
+                'UMAT':str(SD / Arguments.UMAT),
+                'nCPUs':Arguments.CPUs}
 
-    FileName = 'Run.sh'
-    with open(FileName, 'w') as File:
-        File.write(Script.format(**Context))
+        FileName = 'Run.sh'
+        with open(FileName, 'w') as File:
+            File.write(Script.format(**Context))
 
-    # Run simulation with script
-    try:
-        sh.bash(str(FEADir / FileName))
-        Completed = True
-    except:
-        Completed = False
-        print('Analysis not completed')
+        # Run simulation with script
+        try:
+            sh.bash(str(FEADir / FileName))
+            Completed = True
+        except:
+            Completed = False
+            print('Analysis not completed')
 
-    if Completed:
-        # Remove unnecessary files
-        os.remove('Simulation.com')
-        os.remove('Simulation.msg')
-        os.remove('Simulation.odb')
-        os.remove('Simulation.prt')
-        os.remove('Simulation.sim')
-        os.remove('Simulation.sta')
+        if Completed:
+            # Remove unnecessary files
+            os.remove('Simulation.com')
+            os.remove('Simulation.msg')
+            os.remove('Simulation.dat')
+            os.remove('Simulation.prt')
+            os.remove('Simulation.sim')
+            os.remove('Simulation.sta')
 
-    # Print time
-    Time.Process(0)
+        # Print time
+        Time.Process(0)
 
     return
 
@@ -99,11 +98,10 @@ if __name__ == '__main__':
     SV = Parser.prog + ' version ' + Version
     Parser.add_argument('-V', '--Version', help='Show script version', action='version', version=SV)
     Parser.add_argument('-F', '--Folder', help='Root folder of the project', default='FRACTIB', type=str)
-    Parser.add_argument('-I', '--Input', help='Input file for abaqus', type=str)
+    Parser.add_argument('-I', '--Input', help='Input file for abaqus', default='Simulation.inp')
     Parser.add_argument('-U', '--UMAT', help='UMAT used for simulation', default='UMAT.f', type=str)
-    Parser.add_argument('-N', '--CPUs', help='Number of CPUs to use', default=4, type=int)
+    Parser.add_argument('-N', '--CPUs', help='Number of CPUs to use', default=42, type=int)
 
-    Parser.add_argument('Sample', help='Sample for which run simulation (required)', type=str)
 
     # Read arguments from the command line
     Arguments = Parser.parse_args()

@@ -80,52 +80,21 @@ def Main():
     Nodes = pd.read_csv('Nodes.csv')
     Elements = pd.read_csv('Elements.csv')
 
-    Figure, Axis = plt.subplots(1,1)
-    Axis.plot(Elements['E3'], Elements['S3'], color=(1,0,0))
-    plt.show()
-
     # UMAT values
-    E0 = 0.009
+    Elim = 0.009
     SCA1 = 0.9419
     SCA2 = 0.7801
-    EAA = 24578.5*(16000.0/24578.5)*SCA1
-    SIGDAN = 268.00*(16000.0/24578.5)*SCA2
-    SIGDAP = 176.40*(16000.0/24578.5)*SCA2
-
-    # Damage parameters (WOLFRAM J BIOMECH 2011)
-    KONSTD = 8.0075
-    CRITD  = 0.85
-
-    # Simple softening
-    RDY = 0.7
-    KSLOPE = 300.0
-    KWIDTH = 8.0
-    KMIN   = 0.10
-    GMIN   = -2.0
-    EXPS   = 300.0
-    ND     = 2.0
-    KMAX = 0.01
-
-    OFFS = 1.0/KWIDTH
-
-    KAPPA = -np.log(-Elements['DMG'] / CRITD + 1.0) / KONSTD
-    RADK = RDY+(1.0-RDY)*(np.exp(-((KAPPA-KMAX)**2)/(KWIDTH*KMAX**2))-np.exp(-OFFS-KSLOPE*KAPPA))
+    E0  = 9759.0*(12000.0/9759.0)*SCA1
+    SIGD0N = 73.1*(12000.0/9759.0)*SCA2
+    SIGD0P = 57.69*(12000.0/9759.0)*SCA2
 
     # Densification
-    ECRIT = -0.1
+    ECRIT = -0.3
     GAMMAL0 = 1100.0
     RL = 2.928
     GAMMAP0 = 1300.0
     RP = 2.77
     POWERDNS = 6.0
-
-    # Compute reduced modulus
-    Er = EAA * (1 - Elements['DMG'].max())
-    dS = (SIGDAN + SIGDAP) * np.array(RADK)[-1]
-    dE = dS / Er
-
-    # Compute reduced yield
-    YS = RADK * SIGDAN
 
     # Compute densification
     TRACEEN = Elements['E1']+Elements['E2']+Elements['E3']
@@ -140,24 +109,25 @@ def Main():
         for K2 in range(3):
             SDNST[:,K1,K2] = (GAMMAL*CRITERION+GAMMAP* CRITERION**(POWERDNS-1.0))*XIDEN[K1,K2]
 
+    # Elastic trial stress
+    STR = (1.0D0-DAM(KAPPA0,KONSTD,CRITD))*MATMUL(SSSS,ETOT1-EPLAS0)
+
+    # Transversly isotropic quadratic second order tensor FF
+    FFC = np.zeros((3,3))
+    FFC[1,1] = -(SIGD0P-SIGD0N)/2.0/SIGD0P/SIGD0N
+    FFC[2,2] = -(SIGD0P-SIGD0N)/2.0/SIGD0P/SIGD0N
+    FFC[3,3] = -(SIGDAP-SIGDAN)/2.0/SIGDAP/SIGDAN
+    FFC    = FFC/BVTV**PP
+
+    # Yield criterion
+    RAD  = RADK(PYFL,KSLOPE,KMAX,KWIDTH,RDY,KAPPA0,KMIN,GMIN,ND,EXPS)
+    FFS  = MATMUL(FFFF,STR)
+    SFFS = DOT_PRODUCT(STR,FFS)
+    YSTR = DSQRT(SFFS)+DOT_PRODUCT(FF,STR)-RAD
+
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(Elements['E3'], Elements['S3'], color=(1,0,0), linewidth=2, label='Abaqus Results')
-    Axis.plot([Elements['E3'].min(), Elements['E3'].max()],
-              np.array([SIGDAP, SIGDAP]) * RADK.values[-1],
-               linestyle='-.', linewidth=1, color=(0,0,0))
-    Axis.plot([Elements['E3'].min(), Elements['E3'].max()],
-              [-SIGDAN, -SIGDAN],
-               linestyle='-.', linewidth=1, color=(0,0,0), label='UMAT $\sigma_0^-$ / $\sigma_0^+$')
-    Axis.plot(-np.linspace(0,E0), -np.linspace(0,E0) * EAA,
-              color=(0,0,0), linestyle=':', linewidth=1, label='UMAT Modulus')
-    Axis.plot([-E0, -E0], [0, -SIGDAN],
-              color=(0,0,0), linestyle='--', linewidth=1, label='Article $\epsilon_0^-$')
-    Axis.plot(Elements.loc[:Elements['E3'].idxmin(),'E3'],
-              -YS.loc[:Elements['E3'].idxmin()],
-              color=(0,0,1), linewidth=1, linestyle='--', label='UMAT Softening')
-    Axis.plot(np.linspace(0, dE) + Elements['E3'].min(),
-              np.linspace(0, dE) * Er - SIGDAN * np.array(RADK)[-1],
-              color=(0,0,0), linestyle='-', linewidth=1, label='UMAT dModulus')
+    Axis.plot([ECRIT, ECRIT], [0, -1.5], color=(0,0,0), linewidth=1, linestyle='--', label='E$_c$')
     Axis.set_xlabel('Strain (-)') # Height of 1 mm -> direct conversion
     Axis.set_ylabel('Stress (MPa)') # Surface of 1 mm2 -> direct conversion
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.2))

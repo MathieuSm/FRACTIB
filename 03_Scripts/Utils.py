@@ -2243,7 +2243,7 @@ class Signal():
 def NumbaMaxSlope(Xdata, Ydata, WindowWidth, StepSize):
 
     Slopes = []
-    Iterations = round((len(Xdata) - WindowWidth) / StepSize - 1)
+    Iterations = round((len(Xdata) - WindowWidth) / StepSize)
     
     for i in range(Iterations):
 
