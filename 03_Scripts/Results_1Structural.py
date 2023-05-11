@@ -103,7 +103,7 @@ def Main():
         Y = FEAData.loc[:FEAData['FZ'].idxmax(), 'FZ']
         Data.loc[Index]['hFE',Variables[2]] = Signal.MaxSlope(X, Y, WindowWidth)
 
-    Show.ShowPlot = True
+    # Show.ShowPlot = True
     Show.FName = str(RD / '05_Comparison' / ('UltimateLoad.png')) 
     Show.OLS(Data['Experiment',Variables[1]].astype('float') / 1E3,
              Data['hFE',Variables[1]].astype('float') / 1E3,

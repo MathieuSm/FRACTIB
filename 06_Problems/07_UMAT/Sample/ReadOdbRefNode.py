@@ -19,7 +19,6 @@ N = len(Instance.elements)
 Node = Instance.nodes[-1]
 
 # Iterate over each step and frame
-DGList = []
 UFList = []
 Steps = Odb.steps.keys()
 for S, Step in enumerate(Steps):
