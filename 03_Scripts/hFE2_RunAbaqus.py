@@ -58,7 +58,7 @@ abaqus interactive job={Job} inp={InputFile} user={UMAT} cpus={nCPUs} ask_delete
         Context = {'Job':'Simulation',
                 'InputFile':Arguments.Input,
                 'UMAT':str(SD / Arguments.UMAT),
-                'nCPUs':Arguments.nCPUs}
+                'nCPUs':Arguments.CPUs}
 
         FileName = 'Run.sh'
         with open(FileName, 'w') as File:
