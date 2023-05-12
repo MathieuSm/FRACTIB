@@ -70,23 +70,6 @@ def PlotCube(Nodes, R, Values, FName):
 
     return
 
-def MATMUL(A66, B6i):
-
-    B66 = np.zeros((6,6,B6i.shape[1]))
-    B66[0,0] = B6i[0]
-    B66[1,1] = B6i[1]
-    B66[2,2] = B6i[2]
-    B66[0,1] = B6i[3]
-    B66[0,2] = B6i[4]
-    B66[1,2] = B6i[5]
-    B66[1,0] = B66[0,1]
-    B66[0,2] = B66[2,0]
-    B66[2,1] = B66[1,2]
-
-    C66 = np.matmul(A66, B66)
-
-    return C66
-
 #%% Main
 # Main code
 
@@ -142,22 +125,6 @@ def Main():
         for K2 in range(3):
             SDNST[:,K1,K2] = (GAMMAL*CRITERION+GAMMAP* CRITERION**(POWERDNS-1.0))*XIDEN[K1,K2]
 
-    # Stiffness tensor SSSS
-    SSSST = np.zeros((6,6))
-    SSSST[0,0] = E0*(1.0-V0)/(1.0+V0)/(1.0-2.0*V0)*MM1**(2.0*LS)*(BVTV**KS)
-    SSSST[1,1] = E0*(1.0-V0)/(1.0+V0)/(1.0-2.0*V0)*MM2**(2.0*LS)*(BVTV**KS)
-    SSSST[2,2] = E0*(1.0-V0)/(1.0+V0)/(1.0-2.0*V0)*MM3**(2.0*LS)*(BVTV**KS)
-    SSSST[3,3] = 2.0*MU0*(MM1**LS)*(MM2**LS)*(BVTV**KS)
-    SSSST[4,4] = 2.0*MU0*(MM3**LS)*(MM1**LS)*(BVTV**KS)
-    SSSST[5,5] = 2.0*MU0*(MM2**LS)*(MM3**LS)*(BVTV**KS)
-    SSSST[1,0] = E0*V0/(1.0+V0)/(1.0-2.0*V0)*(MM1**LS)*(MM2**LS)*(BVTV**KS)
-    SSSST[2,0] = E0*V0/(1.0+V0)/(1.0-2.0*V0)*(MM3**LS)*(MM1**LS)*(BVTV**KS)
-    SSSST[2,1] = E0*V0/(1.0+V0)/(1.0-2.0*V0)*(MM2**LS)*(MM3**LS)*(BVTV**KS)
-    SSSST[0,1] = SSSST[1,0]
-    SSSST[0,2] = SSSST[2,0]
-    SSSST[1,2] = SSSST[2,1]
-    SSSS = SSSST*PBVT
-
     # Elastic trial stress
     STR = np.zeros((6,len(Elements)))
     for i in range(6):
@@ -197,9 +164,9 @@ def Main():
 
     # Yield criterion
     RAD  = 1.0 # Perfect plasticity
-    FFS  = MATMUL(FFFF,STR)
-    SFFS = np.dot(STR[:,10],FFS[:,:,10])
-    YSTR = np.sqrt(SFFS)+np.dot(FF,STR)-RAD
+    FFS  = np.matmul(FFFF,STR)
+    SFFS = np.sum(STR * FFS, axis=0)
+    YSTR = np.sqrt(SFFS) + np.sum(FF * STR.T, axis=1) - RAD
 
     Figure, Axis = plt.subplots(1,1)
     Axis.plot(Elements['E3'], Elements['S3'], color=(1,0,0), linewidth=2, label='Abaqus Results')
