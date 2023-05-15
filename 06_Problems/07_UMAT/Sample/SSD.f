@@ -486,8 +486,8 @@ C
       IF (PBVT.GT.0.0D0.AND.PBVC.GT.0.0D0) THEN
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
-        PYFL   = 0
-        DENSFL = 0
+        PYFL   = 2
+        DENSFL = 1
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -693,8 +693,8 @@ C
 C      
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
-        PYFL   = 0
-        DENSFL = 0
+        PYFL   = 2
+        DENSFL = 1
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -815,8 +815,8 @@ C     DENSITY-BASED TRANSVERSELY ISOTROPIC COMPACT BONE, MAIN DIRECTION 3
 C     ___________________________________________________________________
 C       FLAGS
         VISCFL = 0
-        PYFL   = 0
-        DENSFL = 0
+        PYFL   = 2
+        DENSFL = 1
 C
 C
 C       POSTYIELD PARAMETERS

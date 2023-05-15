@@ -487,7 +487,7 @@ C
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
         PYFL   = 0
-        DENSFL = 0
+        DENSFL = 1
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -694,7 +694,7 @@ C
 C       FLAGS (See above YIELD/STRENGTH RATIO)
         VISCFL = 0
         PYFL   = 0
-        DENSFL = 0
+        DENSFL = 1
 C
 C       POSTYIELD PARAMETERS (KMAX to be scaled)
         KSLOPE = 1000.D0
@@ -816,7 +816,7 @@ C     ___________________________________________________________________
 C       FLAGS
         VISCFL = 0
         PYFL   = 0
-        DENSFL = 0
+        DENSFL = 1
 C
 C
 C       POSTYIELD PARAMETERS

@@ -20,8 +20,55 @@ Description = """
 #%% Imports
 # Modules import
 
+import mpld3
 import argparse
 import numpy as np
+import sympy as sp
+import matplotlib.pyplot as plt
+
+mpld3.enable_notebook()
+%matplotlib widget
+
+#%% Functions
+# Define functions
+
+def PlotSurface(X, Y, Z):
+
+    Figure = plt.figure(figsize=(5.5, 4))
+    Axis = Figure.add_subplot(111, projection='3d')
+    Axis.plot_surface(X, Y, Z, cmap='jet')
+
+    # Scaling hack
+    Bbox_min = np.nanmin([X, Y, Z])
+    Bbox_max = np.nanmax([X, Y, Z])
+    Axis.auto_scale_xyz([Bbox_min, Bbox_max], [Bbox_min, Bbox_max], [Bbox_min, Bbox_max])
+
+    # Make the panes transparent
+    Axis.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    Axis.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    Axis.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+
+    # Make the grid lines transparent
+    Axis.xaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+    Axis.yaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+    Axis.zaxis._axinfo["grid"]['color'] = (1, 1, 1, 0)
+
+    # # Modify ticks
+    # MinX, MaxX = -1, 1
+    # MinY, MaxY = -1, 1
+    # MinZ, MaxZ = -1, 1
+    # Axis.set_xticks([MinX, 0, MaxX])
+    # Axis.set_yticks([MinY, 0, MaxY])
+    # Axis.set_zticks([MinZ, 0, MaxZ])
+    # Axis.xaxis.set_ticklabels([MinX, 0, MaxX])
+    # Axis.yaxis.set_ticklabels([MinY, 0, MaxY])
+    # Axis.zaxis.set_ticklabels([MinZ, 0, MaxZ])
+
+    Axis.set_xlabel('S11')
+    Axis.set_ylabel('S22')
+    Axis.set_zlabel('S33')
+
+    plt.show()
 
 
 #%% Main
@@ -43,8 +90,7 @@ def Main():
     MM3 = 1
 
     # Variables for surface visualisation
-    r = 0.4;
-
+    r = 0.4
 
     # Initialise Fabric Tensors
     F = np.zeros((6,6))
@@ -66,26 +112,20 @@ def Main():
     F2[1] = -(SIGD0P-SIGD0N)/2/SIGD0P/SIGD0N/(rho^pp*MM2**(2*qq))
     F2[2] = -(SIGD0P-SIGD0N)/2/SIGD0P/SIGD0N/(rho^pp*MM3**(2*qq))
 
-
     # Projection in the S1 S2 S3 space
-    X = np.linspace(-r,r)
-    Y = np.linspace(-r,r)
-    X, Y = np.meshgrid(X, Y)
-
-    # Solution by WolframAlpha for a projection into the x,y,z space
+    X = np.linspace(-r, r)
+    Y = np.linspace(-r, r)
+    X, Y = np.meshgrid(X,Y)
     P1 = (-2*F[0,2]*X - 2*F[1,2]*Y + 2*F2[0]*F2[2]*X + 2*F2[1]*F2[2]*Y - 2*F2[2])**2 - 4*(F2[2]**2 - F[2,2]) * (-F[0,0]*X**2 - F[1,1]*Y**2 - 2*F[0,2]*X*Y + F2[0]**2*X**2 + 2*F2[0]*F2[1]*X*Y - 2*F2[0]*X + F2[1]**2*Y**2 - 2*F2[1]*Y + 1)
     P2 = 2*F[0,2]*X + 2*F[1,2]*Y - 2*F2[0]*F2[2]*X - 2*F2[2]*F2[2]*Y + 2*F2[2]
-    Z = (np.sqrt(P1) + P2)/(2*(F2[2]**2 - F[2,2]))
-    Mask = ~np.isnan(Z)
+    Z1 = (-np.sqrt(P1) + P2)/(2*(F2[2]**2 - F[2,2]))
+    Z2 = (np.sqrt(P1) + P2)/(2*(F2[2]**2 - F[2,2]))
 
+    Xc = np.concatenate([X, X])
+    Yc = np.concatenate([Y, Y])
+    Zc = np.concatenate([Z1, Z2])
 
-
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    surf = ax.plot_surface(X*Mask, Y*Mask, Z*Mask, cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False)
-    surf = ax.plot_surface(X, Y, Z2, cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False)
-
+    PlotSurface(Xc, Yc, Zc)
 
     return
 
