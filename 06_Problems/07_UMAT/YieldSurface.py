@@ -27,7 +27,7 @@ import sympy as sp
 import matplotlib.pyplot as plt
 
 mpld3.enable_notebook()
-%matplotlib widget
+%matplotlib widget   # type:ignore
 
 #%% Functions
 # Define functions
