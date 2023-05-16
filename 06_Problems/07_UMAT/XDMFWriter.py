@@ -1,13 +1,11 @@
 import os
 import pathlib
-from enum import StrEnum
+from strenum import StrEnum
 from xml.dom import minidom
 
 import h5py
 import numpy as np
 from numpy.typing import ArrayLike
-
-from ._version import version  # noqa: F401
 
 
 class ElementType(StrEnum):
@@ -105,7 +103,7 @@ class Field:
     def __iter__(self):
         return iter(self.__list__())
 
-    def relpath(self, path: str | pathlib.Path) -> str:
+    def relpath(self, path: str) -> str:
         """
         Change the path of the HDF5-file to a path relative to another file (the XDMF-file).
         :param path: Path to make the file relative to.
@@ -270,7 +268,7 @@ class File:
     def __list__(self) -> list[str]:
         return _asfile(self.lines)
 
-    def __add__(self, content: Field | list[str] | str):
+    def __add__(self, content: Field):
         """
         Add content to file.
         :param content: Content to add.
@@ -379,7 +377,7 @@ class TimeSeries(File):
         self.start = []
         self.settings = []
 
-    def __add__(self, other: TimeStep | Field | list[str] | str):
+    def __add__(self, other: TimeStep):
 
         if isinstance(other, TimeStep):
             self.start += [len(self.lines)]
@@ -431,7 +429,7 @@ class _Grid(Field):
     def __iter__(self):
         return iter(self.__list__())
 
-    def relpath(self, path: str | pathlib.Path):
+    def relpath(self, path: str):
         self.geometry.relpath(path)
         self.topology.relpath(path)
 
