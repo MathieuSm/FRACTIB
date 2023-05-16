@@ -1,0 +1,66 @@
+<?xml version="1.0" ?><Xdmf Version="3.0">	
+	<Domain>		
+		<Grid CollectionType="Temporal" GridType="Collection" Name="TimeSeries">			
+			<Grid Name="Increment 0">				
+				<Time Value="0"/>				
+				<Geometry GeometryType="XYZ">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/coor </DataItem>					
+				</Geometry>				
+				<Topology NumberOfElements="2" TopologyType="Hexahedron">					
+					<DataItem Dimensions="2 8" Format="HDF"> WriteXDMF.h5:/conn </DataItem>					
+				</Topology>				
+				<Attribute AttributeType="Vector" Center="Node" Name="Displacement">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/disp/0 </DataItem>					
+				</Attribute>				
+				<Attribute AttributeType="Scalar" Center="Cell" Name="Stress">					
+					<DataItem Dimensions="2" Format="HDF"> WriteXDMF.h5:/stress/0 </DataItem>					
+				</Attribute>				
+			</Grid>			
+			<Grid Name="Increment 1">				
+				<Time Value="1"/>				
+				<Geometry GeometryType="XYZ">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/coor </DataItem>					
+				</Geometry>				
+				<Topology NumberOfElements="2" TopologyType="Hexahedron">					
+					<DataItem Dimensions="2 8" Format="HDF"> WriteXDMF.h5:/conn </DataItem>					
+				</Topology>				
+				<Attribute AttributeType="Vector" Center="Node" Name="Displacement">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/disp/1 </DataItem>					
+				</Attribute>				
+				<Attribute AttributeType="Scalar" Center="Cell" Name="Stress">					
+					<DataItem Dimensions="2" Format="HDF"> WriteXDMF.h5:/stress/1 </DataItem>					
+				</Attribute>				
+			</Grid>			
+			<Grid Name="Increment 2">				
+				<Time Value="2"/>				
+				<Geometry GeometryType="XYZ">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/coor </DataItem>					
+				</Geometry>				
+				<Topology NumberOfElements="2" TopologyType="Hexahedron">					
+					<DataItem Dimensions="2 8" Format="HDF"> WriteXDMF.h5:/conn </DataItem>					
+				</Topology>				
+				<Attribute AttributeType="Vector" Center="Node" Name="Displacement">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/disp/2 </DataItem>					
+				</Attribute>				
+				<Attribute AttributeType="Scalar" Center="Cell" Name="Stress">					
+					<DataItem Dimensions="2" Format="HDF"> WriteXDMF.h5:/stress/2 </DataItem>					
+				</Attribute>				
+			</Grid>			
+			<Grid Name="Increment 3">				
+				<Time Value="3"/>				
+				<Geometry GeometryType="XYZ">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/coor </DataItem>					
+				</Geometry>				
+				<Topology NumberOfElements="2" TopologyType="Hexahedron">					
+					<DataItem Dimensions="2 8" Format="HDF"> WriteXDMF.h5:/conn </DataItem>					
+				</Topology>				
+				<Attribute AttributeType="Vector" Center="Node" Name="Displacement">					
+					<DataItem Dimensions="12 3" Format="HDF"> WriteXDMF.h5:/disp/3 </DataItem>					
+				</Attribute>				
+				<Attribute AttributeType="Scalar" Center="Cell" Name="Stress">					
+					<DataItem Dimensions="2" Format="HDF"> WriteXDMF.h5:/stress/3 </DataItem>					
+				</Attribute>				
+			</Grid>			
+		</Grid>		
+	</Domain>	
+</Xdmf>
