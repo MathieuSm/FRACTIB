@@ -211,6 +211,28 @@ def Main():
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.1))
     plt.show()
 
+    # Compare deformation fields
+    Columns = ['X','Y','Z','F11','F12','F13','F21','F22','F23','F31','F32','F33']
+    ElementsDG = pd.read_csv('Elements_DG.csv', names=Columns)
+
+    # Build arrays
+    X = np.unique(ElementsDG['X'].values)
+    Y = np.unique(ElementsDG['Y'].values)
+    Z = np.unique(ElementsDG['Z'].values)
+
+    F = np.zeros((len(Z),len(Y),len(X),9))
+    for Index in ElementsDG.index:
+        
+        Element = ElementsDG.loc[Index]
+        X_Index = list(X).index(Element['X'])
+        Y_Index = list(Y).index(Element['Y'])
+        Z_Index = list(Z).index(Element['Z'])
+        
+        F[Z_Index,Y_Index,X_Index] = Element[Columns[3:]].values
+
+    # Decompose deformation
+    SphericalCompression, IsovolumicDeformation = DecomposeJacobian(F)
+
     return
 
 #%% Execution part
